@@ -33,9 +33,9 @@ const navItems: NavItem[] = [
 ];
 
 const placeholderWorkspaces = [
-  { name: 'Product Launch', color: '#2563EB' },
-  { name: 'Q3 Planning', color: '#16A34A' },
-  { name: 'Design System', color: '#D97706' },
+  { name: 'Product Launch', slug: 'product-launch', colorVar: 'var(--status-blue)' },
+  { name: 'Q3 Planning', slug: 'q3-planning', colorVar: 'var(--status-green)' },
+  { name: 'Design System', slug: 'design-system', colorVar: 'var(--status-yellow)' },
 ];
 
 interface AppShellProps {
@@ -154,11 +154,13 @@ export default function AppShell({ children }: AppShellProps) {
                 key={ws.name}
                 icon={<div
                   className="h-2 w-2 rounded-[var(--radius-sm)]"
-                  style={{ backgroundColor: ws.color }}
+                  style={{ backgroundColor: ws.colorVar }}
                   data-icod-id={`src_components_layout_appshell_tsx_73ad_${ws.name}`} />}
                 label={ws.name}
                 collapsed={collapsed}
-                colorDot={ws.color}
+                colorDot={ws.colorVar}
+                active={location.pathname === `/workspaces/${ws.slug}`}
+                to={`/workspaces/${ws.slug}`}
                 data-icod-id={`src_components_layout_appshell_tsx_55ae_${ws.name}`} />
             ))}
           </div>
@@ -186,7 +188,7 @@ export default function AppShell({ children }: AppShellProps) {
                 className="h-4 w-4"
                 data-icod-id="src_components_layout_appshell_tsx_ccf2" />}
               placeholder="Search..."
-              size="sm"
+              size="md"
               data-icod-id="src_components_layout_appshell_tsx_1e85" />
           </div>
 

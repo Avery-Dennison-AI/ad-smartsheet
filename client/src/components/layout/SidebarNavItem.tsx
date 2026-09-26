@@ -13,6 +13,9 @@ interface SidebarNavItemProps {
   colorDot?: string;
 }
 
+const focusRingClasses =
+  'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]';
+
 export default function SidebarNavItem({
   icon,
   label,
@@ -24,7 +27,7 @@ export default function SidebarNavItem({
 }: SidebarNavItemProps) {
   const baseClasses = cn(
     'flex items-center rounded-[var(--radius-md)] transition-colors duration-150',
-    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-primary)]',
+    focusRingClasses,
   );
 
   if (collapsed) {
@@ -56,23 +59,16 @@ export default function SidebarNavItem({
     const wrapped = to ? (
       <Link
         to={to}
-        className="block w-full"
+        className={cn('block w-full', focusRingClasses)}
         data-icod-id="src_components_layout_sidebarnavitem_tsx_2a53">{inner}</Link>
     ) : (
-      <span
-        role="button"
-        tabIndex={0}
-        className="block w-full cursor-pointer"
+      <button
+        type="button"
+        className={cn('appearance-none bg-transparent border-0 p-0 text-left w-full cursor-default', focusRingClasses)}
         onClick={onClick}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onClick?.();
-          }
-        }}
         data-icod-id="src_components_layout_sidebarnavitem_tsx_8338">
         {inner}
-      </span>
+      </button>
     );
 
     return (
@@ -117,25 +113,18 @@ export default function SidebarNavItem({
     return (
       <Link
         to={to}
-        className="block w-full"
+        className={cn('block w-full', focusRingClasses)}
         data-icod-id="src_components_layout_sidebarnavitem_tsx_c18b">{inner}</Link>
     );
   }
 
   return (
-    <span
-      role="button"
-      tabIndex={0}
-      className="block w-full cursor-pointer"
+    <button
+      type="button"
+      className={cn('appearance-none bg-transparent border-0 p-0 text-left w-full cursor-default', focusRingClasses)}
       onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick?.();
-        }
-      }}
       data-icod-id="src_components_layout_sidebarnavitem_tsx_2942">
       {inner}
-    </span>
+    </button>
   );
 }

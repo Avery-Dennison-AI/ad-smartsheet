@@ -11,3 +11,4 @@ server/package-lock.json
 client/build/
 client/dist/
 server/uploads/
+*.tsbuildinfo

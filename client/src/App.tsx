@@ -5,6 +5,7 @@ import HomePage from '@/pages/HomePage';
 import RecentsPage from '@/pages/RecentsPage';
 import FavoritesPage from '@/pages/FavoritesPage';
 import DesignSystemPage from '@/pages/DesignSystemPage';
+import WorkspacePage from '@/pages/WorkspacePage';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
             <Route path="/recents" element={<RecentsPage data-icod-id="src_app_tsx_b41d" />} />
             <Route path="/favorites" element={<FavoritesPage data-icod-id="src_app_tsx_9cfc" />} />
             <Route path="/design-system" element={<DesignSystemPage data-icod-id="src_app_tsx_11f8" />} />
+            <Route path="/workspaces/:id" element={<WorkspacePage data-icod-id="src_app_tsx_55bf" />} />
           </Routes>
         </AppShell>
       </BrowserRouter>
