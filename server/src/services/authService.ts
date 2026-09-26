@@ -1,19 +1,21 @@
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { Response } from 'express';
 import User from '../models/User';
 import { env } from '../config/env';
 import { AppError } from '../utils/AppError';
-import { verifyPassword } from '../utils/password';
+import { hashPassword, verifyPassword } from '../utils/password';
 import { COOKIE_NAME, cookieLoginOptions } from '../config/cookies';
 
-// A dummy hash generated once at module load for timing-safe rejection.
+// Lazy-initialised dummy hash for timing-safe rejection.
 // When no user is found or the user is inactive, we compare against this
 // instead of skipping bcrypt.compare entirely, preventing timing attacks.
-const DUMMY_HASH: string = await bcrypt.hash(
-  'a1b2c4470002c467cfe3b0f7dummyhash',
-  12,
-);
+let _dummyHashPromise: Promise<string> | null = null;
+function getDummyHash(): Promise<string> {
+  if (!_dummyHashPromise) {
+    _dummyHashPromise = hashPassword('__dummy_password_that_never_matches__');
+  }
+  return _dummyHashPromise;
+}
 
 interface LoginResult {
   user: { id: string; fullName: string; email: string; role: string };
@@ -30,8 +32,8 @@ export async function loginUser(email: string, password: string, _ip?: string): 
 
   const user = await User.findOne({ email: normalizedEmail }).select('+passwordHash');
 
-  // Use real hash if user exists and is active, otherwise use DUMMY_HASH
-  const hashToCompare = user && user.isActive ? user.passwordHash : DUMMY_HASH;
+  // Use real hash if user exists and is active, otherwise use lazy dummy hash
+  const hashToCompare = user && user.isActive ? user.passwordHash : await getDummyHash();
   const match = await verifyPassword(password, hashToCompare);
 
   if (!match || !user || !user.isActive) {

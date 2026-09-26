@@ -45,7 +45,6 @@ invitationSchema.virtual('computedStatus').get(function (this: IInvitation) {
   return 'pending';
 });
 
-invitationSchema.index({ tokenHash: 1 }, { unique: true });
 invitationSchema.index({ email: 1, status: 1 });
 
 const Invitation = mongoose.model<IInvitation>('Invitation', invitationSchema);

@@ -6,21 +6,20 @@ import { hashPassword } from '../utils/password';
  * Seeds an admin user from environment variables.
  * Skips silently if ADMIN_EMAIL, ADMIN_PASSWORD, or ADMIN_NAME are missing.
  * Does nothing if a user with that email already exists.
+ * Returns a short descriptive status string.
  */
-export async function seedAdmin(): Promise<void> {
+export async function seedAdmin(): Promise<string> {
   const email = env.ADMIN_EMAIL;
   const password = env.ADMIN_PASSWORD;
   const name = env.ADMIN_NAME;
 
   if (!email || !password || !name) {
-    console.log('[seed] ADMIN_EMAIL, ADMIN_PASSWORD, or ADMIN_NAME not set — skipping admin seed');
-    return;
+    return 'missing env';
   }
 
   const existing = await User.findOne({ email: email.trim().toLowerCase() });
   if (existing) {
-    console.log('[seed] Admin user already exists, skipping');
-    return;
+    return 'skipped';
   }
 
   const passwordHash = await hashPassword(password);
@@ -32,5 +31,5 @@ export async function seedAdmin(): Promise<void> {
     isActive: true,
   });
 
-  console.log('[seed] Admin user created');
+  return 'created';
 }

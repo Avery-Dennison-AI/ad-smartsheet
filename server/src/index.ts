@@ -12,6 +12,17 @@ import authRouter from './routes/auth';
 import invitationsRouter from './routes/invitations';
 import adminUsersRouter from './routes/adminUsers';
 import { seedAdmin } from './config/seedAdmin';
+import { sendSuccess } from './utils/response';
+
+// ─── Process-Level Error Handlers ──────────────────────────────────────────────
+process.on('uncaughtException', (err) => {
+  console.error('[fatal] Uncaught exception:', err.stack ?? err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[fatal] Unhandled rejection:', reason);
+  process.exit(1);
+});
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const app = express();
@@ -37,9 +48,13 @@ app.use(express.json({ limit: '10kb' }));
 app.use('/api/uploads', express.static(UPLOADS_DIR));
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
-app.get('/api/health', (_req: Request, res: Response) =>
-  res.json({ success: true, message: 'Server is running' })
-);
+app.get('/api/health', (_req: Request, res: Response) => {
+  const dbState = mongoose.connection.readyState; // 1 = connected
+  sendSuccess(res, {
+    status: 'ok',
+    db: dbState === 1 ? 'connected' : 'disconnected',
+  });
+});
 
 // ─── Auth Routes ──────────────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
@@ -54,17 +69,19 @@ app.use(errorHandler);
 // ─── DB + Server Bootstrap ────────────────────────────────────────────────────
 async function start(): Promise<void> {
   try {
-    await mongoose.connect(env.MONGO_URI);
-    console.log('[DB] Connected to MongoDB');
+    console.log('[startup] Config loaded');
+    console.log('[startup] Connecting to database...');
+    await mongoose.connect(env.MONGO_URI, { serverSelectionTimeoutMS: 10_000 });
+    console.log('[startup] Database connected');
 
-    // Seed admin user from env vars
-    await seedAdmin();
+    const seedResult = await seedAdmin();
+    console.log(`[startup] Admin seed: ${seedResult}`);
 
     app.listen(env.PORT, () => {
-      console.log(`[SERVER] Running on port ${env.PORT}`);
+      console.log(`[startup] Server listening on port ${env.PORT}`);
     });
   } catch (err) {
-    console.error('[STARTUP] Failed to start server:', err);
+    console.error('[startup] Failed to start server:', err);
     process.exit(1);
   }
 }
