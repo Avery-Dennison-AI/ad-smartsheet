@@ -34,6 +34,15 @@ export async function createInvitation(
     throw new AppError('A user with this email already exists', 409);
   }
 
+  // Check deactivated user — they should be reactivated instead
+  const deactivatedUser = await User.findOne({ email, isActive: false });
+  if (deactivatedUser) {
+    throw new AppError(
+      'This user already has an account but is deactivated. Reactivate them instead.',
+      409,
+    );
+  }
+
   // Check pending unexpired invitation
   const existing = await Invitation.findOne({ email, status: 'pending' });
   if (existing && existing.expiresAt > new Date()) {

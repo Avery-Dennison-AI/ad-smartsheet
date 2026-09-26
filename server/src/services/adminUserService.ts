@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import User from '../models/User';
 import { AppError } from '../utils/AppError';
+import { escapeRegex } from '../utils/escapeRegex';
 
 export async function listUsers(params: {
   search?: string;
@@ -12,9 +13,10 @@ export async function listUsers(params: {
   const query: Record<string, unknown> = {};
 
   if (search) {
+    const escaped = escapeRegex(search);
     query.$or = [
-      { fullName: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
+      { fullName: { $regex: escaped, $options: 'i' } },
+      { email: { $regex: escaped, $options: 'i' } },
     ];
   }
 
@@ -70,7 +72,7 @@ export async function updateUser(
     }
   }
 
-  const user = await User.findByIdAndUpdate(targetId, data, { new: true }).select(
+  const user = await User.findByIdAndUpdate(targetId, data, { new: true, runValidators: true }).select(
     '_id fullName email role isActive lastLoginAt createdAt',
   );
 

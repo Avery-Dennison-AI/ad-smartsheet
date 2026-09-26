@@ -32,3 +32,7 @@ export { default as AvatarGroup, type AvatarGroupProps, type AvatarGroupItem } f
 export { default as Badge, type BadgeProps, type BadgeVariant, type BadgeSize } from './Badge';
 export { default as Tabs, type TabsProps, type TabItem } from './Tabs';
 export { default as Skeleton, type SkeletonProps, type SkeletonVariant } from './Skeleton';
+export { default as DataTable, type DataTableProps, type DataTableColumn } from './DataTable';
+export { default as Pagination, type PaginationProps } from './Pagination';
+export { default as CopyField, type CopyFieldProps } from './CopyField';
+export { default as PasswordRequirements, type PasswordRequirementsProps } from './PasswordRequirements';

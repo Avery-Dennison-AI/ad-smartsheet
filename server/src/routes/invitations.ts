@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 import { requireAuth, requireRole } from '../middleware/authMiddleware';
 import { validate } from '../utils/validate';
+import { createRateLimiter } from '../middleware/rateLimiter';
 import {
   createInvitation,
   listInvitations,
@@ -28,6 +29,12 @@ const createValidation = validate([
     .withMessage('Full name must be between 1 and 100 characters'),
 ]);
 
+const mongoIdParamValidation = validate([
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid invitation ID'),
+]);
+
 router.post(
   '/admin/invitations',
   requireRole('admin'),
@@ -40,18 +47,27 @@ router.get('/admin/invitations', requireRole('admin'), listInvitations);
 router.post(
   '/admin/invitations/:id/regenerate',
   requireRole('admin'),
+  mongoIdParamValidation,
   regenerateInvitation,
 );
 
 router.post(
   '/admin/invitations/:id/revoke',
   requireRole('admin'),
+  mongoIdParamValidation,
   revokeInvitation,
 );
 
 // ─── Public invitation endpoints (no auth required) ────────────────────────
 
-router.get('/invite/:token', getInvitationByToken);
+// Rate limiter: 20 requests per 15 minutes per IP
+const publicInviteLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Too many requests. Please try again later.',
+});
+
+router.get('/invite/:token', publicInviteLimiter, getInvitationByToken);
 
 const acceptValidation = validate([
   body('fullName')
@@ -71,6 +87,6 @@ const acceptValidation = validate([
     .withMessage('Please confirm your password'),
 ]);
 
-router.post('/invite/:token/accept', acceptValidation, acceptInvitation);
+router.post('/invite/:token/accept', publicInviteLimiter, acceptValidation, acceptInvitation);
 
 export default router;

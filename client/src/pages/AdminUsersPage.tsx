@@ -1,21 +1,26 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { Search, Plus, Users, Mail, Copy, RefreshCw, XCircle, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Users, Mail, RefreshCw, XCircle, MoreHorizontal } from 'lucide-react';
 import {
   Button,
-  Card,
   Input,
   Select,
   Badge,
   Tabs,
   PageHeader,
-  Spinner,
   EmptyState,
   Modal,
   Alert,
   ConfirmDialog,
   DropdownMenu,
+  DataTable,
+  Pagination,
+  CopyField,
+  Avatar,
+  IconButton,
 } from '@/components/ui';
+import type { DataTableColumn } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { selectCurrentUser } from '@/store/slices/authSlice';
 import {
   fetchAdminUsers,
   fetchAdminInvitations,
@@ -32,6 +37,9 @@ import {
   selectAdminInvitationsStatus,
   selectAdminInvitationsError,
 } from '@/store/slices/adminSlice';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { buildInviteLink } from '@/utils/inviteLink';
+import { formatRelativeTime } from '@/utils/formatRelativeTime';
 import type { AdminUser, InvitationItem, InvitationStatus } from '@/types';
 
 // ─── Status badge variant mapping ──────────────────────────────────────────
@@ -64,7 +72,6 @@ function InviteModal({ open, onClose }: InviteModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invitePath, setInvitePath] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   function resetForm() {
     setEmail('');
@@ -72,7 +79,6 @@ function InviteModal({ open, onClose }: InviteModalProps) {
     setRole('member');
     setError(null);
     setInvitePath(null);
-    setCopied(false);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -93,18 +99,17 @@ function InviteModal({ open, onClose }: InviteModalProps) {
     }
   }
 
-  function handleCopyLink() {
-    if (!invitePath) return;
-    const fullUrl = `${window.location.origin}${invitePath}`;
-    navigator.clipboard.writeText(fullUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
-
   function handleClose() {
     resetForm();
     onClose();
+  }
+
+  function handleInviteAnother() {
+    setInvitePath(null);
+    setEmail('');
+    setFullName('');
+    setRole('member');
+    setError(null);
   }
 
   return (
@@ -114,60 +119,59 @@ function InviteModal({ open, onClose }: InviteModalProps) {
       title="Send Invitation"
       footer={
         invitePath ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleClose}
-            data-icod-id="src_pages_adminuserspage_tsx_beb4">Done</Button>
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleInviteAnother}
+              data-icod-id="src_pages_adminuserspage_tsx_invite_another">Invite another</Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleClose}
+              data-icod-id="src_pages_adminuserspage_tsx_done_btn">Done</Button>
+          </>
         ) : (
           <>
             <Button
               variant="secondary"
               size="sm"
               onClick={handleClose}
-              data-icod-id="src_pages_adminuserspage_tsx_e548">Cancel</Button>
+              data-icod-id="src_pages_adminuserspage_tsx_cancel_invite">Cancel</Button>
             <Button
               size="sm"
               loading={loading}
               onClick={() => document.getElementById('invite-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
-              data-icod-id="src_pages_adminuserspage_tsx_4d64">Send Invitation</Button>
+              data-icod-id="src_pages_adminuserspage_tsx_send_invite">Send Invitation</Button>
           </>
         )
       }
-      data-icod-id="src_pages_adminuserspage_tsx_5097">
+      data-icod-id="src_pages_adminuserspage_tsx_invite_modal">
       {invitePath ? (
         <div
           className="flex flex-col gap-3"
-          data-icod-id="src_pages_adminuserspage_tsx_6fb3">
+          data-icod-id="src_pages_adminuserspage_tsx_invite_success">
           <p
             className="text-sm text-muted-foreground"
-            data-icod-id="src_pages_adminuserspage_tsx_9c6e">
+            data-icod-id="src_pages_adminuserspage_tsx_invite_success_text">
             Invitation created successfully. Share this link with the invitee:
           </p>
-          <div
-            className="flex items-center gap-2"
-            data-icod-id="src_pages_adminuserspage_tsx_d869">
-            <div
-              className="flex-1 truncate rounded-[var(--radius)] border border-border bg-muted px-3 py-2 text-sm text-muted-foreground font-mono"
-              data-icod-id="src_pages_adminuserspage_tsx_0820">
-              {window.location.origin}{invitePath}
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleCopyLink}
-              data-icod-id="src_pages_adminuserspage_tsx_6933">
-              {copied ? 'Copied!' : <><Copy className="h-4 w-4 mr-1" data-icod-id="src_pages_adminuserspage_tsx_8ffd" /> Copy</>}
-            </Button>
-          </div>
+          <CopyField
+            value={buildInviteLink(invitePath)}
+            data-icod-id="src_pages_adminuserspage_tsx_copy_field" />
+          <p
+            className="text-xs text-muted-foreground"
+            data-icod-id="src_pages_adminuserspage_tsx_invite_expiry_note">
+            This link is shown only once and expires in 7 days.
+          </p>
         </div>
       ) : (
         <form
           id="invite-form"
           onSubmit={handleSubmit}
           className="flex flex-col gap-4"
-          data-icod-id="src_pages_adminuserspage_tsx_0d02">
-          {error && <Alert variant="error" data-icod-id="src_pages_adminuserspage_tsx_4510">{error}</Alert>}
+          data-icod-id="src_pages_adminuserspage_tsx_invite_form">
+          {error && <Alert variant="error" data-icod-id="src_pages_adminuserspage_tsx_invite_error">{error}</Alert>}
           <Input
             label="Email Address"
             type="email"
@@ -175,19 +179,19 @@ function InviteModal({ open, onClose }: InviteModalProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            data-icod-id="src_pages_adminuserspage_tsx_122c" />
+            data-icod-id="src_pages_adminuserspage_tsx_invite_email" />
           <Input
             label="Full Name (optional)"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            data-icod-id="src_pages_adminuserspage_tsx_bf6a" />
+            data-icod-id="src_pages_adminuserspage_tsx_invite_name" />
           <Select
             label="Role"
             value={role}
             onChange={(e) => setRole(e.target.value as 'admin' | 'member')}
-            data-icod-id="src_pages_adminuserspage_tsx_03e3">
-            <option value="member" data-icod-id="src_pages_adminuserspage_tsx_229a">Member</option>
-            <option value="admin" data-icod-id="src_pages_adminuserspage_tsx_6340">Admin</option>
+            data-icod-id="src_pages_adminuserspage_tsx_invite_role">
+            <option value="member" data-icod-id="src_pages_adminuserspage_tsx_role_member">Member</option>
+            <option value="admin" data-icod-id="src_pages_adminuserspage_tsx_role_admin">Admin</option>
           </Select>
         </form>
       )}
@@ -203,15 +207,17 @@ function UsersTab() {
   const status = useAppSelector(selectAdminUsersStatus);
   const error = useAppSelector(selectAdminUsersError);
   const pagination = useAppSelector(selectAdminUsersPagination);
+  const currentUser = useAppSelector(selectCurrentUser);
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [filterStatus, setFilterStatus] = useState<'active' | 'deactivated' | 'all'>('all');
   const [page, setPage] = useState(1);
   const [confirmAction, setConfirmAction] = useState<{ userId: string; action: 'deactivate' | 'activate' | 'demote'; userName: string } | null>(null);
 
   useEffect(() => {
-    dispatch(fetchAdminUsers({ search: search || undefined, status: filterStatus, page, limit: 20 }));
-  }, [dispatch, search, filterStatus, page]);
+    dispatch(fetchAdminUsers({ search: debouncedSearch || undefined, status: filterStatus, page, limit: 20 }));
+  }, [dispatch, debouncedSearch, filterStatus, page]);
 
   function handleToggleStatus(user: AdminUser) {
     if (user.isActive) {
@@ -239,171 +245,135 @@ function UsersTab() {
     setConfirmAction(null);
   }
 
-  return (
-    <div
-      className="flex flex-col gap-4"
-      data-icod-id="src_pages_adminuserspage_tsx_4278">
-      {/* Filters */}
-      <div
-        className="flex flex-col sm:flex-row gap-3"
-        data-icod-id="src_pages_adminuserspage_tsx_14e2">
+  const isCurrentUser = (user: AdminUser) => currentUser?.id === user.id;
+
+  const columns: DataTableColumn<AdminUser>[] = [
+    {
+      key: 'user',
+      header: 'User',
+      cell: (user) => (
         <div
-          className="relative flex-1"
-          data-icod-id="src_pages_adminuserspage_tsx_fc98">
-          <Search
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            data-icod-id="src_pages_adminuserspage_tsx_d547" />
-          <input
-            type="text"
-            placeholder="Search by name or email..."
+          className="flex items-center gap-3"
+          data-icod-id={`admin_users_user_cell_${user.id}`}>
+          <Avatar name={user.fullName} size="sm" data-icod-id={`admin_users_avatar_${user.id}`} />
+          <div className="flex flex-col" data-icod-id={`admin_users_info_${user.id}`}>
+            <div className="flex items-center gap-2" data-icod-id={`admin_users_name_row_${user.id}`}>
+              <span className="font-medium text-foreground" data-icod-id={`admin_users_name_${user.id}`}>{user.fullName}</span>
+              {isCurrentUser(user) && (
+                <Badge variant="neutral" size="sm" data-icod-id={`admin_users_you_badge_${user.id}`}>You</Badge>
+              )}
+            </div>
+            <span className="text-muted-foreground" style={{ fontSize: 'var(--text-xs)' }} data-icod-id={`admin_users_email_${user.id}`}>{user.email}</span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'role',
+      header: 'Role',
+      cell: (user) => (
+        <Badge variant={roleBadgeVariant(user.role)} data-icod-id={`admin_users_role_${user.id}`}>{user.role}</Badge>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (user) => (
+        <Badge
+          variant={user.isActive ? 'status-green' : 'status-gray'}
+          data-icod-id={`admin_users_status_${user.id}`}>
+          {user.isActive ? 'Active' : 'Deactivated'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'lastLogin',
+      header: 'Last login',
+      cell: (user) => (
+        <span className="text-muted-foreground" data-icod-id={`admin_users_login_${user.id}`}>
+          {formatRelativeTime(user.lastLoginAt)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      cell: (user) => {
+        if (isCurrentUser(user)) return null;
+        return (
+          <DropdownMenu
+            trigger={
+              <IconButton
+                size="sm"
+                tooltip="Actions"
+                data-icod-id={`admin_users_actions_btn_${user.id}`}>
+                <MoreHorizontal className="h-4 w-4" data-icod-id={`admin_users_actions_icon_${user.id}`} />
+              </IconButton>
+            }
+            items={[
+              {
+                label: user.role === 'admin' ? 'Make member' : 'Make admin',
+                onClick: () => handleRoleChange(user, user.role === 'admin' ? 'member' : 'admin'),
+              },
+              {
+                label: user.isActive ? 'Deactivate' : 'Reactivate',
+                danger: user.isActive,
+                onClick: () => handleToggleStatus(user),
+              },
+            ]}
+            data-icod-id={`admin_users_dropdown_${user.id}`} />
+        );
+      },
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4" data-icod-id="admin_users_tab_root">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3" data-icod-id="admin_users_filters">
+        <div className="flex-1" data-icod-id="admin_users_search_wrap">
+          <Input
+            leftIcon={<Search className="h-4 w-4" data-icod-id="admin_users_search_icon" />}
+            placeholder="Search users..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full rounded-[var(--radius)] border border-border bg-card pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:shadow-[var(--focus-ring)]"
-            data-icod-id="src_pages_adminuserspage_tsx_247f" />
+            data-icod-id="admin_users_search_input" />
         </div>
         <Select
           className="w-full sm:w-40"
           value={filterStatus}
           onChange={(e) => { setFilterStatus(e.target.value as typeof filterStatus); setPage(1); }}
-          data-icod-id="src_pages_adminuserspage_tsx_dc66">
-          <option value="all" data-icod-id="src_pages_adminuserspage_tsx_ae3a">All Users</option>
-          <option value="active" data-icod-id="src_pages_adminuserspage_tsx_74ee">Active</option>
-          <option value="deactivated" data-icod-id="src_pages_adminuserspage_tsx_fe19">Deactivated</option>
+          data-icod-id="admin_users_status_filter">
+          <option value="all" data-icod-id="admin_users_filter_all">All Users</option>
+          <option value="active" data-icod-id="admin_users_filter_active">Active</option>
+          <option value="deactivated" data-icod-id="admin_users_filter_deactivated">Deactivated</option>
         </Select>
       </div>
-      {error && <Alert variant="error" data-icod-id="src_pages_adminuserspage_tsx_c95f">{error}</Alert>}
+      {error && <Alert variant="error" data-icod-id="admin_users_error">{error}</Alert>}
       {/* Table */}
-      {status === 'loading' ? (
-        <div
-          className="flex justify-center py-12"
-          data-icod-id="src_pages_adminuserspage_tsx_a4cf"><Spinner size="lg" data-icod-id="src_pages_adminuserspage_tsx_4455" /></div>
-      ) : users.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title="No users found"
-          description="Try adjusting your search or filters."
-          data-icod-id="src_pages_adminuserspage_tsx_e939" />
-      ) : (
-        <Card
-          className="overflow-hidden p-0"
-          data-icod-id="src_pages_adminuserspage_tsx_6f46">
-          <div
-            className="overflow-x-auto"
-            data-icod-id="src_pages_adminuserspage_tsx_12c8">
-            <table
-              className="w-full text-left text-sm"
-              data-icod-id="src_pages_adminuserspage_tsx_068b">
-              <thead
-                className="border-b border-border bg-muted/50"
-                data-icod-id="src_pages_adminuserspage_tsx_c167">
-                <tr data-icod-id="src_pages_adminuserspage_tsx_b3ae">
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_9fc4">Name</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_bd3a">Email</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_2b96">Role</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_4250">Status</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_504a">Last Login</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground text-right"
-                    data-icod-id="src_pages_adminuserspage_tsx_5241">Actions</th>
-                </tr>
-              </thead>
-              <tbody
-                className="divide-y divide-border"
-                data-icod-id="src_pages_adminuserspage_tsx_2845">
-                {users.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="hover:bg-muted/30 transition-colors"
-                    data-icod-id={`src_pages_adminuserspage_tsx_8a58_${user.id}`}>
-                    <td
-                      className="px-4 py-3 font-medium text-foreground"
-                      data-icod-id={`src_pages_adminuserspage_tsx_3607_${user.id}`}>{user.fullName}</td>
-                    <td
-                      className="px-4 py-3 text-muted-foreground"
-                      data-icod-id={`src_pages_adminuserspage_tsx_3937_${user.id}`}>{user.email}</td>
-                    <td
-                      className="px-4 py-3"
-                      data-icod-id={`src_pages_adminuserspage_tsx_92f1_${user.id}`}>
-                      <DropdownMenu
-                        trigger={
-                          <button
-                            className="cursor-pointer"
-                            data-icod-id={`src_pages_adminuserspage_tsx_b158_${user.id}`}>
-                            <Badge
-                              variant={roleBadgeVariant(user.role)}
-                              data-icod-id={`src_pages_adminuserspage_tsx_ba57_${user.id}`}>{user.role}</Badge>
-                          </button>
-                        }
-                        items={[
-                          { label: 'Admin', onClick: () => handleRoleChange(user, 'admin') },
-                          { label: 'Member', onClick: () => handleRoleChange(user, 'member') },
-                        ]}
-                        data-icod-id={`src_pages_adminuserspage_tsx_26af_${user.id}`} />
-                    </td>
-                    <td
-                      className="px-4 py-3"
-                      data-icod-id={`src_pages_adminuserspage_tsx_1439_${user.id}`}>
-                      <Badge
-                        variant={user.isActive ? 'status-green' : 'status-red'}
-                        data-icod-id={`src_pages_adminuserspage_tsx_4ff7_${user.id}`}>
-                        {user.isActive ? 'Active' : 'Deactivated'}
-                      </Badge>
-                    </td>
-                    <td
-                      className="px-4 py-3 text-muted-foreground"
-                      data-icod-id={`src_pages_adminuserspage_tsx_5610_${user.id}`}>
-                      {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
-                    </td>
-                    <td
-                      className="px-4 py-3 text-right"
-                      data-icod-id={`src_pages_adminuserspage_tsx_c096_${user.id}`}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleStatus(user)}
-                        data-icod-id={`src_pages_adminuserspage_tsx_1a0a_${user.id}`}>
-                        {user.isActive ? 'Deactivate' : 'Activate'}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+      <DataTable
+        columns={columns}
+        rows={users}
+        rowKey={(u) => u.id}
+        loading={status === 'loading'}
+        emptyState={
+          <EmptyState
+            icon={Users}
+            title="No users found"
+            description="Try adjusting your search or filters."
+            data-icod-id="admin_users_empty" />
+        }
+        className="rounded-[var(--radius-lg)] border border-border bg-card"
+        data-icod-id="admin_users_table" />
       {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div
-          className="flex items-center justify-between text-sm text-muted-foreground"
-          data-icod-id="src_pages_adminuserspage_tsx_8787">
-          <span data-icod-id="src_pages_adminuserspage_tsx_ab4f">Showing {(page - 1) * 20 + 1}-{Math.min(page * 20, pagination.total)} of {pagination.total}</span>
-          <div className="flex gap-2" data-icod-id="src_pages_adminuserspage_tsx_be93">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              data-icod-id="src_pages_adminuserspage_tsx_85d3">Previous</Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={page >= pagination.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              data-icod-id="src_pages_adminuserspage_tsx_42c4">Next</Button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        pageSize={20}
+        onPageChange={setPage}
+        data-icod-id="admin_users_pagination" />
       {/* Confirmation dialog for destructive actions */}
       <ConfirmDialog
         open={!!confirmAction}
@@ -424,7 +394,7 @@ function UsersTab() {
           confirmAction?.action === 'demote' ? 'Demote' : 'Confirm'
         }
         onConfirm={executeConfirmAction}
-        data-icod-id="src_pages_adminuserspage_tsx_042b" />
+        data-icod-id="admin_users_confirm" />
     </div>
   );
 }
@@ -438,13 +408,19 @@ function InvitationsTab() {
   const error = useAppSelector(selectAdminInvitationsError);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
+  const [regenResult, setRegenResult] = useState<{ invitePath: string } | null>(null);
 
   useEffect(() => {
     dispatch(fetchAdminInvitations());
   }, [dispatch]);
 
-  function handleRegenerate(id: string) {
-    dispatch(regenerateAdminInvitation(id));
+  async function handleRegenerate(id: string) {
+    try {
+      const result = await dispatch(regenerateAdminInvitation(id)).unwrap();
+      setRegenResult({ invitePath: result.invitePath });
+    } catch {
+      // Error handled by slice
+    }
   }
 
   function handleRevoke(id: string) {
@@ -464,141 +440,139 @@ function InvitationsTab() {
     });
   }
 
+  function getInvitedByName(inv: InvitationItem): string {
+    if (typeof inv.invitedBy === 'string') return inv.invitedBy;
+    return inv.invitedBy?.fullName || '-';
+  }
+
+  const columns: DataTableColumn<InvitationItem>[] = [
+    {
+      key: 'email',
+      header: 'Email',
+      cell: (inv) => (
+        <span className="font-medium text-foreground" data-icod-id={`admin_inv_email_${inv.id}`}>{inv.email}</span>
+      ),
+    },
+    {
+      key: 'role',
+      header: 'Role',
+      cell: (inv) => (
+        <Badge variant={roleBadgeVariant(inv.role)} data-icod-id={`admin_inv_role_${inv.id}`}>{inv.role}</Badge>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (inv) => (
+        <Badge variant={statusBadgeVariant(inv.status)} data-icod-id={`admin_inv_status_${inv.id}`}>{inv.status}</Badge>
+      ),
+    },
+    {
+      key: 'invitedBy',
+      header: 'Invited by',
+      cell: (inv) => (
+        <span className="text-muted-foreground" data-icod-id={`admin_inv_by_${inv.id}`}>{getInvitedByName(inv)}</span>
+      ),
+    },
+    {
+      key: 'date',
+      header: 'Expires / Accepted',
+      cell: (inv) => (
+        <span className="text-muted-foreground" data-icod-id={`admin_inv_date_${inv.id}`}>
+          {inv.acceptedAt ? formatDate(inv.acceptedAt) : formatDate(inv.expiresAt)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      cell: (inv) => {
+        if (inv.status !== 'pending' && inv.status !== 'expired') return null;
+        return (
+          <DropdownMenu
+            trigger={
+              <IconButton
+                size="sm"
+                tooltip="Actions"
+                data-icod-id={`admin_inv_actions_btn_${inv.id}`}>
+                <MoreHorizontal className="h-4 w-4" data-icod-id={`admin_inv_actions_icon_${inv.id}`} />
+              </IconButton>
+            }
+            items={[
+              {
+                label: 'Regenerate link',
+                icon: <RefreshCw className="h-4 w-4" data-icod-id={`admin_inv_regen_icon_${inv.id}`} />,
+                onClick: () => handleRegenerate(inv.id),
+              },
+              {
+                label: 'Revoke',
+                icon: <XCircle className="h-4 w-4" data-icod-id={`admin_inv_revoke_icon_${inv.id}`} />,
+                danger: true,
+                onClick: () => handleRevoke(inv.id),
+              },
+            ]}
+            data-icod-id={`admin_inv_dropdown_${inv.id}`} />
+        );
+      },
+    },
+  ];
+
   return (
-    <div
-      className="flex flex-col gap-4"
-      data-icod-id="src_pages_adminuserspage_tsx_8eef">
-      <div
-        className="flex justify-end"
-        data-icod-id="src_pages_adminuserspage_tsx_371d">
+    <div className="flex flex-col gap-4" data-icod-id="admin_inv_tab_root">
+      <div className="flex justify-end" data-icod-id="admin_inv_header">
         <Button
+          leftIcon={<Plus className="h-4 w-4" data-icod-id="admin_inv_plus_icon" />}
           onClick={() => setInviteModalOpen(true)}
-          data-icod-id="src_pages_adminuserspage_tsx_85ed">
-          <Plus className="h-4 w-4 mr-2" data-icod-id="src_pages_adminuserspage_tsx_a3d1" /> Send Invitation
-        </Button>
+          data-icod-id="admin_inv_send_btn">Send Invitation</Button>
       </div>
-      {error && <Alert variant="error" data-icod-id="src_pages_adminuserspage_tsx_3277">{error}</Alert>}
-      {status === 'loading' ? (
-        <div
-          className="flex justify-center py-12"
-          data-icod-id="src_pages_adminuserspage_tsx_b2e7"><Spinner size="lg" data-icod-id="src_pages_adminuserspage_tsx_8627" /></div>
-      ) : invitations.length === 0 ? (
-        <EmptyState
-          icon={Mail}
-          title="No invitations"
-          description="Send an invitation to add a new team member."
-          action={<Button
-            onClick={() => setInviteModalOpen(true)}
-            data-icod-id="src_pages_adminuserspage_tsx_deb6">Send Invitation</Button>}
-          data-icod-id="src_pages_adminuserspage_tsx_3d02" />
-      ) : (
-        <Card
-          className="overflow-hidden p-0"
-          data-icod-id="src_pages_adminuserspage_tsx_9558">
-          <div
-            className="overflow-x-auto"
-            data-icod-id="src_pages_adminuserspage_tsx_5765">
-            <table
-              className="w-full text-left text-sm"
-              data-icod-id="src_pages_adminuserspage_tsx_ddb4">
-              <thead
-                className="border-b border-border bg-muted/50"
-                data-icod-id="src_pages_adminuserspage_tsx_aa0b">
-                <tr data-icod-id="src_pages_adminuserspage_tsx_aed1">
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_6da3">Email</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_5c73">Name</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_22c1">Role</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_a8a0">Status</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_d700">Sent</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground"
-                    data-icod-id="src_pages_adminuserspage_tsx_4336">Expires</th>
-                  <th
-                    className="px-4 py-3 font-medium text-muted-foreground text-right"
-                    data-icod-id="src_pages_adminuserspage_tsx_441e">Actions</th>
-                </tr>
-              </thead>
-              <tbody
-                className="divide-y divide-border"
-                data-icod-id="src_pages_adminuserspage_tsx_a2db">
-                {invitations.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    className="hover:bg-muted/30 transition-colors"
-                    data-icod-id={`src_pages_adminuserspage_tsx_55bf_${inv.id}`}>
-                    <td
-                      className="px-4 py-3 font-medium text-foreground"
-                      data-icod-id={`src_pages_adminuserspage_tsx_603f_${inv.id}`}>{inv.email}</td>
-                    <td
-                      className="px-4 py-3 text-muted-foreground"
-                      data-icod-id={`src_pages_adminuserspage_tsx_ccd4_${inv.id}`}>{inv.fullName || '-'}</td>
-                    <td
-                      className="px-4 py-3"
-                      data-icod-id={`src_pages_adminuserspage_tsx_db73_${inv.id}`}>
-                      <Badge
-                        variant={roleBadgeVariant(inv.role)}
-                        data-icod-id={`src_pages_adminuserspage_tsx_58d0_${inv.id}`}>{inv.role}</Badge>
-                    </td>
-                    <td
-                      className="px-4 py-3"
-                      data-icod-id={`src_pages_adminuserspage_tsx_fd69_${inv.id}`}>
-                      <Badge
-                        variant={statusBadgeVariant(inv.status)}
-                        data-icod-id={`src_pages_adminuserspage_tsx_a6b4_${inv.id}`}>{inv.status}</Badge>
-                    </td>
-                    <td
-                      className="px-4 py-3 text-muted-foreground"
-                      data-icod-id={`src_pages_adminuserspage_tsx_e14f_${inv.id}`}>{formatDate(inv.createdAt)}</td>
-                    <td
-                      className="px-4 py-3 text-muted-foreground"
-                      data-icod-id={`src_pages_adminuserspage_tsx_1829_${inv.id}`}>{formatDate(inv.expiresAt)}</td>
-                    <td
-                      className="px-4 py-3 text-right"
-                      data-icod-id={`src_pages_adminuserspage_tsx_7828_${inv.id}`}>
-                      {(inv.status === 'pending' || inv.status === 'expired') && (
-                        <DropdownMenu
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              data-icod-id={`src_pages_adminuserspage_tsx_e31f_${inv.id}`}>
-                              <MoreHorizontal
-                                className="h-4 w-4"
-                                data-icod-id={`src_pages_adminuserspage_tsx_d96f_${inv.id}`} />
-                            </Button>
-                          }
-                          items={[
-                            { label: 'Regenerate Link', icon: <RefreshCw
-                              className="h-4 w-4"
-                              data-icod-id={`src_pages_adminuserspage_tsx_5fb9_${inv.id}`} />, onClick: () => handleRegenerate(inv.id) },
-                            { label: 'Revoke', icon: <XCircle
-                              className="h-4 w-4"
-                              data-icod-id={`src_pages_adminuserspage_tsx_ae47_${inv.id}`} />, onClick: () => handleRevoke(inv.id) },
-                          ]}
-                          data-icod-id={`src_pages_adminuserspage_tsx_00ce_${inv.id}`} />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
+      {error && <Alert variant="error" data-icod-id="admin_inv_error">{error}</Alert>}
+      <DataTable
+        columns={columns}
+        rows={invitations}
+        rowKey={(inv) => inv.id}
+        loading={status === 'loading'}
+        emptyState={
+          <EmptyState
+            icon={Mail}
+            title="No invitations"
+            description="Send an invitation to add a new team member."
+            action={<Button onClick={() => setInviteModalOpen(true)} data-icod-id="admin_inv_empty_btn">Send Invitation</Button>}
+            data-icod-id="admin_inv_empty" />
+        }
+        className="rounded-[var(--radius-lg)] border border-border bg-card"
+        data-icod-id="admin_inv_table" />
       <InviteModal
         open={inviteModalOpen}
         onClose={() => setInviteModalOpen(false)}
-        data-icod-id="src_pages_adminuserspage_tsx_d346" />
+        data-icod-id="admin_inv_modal" />
+      {/* Regenerated link modal */}
+      <Modal
+        open={!!regenResult}
+        onClose={() => setRegenResult(null)}
+        title="Link Regenerated"
+        footer={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setRegenResult(null)}
+            data-icod-id="admin_inv_regen_done">Done</Button>
+        }
+        data-icod-id="admin_inv_regen_modal">
+        {regenResult && (
+          <div className="flex flex-col gap-3" data-icod-id="admin_inv_regen_content">
+            <p className="text-sm text-muted-foreground" data-icod-id="admin_inv_regen_text">
+              A new invitation link has been generated:
+            </p>
+            <CopyField
+              value={buildInviteLink(regenResult.invitePath)}
+              data-icod-id="admin_inv_regen_copy" />
+            <p className="text-xs text-muted-foreground" data-icod-id="admin_inv_regen_note">
+              This link is shown only once and expires in 7 days.
+            </p>
+          </div>
+        )}
+      </Modal>
       <ConfirmDialog
         open={!!revokeTarget}
         onClose={() => setRevokeTarget(null)}
@@ -606,7 +580,7 @@ function InvitationsTab() {
         description="Are you sure you want to revoke this invitation? The link will become invalid immediately."
         confirmLabel="Revoke"
         onConfirm={executeRevoke}
-        data-icod-id="src_pages_adminuserspage_tsx_13bd" />
+        data-icod-id="admin_inv_revoke_confirm" />
     </div>
   );
 }
@@ -617,25 +591,23 @@ export default function AdminUsersPage() {
   const [activeTab, setActiveTab] = useState('users');
 
   const tabs = [
-    { id: 'users', label: 'Users', icon: <Users className="h-4 w-4" data-icod-id="src_pages_adminuserspage_tsx_dd99" /> },
-    { id: 'invitations', label: 'Invitations', icon: <Mail className="h-4 w-4" data-icod-id="src_pages_adminuserspage_tsx_f5bb" /> },
+    { id: 'users', label: 'Users', icon: <Users className="h-4 w-4" data-icod-id="admin_page_users_icon" /> },
+    { id: 'invitations', label: 'Invitations', icon: <Mail className="h-4 w-4" data-icod-id="admin_page_inv_icon" /> },
   ];
 
   return (
-    <div
-      className="flex flex-col gap-6 p-6"
-      data-icod-id="src_pages_adminuserspage_tsx_d308">
+    <div className="flex flex-col gap-6" data-icod-id="admin_page_root">
       <PageHeader
         title="User Management"
         description="Manage team members and send invitations"
-        data-icod-id="src_pages_adminuserspage_tsx_c484" />
+        data-icod-id="admin_page_header" />
       <Tabs
         tabs={tabs}
         activeTab={activeTab}
         onChange={setActiveTab}
-        data-icod-id="src_pages_adminuserspage_tsx_a230" />
-      {activeTab === 'users' && <UsersTab data-icod-id="src_pages_adminuserspage_tsx_d912" />}
-      {activeTab === 'invitations' && <InvitationsTab data-icod-id="src_pages_adminuserspage_tsx_5a4e" />}
+        data-icod-id="admin_page_tabs" />
+      {activeTab === 'users' && <UsersTab data-icod-id="admin_page_users_tab" />}
+      {activeTab === 'invitations' && <InvitationsTab data-icod-id="admin_page_inv_tab" />}
     </div>
   );
 }

@@ -10,7 +10,9 @@ export const createInvitation = asyncHandler(async (req: Request, res: Response)
   const invitedBy = new mongoose.Types.ObjectId(req.user!.id);
 
   const result = await invitationService.createInvitation({ email, fullName, role }, invitedBy);
-  sendSuccess(res, { invitation: result.invitation, invitePath: result.invitePath }, 201);
+  // Strip tokenHash from the invitation object before sending
+  const { tokenHash: _th1, ...safeInvitation } = result.invitation.toObject();
+  sendSuccess(res, { invitation: safeInvitation, invitePath: result.invitePath }, 201);
 });
 
 /** GET /api/admin/invitations */
@@ -22,7 +24,9 @@ export const listInvitations = asyncHandler(async (_req: Request, res: Response)
 /** POST /api/admin/invitations/:id/regenerate */
 export const regenerateInvitation = asyncHandler(async (req: Request, res: Response) => {
   const result = await invitationService.regenerateInvitation(req.params.id);
-  sendSuccess(res, { invitation: result.invitation, invitePath: result.invitePath });
+  // Strip tokenHash from the invitation object before sending
+  const { tokenHash: _th2, ...safeInvitation } = result.invitation.toObject();
+  sendSuccess(res, { invitation: safeInvitation, invitePath: result.invitePath });
 });
 
 /** POST /api/admin/invitations/:id/revoke */

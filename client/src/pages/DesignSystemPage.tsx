@@ -25,8 +25,12 @@ import {
   SectionHeader,
   Breadcrumbs,
   PageHeader,
+  DataTable,
+  Pagination,
+  CopyField,
+  PasswordRequirements,
 } from '@/components/ui';
-import type { BadgeVariant } from '@/components/ui';
+import type { BadgeVariant, DataTableColumn } from '@/components/ui';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
 
 /* ─── Section wrapper ─────────────────────────────────────────────────────── */
@@ -910,6 +914,108 @@ export default function DesignSystemPage() {
               size="sm"
               data-icod-id="src_pages_designsystempage_tsx_5733">View all</Button>}
             data-icod-id="src_pages_designsystempage_tsx_6fc6" />
+        </div>
+      </Section>
+      {/* ─── DataTable ────────────────────────────────────────────────────── */}
+      <Section title="DataTable" data-icod-id="ds_datatable_section">
+        <div className="space-y-6" data-icod-id="ds_datatable_wrap">
+          {/* Sample table with 3 rows */}
+          <div data-icod-id="ds_datatable_sample">
+            <span
+              className="mb-2 block text-xs text-muted-foreground"
+              data-icod-id="ds_datatable_sample_label">With data (3 rows)</span>
+            <Card className="overflow-hidden p-0" data-icod-id="ds_datatable_card">
+              <DataTable
+                columns={[
+                  { key: 'name', header: 'Name', cell: (r: { name: string; role: string; status: string }) => <span
+                    className="font-medium text-foreground"
+                    data-icod-id="src_pages_designsystempage_tsx_04a8">{r.name}</span> },
+                  { key: 'role', header: 'Role', cell: (r: { name: string; role: string; status: string }) => <Badge
+                    variant={r.role === 'Admin' ? 'status-blue' : 'neutral'}
+                    data-icod-id="src_pages_designsystempage_tsx_cf63">{r.role}</Badge> },
+                  { key: 'status', header: 'Status', cell: (r: { name: string; role: string; status: string }) => <Badge
+                    variant={r.status === 'Active' ? 'status-green' : 'status-gray'}
+                    data-icod-id="src_pages_designsystempage_tsx_be8e">{r.status}</Badge> },
+                ] as DataTableColumn<{ name: string; role: string; status: string }>[]}
+                rows={[
+                  { name: 'Alice Johnson', role: 'Admin', status: 'Active' },
+                  { name: 'Bob Smith', role: 'Member', status: 'Active' },
+                  { name: 'Charlie Brown', role: 'Member', status: 'Deactivated' },
+                ]}
+                rowKey={(r) => r.name}
+                data-icod-id="ds_datatable_instance" />
+            </Card>
+          </div>
+          {/* Loading state */}
+          <div data-icod-id="ds_datatable_loading">
+            <span
+              className="mb-2 block text-xs text-muted-foreground"
+              data-icod-id="ds_datatable_loading_label">Loading state</span>
+            <Card className="overflow-hidden p-0" data-icod-id="ds_datatable_loading_card">
+              <DataTable
+                columns={[
+                  { key: 'name', header: 'Name', cell: () => null },
+                  { key: 'role', header: 'Role', cell: () => null },
+                  { key: 'status', header: 'Status', cell: () => null },
+                ]}
+                rows={[]}
+                rowKey={() => ''}
+                loading
+                data-icod-id="ds_datatable_loading_instance" />
+            </Card>
+          </div>
+          {/* Empty state */}
+          <div data-icod-id="ds_datatable_empty">
+            <span
+              className="mb-2 block text-xs text-muted-foreground"
+              data-icod-id="ds_datatable_empty_label">Empty state</span>
+            <Card className="overflow-hidden p-0" data-icod-id="ds_datatable_empty_card">
+              <DataTable
+                columns={[
+                  { key: 'name', header: 'Name', cell: () => null },
+                  { key: 'role', header: 'Role', cell: () => null },
+                ]}
+                rows={[]}
+                rowKey={() => ''}
+                emptyState={
+                  <EmptyState
+                    icon={Search}
+                    title="No results"
+                    description="Try adjusting your search."
+                    data-icod-id="ds_datatable_empty_state" />
+                }
+                data-icod-id="ds_datatable_empty_instance" />
+            </Card>
+          </div>
+        </div>
+      </Section>
+      {/* ─── Pagination ───────────────────────────────────────────────────── */}
+      <Section title="Pagination" data-icod-id="ds_pagination_section">
+        <Card className="p-4" data-icod-id="ds_pagination_card">
+          <Pagination
+            page={2}
+            totalPages={5}
+            total={47}
+            pageSize={10}
+            onPageChange={() => {}}
+            data-icod-id="ds_pagination_instance" />
+        </Card>
+      </Section>
+      {/* ─── CopyField ────────────────────────────────────────────────────── */}
+      <Section title="CopyField" data-icod-id="ds_copyfield_section">
+        <div className="max-w-md" data-icod-id="ds_copyfield_wrap">
+          <CopyField
+            value="https://app.gridflow.com/invite/abc123xyz"
+            label="Invitation link"
+            data-icod-id="ds_copyfield_instance" />
+        </div>
+      </Section>
+      {/* ─── PasswordRequirements ─────────────────────────────────────────── */}
+      <Section title="PasswordRequirements" data-icod-id="ds_pwreq_section">
+        <div className="max-w-sm" data-icod-id="ds_pwreq_wrap">
+          <PasswordRequirements
+            password="Test1"
+            data-icod-id="ds_pwreq_instance" />
         </div>
       </Section>
     </div>

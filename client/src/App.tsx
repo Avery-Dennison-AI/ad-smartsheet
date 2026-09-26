@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import AppShell from '@/components/layout/AppShell';
-import { ToastProvider, Spinner } from '@/components/ui';
+import { ToastProvider, Spinner, useToast } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchMe, selectCurrentUser, selectAuthInitialized } from '@/store/slices/authSlice';
 import LandingPage from '@/pages/LandingPage';
@@ -44,11 +44,19 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** Requires authenticated admin user; redirects non-admins to /home. */
+/** Requires authenticated admin user; redirects non-admins to /home with a toast. */
 function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   const user = useAppSelector(selectCurrentUser);
   const initialized = useAppSelector(selectAuthInitialized);
   const location = useLocation();
+  const { addToast } = useToast();
+  const isNonAdmin = initialized && user && user.role !== 'admin';
+
+  useEffect(() => {
+    if (isNonAdmin) {
+      addToast('error', "You don't have access to that page.");
+    }
+  }, [isNonAdmin, addToast]);
 
   if (!initialized) return <AuthLoadingScreen data-icod-id="src_app_tsx_0a02" />;
   if (!user) return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;

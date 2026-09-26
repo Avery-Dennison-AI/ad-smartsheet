@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -175,6 +176,36 @@ export default function AppShell({ children }: AppShellProps) {
             ))}
           </div>
         </div>
+
+        {/* Admin section — only visible to admins */}
+        {user?.role === 'admin' && (
+          <div
+            className="border-t border-border px-2 py-3"
+            data-icod-id="src_components_layout_appshell_tsx_admin_section">
+            {!collapsed && (
+              <div
+                className="mb-2 flex items-center px-1"
+                data-icod-id="src_components_layout_appshell_tsx_admin_header">
+                <span
+                  className="text-[var(--text-xs)] font-medium uppercase tracking-wider text-[var(--color-gray-600)]"
+                  data-icod-id="src_components_layout_appshell_tsx_admin_label">
+                  Admin
+                </span>
+              </div>
+            )}
+            <div
+              className="flex flex-col gap-0.5"
+              data-icod-id="src_components_layout_appshell_tsx_admin_nav">
+              <SidebarNavItem
+                icon={<Users className="h-5 w-5" data-icod-id="src_components_layout_appshell_tsx_admin_users_icon" />}
+                label="Users"
+                active={location.pathname === '/admin/users'}
+                collapsed={collapsed}
+                to="/admin/users"
+                data-icod-id="src_components_layout_appshell_tsx_admin_users_nav" />
+            </div>
+          </div>
+        )}
       </aside>
       {/* ─── Right panel ──────────────────────────────────────────────────── */}
       <div
