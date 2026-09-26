@@ -1,9 +1,11 @@
 import axios from 'axios';
 
-// VITE_API_URL already ends with /api — NEVER append another /api to paths.
-// Usage: apiClient.get('/users')  →  {VITE_API_URL}/users
+// Use empty baseURL so all requests are relative to the current origin.
+// In dev, Vite's proxy forwards /api/* to the backend.
+// In production, the app and API share the same server.
+// Usage: apiClient.get('/api/users')  →  /api/users (same origin)
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: '',
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -16,7 +18,7 @@ apiClient.interceptors.response.use(
     const url = error?.config?.url as string | undefined;
 
     // Don't intercept auth endpoint failures — let them propagate to the caller
-    if (status === 401 && url && !url.includes('/auth/login') && !url.includes('/auth/me')) {
+    if (status === 401 && url && !url.includes('/api/auth/login') && !url.includes('/api/auth/me')) {
       window.location.href = '/login';
     }
 

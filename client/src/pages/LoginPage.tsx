@@ -42,7 +42,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      await apiClient.post('/auth/login', { email, password });
+      await apiClient.post('/api/auth/login', { email, password });
       // Populate Redux auth state after successful login
       await dispatch(fetchMe());
       navigate(safeRedirect, { replace: true });

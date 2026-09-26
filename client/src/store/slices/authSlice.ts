@@ -23,7 +23,7 @@ const initialState: AuthState = {
 /** Fetches the current user from /api/auth/me. Marks initialized on completion. */
 export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithValue }) => {
   try {
-    const { data } = await apiClient.get('/auth/me');
+    const { data } = await apiClient.get('/api/auth/me');
     return data.data as AuthUser;
   } catch (err: unknown) {
     const error = err as { response?: { status?: number; data?: { error?: { message?: string } } } };
@@ -37,7 +37,7 @@ export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithVa
 /** Logs out the current user by calling POST /api/auth/logout. */
 export const logoutUser = createAsyncThunk('auth/logout', async (_, { rejectWithValue }) => {
   try {
-    await apiClient.post('/auth/logout');
+    await apiClient.post('/api/auth/logout');
   } catch (err: unknown) {
     const error = err as { response?: { data?: { error?: { message?: string } } } };
     return rejectWithValue(error.response?.data?.error?.message ?? 'Logout failed');

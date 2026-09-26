@@ -15,7 +15,7 @@ export async function fetchUsers(params: {
   if (params.page) query.set('page', String(params.page));
   if (params.limit) query.set('limit', String(params.limit));
 
-  const { data } = await apiClient.get(`/admin/users?${query.toString()}`);
+  const { data } = await apiClient.get(`/api/admin/users?${query.toString()}`);
   return data.data as UserListResponse;
 }
 
@@ -23,7 +23,7 @@ export async function updateUserRole(
   userId: string,
   role: 'admin' | 'member',
 ): Promise<AdminUser> {
-  const { data } = await apiClient.patch(`/admin/users/${userId}`, { role });
+  const { data } = await apiClient.patch(`/api/admin/users/${userId}`, { role });
   return data.data as AdminUser;
 }
 
@@ -31,7 +31,7 @@ export async function updateUserStatus(
   userId: string,
   isActive: boolean,
 ): Promise<AdminUser> {
-  const { data } = await apiClient.patch(`/admin/users/${userId}`, { isActive });
+  const { data } = await apiClient.patch(`/api/admin/users/${userId}`, { isActive });
   return data.data as AdminUser;
 }
 
@@ -42,31 +42,31 @@ export async function createInvitation(data: {
   fullName?: string;
   role: 'admin' | 'member';
 }): Promise<{ invitation: InvitationItem; invitePath: string }> {
-  const { data: res } = await apiClient.post('/admin/invitations', data);
+  const { data: res } = await apiClient.post('/api/admin/invitations', data);
   return res.data as { invitation: InvitationItem; invitePath: string };
 }
 
 export async function fetchInvitations(): Promise<InvitationItem[]> {
-  const { data } = await apiClient.get('/admin/invitations');
+  const { data } = await apiClient.get('/api/admin/invitations');
   return data.data as InvitationItem[];
 }
 
 export async function regenerateInvitation(
   invitationId: string,
 ): Promise<{ invitation: InvitationItem; invitePath: string }> {
-  const { data } = await apiClient.post(`/admin/invitations/${invitationId}/regenerate`);
+  const { data } = await apiClient.post(`/api/admin/invitations/${invitationId}/regenerate`);
   return data.data as { invitation: InvitationItem; invitePath: string };
 }
 
 export async function revokeInvitation(invitationId: string): Promise<InvitationItem> {
-  const { data } = await apiClient.post(`/admin/invitations/${invitationId}/revoke`);
+  const { data } = await apiClient.post(`/api/admin/invitations/${invitationId}/revoke`);
   return data.data as InvitationItem;
 }
 
 // ─── Public Invitation Endpoints ────────────────────────────────────────────
 
 export async function getInvitationPreview(token: string): Promise<InvitationPreview> {
-  const { data } = await apiClient.get(`/invite/${token}`);
+  const { data } = await apiClient.get(`/api/invite/${token}`);
   return data.data as InvitationPreview;
 }
 
@@ -74,6 +74,6 @@ export async function acceptInvitation(
   token: string,
   payload: { fullName: string; password: string; confirmPassword: string },
 ): Promise<{ user: { id: string; fullName: string; email: string; role: string } }> {
-  const { data } = await apiClient.post(`/invite/${token}/accept`, payload);
+  const { data } = await apiClient.post(`/api/invite/${token}/accept`, payload);
   return data.data as { user: { id: string; fullName: string; email: string; role: string } };
 }
