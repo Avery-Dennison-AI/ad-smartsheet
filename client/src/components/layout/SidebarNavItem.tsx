@@ -4,7 +4,9 @@ import { cn } from '@/utils/cn';
 import Tooltip from '@/components/ui/Tooltip';
 
 interface SidebarNavItemProps {
-  icon: ReactNode;
+  icon?: ReactNode;
+  /** A custom node rendered in place of the icon (e.g. WorkspaceIcon). */
+  iconNode?: ReactNode;
   label: string;
   active?: boolean;
   collapsed?: boolean;
@@ -18,6 +20,7 @@ const focusRingClasses =
 
 export default function SidebarNavItem({
   icon,
+  iconNode,
   label,
   active = false,
   collapsed = false,
@@ -30,29 +33,56 @@ export default function SidebarNavItem({
     focusRingClasses,
   );
 
-  if (collapsed) {
-    const content = colorDot ? (
-      <div
-        className="h-2 w-2 rounded-[var(--radius-sm)]"
-        style={{ backgroundColor: colorDot }}
-        data-icod-id="src_components_layout_sidebarnavitem_tsx_169c" />
-    ) : (
-      <span
-        className="h-5 w-5"
-        data-icod-id="src_components_layout_sidebarnavitem_tsx_4afb">{icon}</span>
-    );
+  // Determine what to render as the leading visual
+  const leadingVisual = iconNode
+    ? <span
+    className="shrink-0"
+    data-icod-id="src_components_layout_sidebarnavitem_tsx_6b82">{iconNode}</span>
+    : colorDot
+      ? (
+        <div
+          className="h-2 w-2 shrink-0 rounded-[var(--radius-sm)]"
+          style={{ backgroundColor: colorDot }}
+          data-icod-id="src_components_layout_sidebarnavitem_tsx_d0e8" />
+      )
+      : (
+        <span
+          className="flex h-4 w-4 shrink-0 items-center justify-center"
+          data-icod-id="src_components_layout_sidebarnavitem_tsx_f53e">
+          {icon}
+        </span>
+      );
 
+  // Collapsed leading visual — use iconNode if available, else dot, else icon
+  const collapsedVisual = iconNode
+    ? <span
+    className="shrink-0"
+    data-icod-id="src_components_layout_sidebarnavitem_tsx_a812">{iconNode}</span>
+    : colorDot
+      ? (
+        <div
+          className="h-2 w-2 rounded-[var(--radius-sm)]"
+          style={{ backgroundColor: colorDot }}
+          data-icod-id="src_components_layout_sidebarnavitem_tsx_5e16" />
+      )
+      : (
+        <span
+          className="h-4 w-4"
+          data-icod-id="src_components_layout_sidebarnavitem_tsx_10d3">{icon}</span>
+      );
+
+  if (collapsed) {
     const inner = (
       <span
         className={cn(
-          'flex h-9 w-full items-center justify-center',
+          'flex h-8 w-full items-center justify-center',
           baseClasses,
           active
-            ? 'bg-accent text-primary'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+            : 'text-[var(--color-gray-600)] hover:bg-[var(--color-gray-100)] hover:text-foreground',
         )}
-        data-icod-id="src_components_layout_sidebarnavitem_tsx_e69c">
-        {content}
+        data-icod-id="src_components_layout_sidebarnavitem_tsx_a1c8">
+        {collapsedVisual}
       </span>
     );
 
@@ -60,13 +90,15 @@ export default function SidebarNavItem({
       <Link
         to={to}
         className={cn('block w-full', focusRingClasses)}
-        data-icod-id="src_components_layout_sidebarnavitem_tsx_2a53">{inner}</Link>
+        data-icod-id="src_components_layout_sidebarnavitem_tsx_f374">
+        {inner}
+      </Link>
     ) : (
       <button
         type="button"
         className={cn('appearance-none bg-transparent border-0 p-0 text-left w-full cursor-default', focusRingClasses)}
         onClick={onClick}
-        data-icod-id="src_components_layout_sidebarnavitem_tsx_8338">
+        data-icod-id="src_components_layout_sidebarnavitem_tsx_c4ab">
         {inner}
       </button>
     );
@@ -74,7 +106,7 @@ export default function SidebarNavItem({
     return (
       <Tooltip
         content={label}
-        data-icod-id="src_components_layout_sidebarnavitem_tsx_ac6f">
+        data-icod-id="src_components_layout_sidebarnavitem_tsx_b5f6">
         {wrapped}
       </Tooltip>
     );
@@ -82,30 +114,22 @@ export default function SidebarNavItem({
 
   // Expanded mode
   const activeStyle = active
-    ? 'border-l-[3px] border-l-primary bg-[var(--color-primary-bg)] text-primary font-medium'
-    : 'border-l-[3px] border-l-transparent text-[var(--color-gray-600)] hover:bg-[var(--color-gray-100)] hover:text-foreground';
+    ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium'
+    : 'text-[var(--color-gray-600)] hover:bg-[var(--color-gray-100)] hover:text-foreground';
 
   const inner = (
     <span
       className={cn(
-        'flex h-9 w-full items-center gap-3 px-3 text-sm',
+        'flex h-8 w-full items-center gap-2 px-2',
         baseClasses,
         activeStyle,
       )}
-      data-icod-id="src_components_layout_sidebarnavitem_tsx_0d26">
-      {colorDot ? (
-        <div
-          className="h-2 w-2 shrink-0 rounded-[var(--radius-sm)]"
-          style={{ backgroundColor: colorDot }}
-          data-icod-id="src_components_layout_sidebarnavitem_tsx_975b" />
-      ) : (
-        <span
-          className="h-5 w-5 shrink-0"
-          data-icod-id="src_components_layout_sidebarnavitem_tsx_0569">{icon}</span>
-      )}
+      style={{ fontSize: 'var(--text-sm)' }}
+      data-icod-id="src_components_layout_sidebarnavitem_tsx_08ae">
+      {leadingVisual}
       <span
         className="truncate"
-        data-icod-id="src_components_layout_sidebarnavitem_tsx_3a95">{label}</span>
+        data-icod-id="src_components_layout_sidebarnavitem_tsx_8fe5">{label}</span>
     </span>
   );
 
@@ -114,7 +138,9 @@ export default function SidebarNavItem({
       <Link
         to={to}
         className={cn('block w-full', focusRingClasses)}
-        data-icod-id="src_components_layout_sidebarnavitem_tsx_c18b">{inner}</Link>
+        data-icod-id="src_components_layout_sidebarnavitem_tsx_455a">
+        {inner}
+      </Link>
     );
   }
 
@@ -123,7 +149,7 @@ export default function SidebarNavItem({
       type="button"
       className={cn('appearance-none bg-transparent border-0 p-0 text-left w-full cursor-default', focusRingClasses)}
       onClick={onClick}
-      data-icod-id="src_components_layout_sidebarnavitem_tsx_2942">
+      data-icod-id="src_components_layout_sidebarnavitem_tsx_8464">
       {inner}
     </button>
   );

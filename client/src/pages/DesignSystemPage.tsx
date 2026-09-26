@@ -29,6 +29,8 @@ import {
   Pagination,
   CopyField,
   PasswordRequirements,
+  PageContainer,
+  WorkspaceIcon,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn } from '@/components/ui';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
@@ -1016,6 +1018,43 @@ export default function DesignSystemPage() {
           <PasswordRequirements
             password="Test1"
             data-icod-id="ds_pwreq_instance" />
+        </div>
+      </Section>
+      {/* ─── PageContainer ────────────────────────────────────────────────── */}
+      <Section title="PageContainer" data-icod-id="ds_pagecontainer_section">
+        <div
+          className="rounded-[var(--radius-lg)] border border-border bg-muted/50"
+          data-icod-id="ds_pagecontainer_outer">
+          <PageContainer data-icod-id="ds_pagecontainer_instance">
+            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-gray-400)] p-6 text-center text-[var(--text-sm)] text-[var(--color-gray-600)]" data-icod-id="ds_pagecontainer_content">
+              Sample content inside PageContainer (max-w-6xl, px-6 py-6 / xl:px-8 xl:py-8)
+            </div>
+          </PageContainer>
+        </div>
+      </Section>
+      {/* ─── WorkspaceIcon ────────────────────────────────────────────────── */}
+      <Section title="WorkspaceIcon" data-icod-id="ds_workspaceicon_section">
+        <div className="space-y-4" data-icod-id="ds_workspaceicon_wrap">
+          <div data-icod-id="ds_workspaceicon_sm">
+            <span
+              className="mb-2 block text-xs text-muted-foreground"
+              data-icod-id="ds_workspaceicon_sm_label">Small (20×20px — sidebar)</span>
+            <div className="flex items-center gap-4" data-icod-id="ds_workspaceicon_sm_row">
+              <WorkspaceIcon name="Product Launch" color="var(--status-blue)" size="sm" data-icod-id="ds_workspaceicon_sm_blue" />
+              <WorkspaceIcon name="Q3 Planning" color="var(--status-green)" size="sm" data-icod-id="ds_workspaceicon_sm_green" />
+              <WorkspaceIcon name="Design System" color="var(--status-yellow)" size="sm" data-icod-id="ds_workspaceicon_sm_yellow" />
+            </div>
+          </div>
+          <div data-icod-id="ds_workspaceicon_md">
+            <span
+              className="mb-2 block text-xs text-muted-foreground"
+              data-icod-id="ds_workspaceicon_md_label">Medium (32×32px — cards)</span>
+            <div className="flex items-center gap-4" data-icod-id="ds_workspaceicon_md_row">
+              <WorkspaceIcon name="Product Launch" color="var(--status-blue)" size="md" data-icod-id="ds_workspaceicon_md_blue" />
+              <WorkspaceIcon name="Q3 Planning" color="var(--status-green)" size="md" data-icod-id="ds_workspaceicon_md_green" />
+              <WorkspaceIcon name="Design System" color="var(--status-yellow)" size="md" data-icod-id="ds_workspaceicon_md_yellow" />
+            </div>
+          </div>
         </div>
       </Section>
     </div>

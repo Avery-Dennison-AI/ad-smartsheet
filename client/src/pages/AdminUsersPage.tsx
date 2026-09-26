@@ -17,6 +17,7 @@ import {
   CopyField,
   Avatar,
   IconButton,
+  PageContainer,
 } from '@/components/ui';
 import type { DataTableColumn } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -596,18 +597,20 @@ export default function AdminUsersPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6" data-icod-id="admin_page_root">
-      <PageHeader
-        title="User Management"
-        description="Manage team members and send invitations"
-        data-icod-id="admin_page_header" />
-      <Tabs
-        tabs={tabs}
-        activeTab={activeTab}
-        onChange={setActiveTab}
-        data-icod-id="admin_page_tabs" />
-      {activeTab === 'users' && <UsersTab data-icod-id="admin_page_users_tab" />}
-      {activeTab === 'invitations' && <InvitationsTab data-icod-id="admin_page_inv_tab" />}
-    </div>
+    <PageContainer data-icod-id="src_pages_adminuserspage_tsx_744e">
+      <div className="flex flex-col gap-6" data-icod-id="admin_page_root">
+        <PageHeader
+          title="User Management"
+          description="Manage team members and send invitations"
+          data-icod-id="admin_page_header" />
+        <Tabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          data-icod-id="admin_page_tabs" />
+        {activeTab === 'users' && <UsersTab data-icod-id="admin_page_users_tab" />}
+        {activeTab === 'invitations' && <InvitationsTab data-icod-id="admin_page_inv_tab" />}
+      </div>
+    </PageContainer>
   );
 }

@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { PageHeader, EmptyState } from '@/components/ui';
+import { PageHeader, EmptyState, PageContainer } from '@/components/ui';
 
 function slugToTitle(slug: string): string {
   return slug
@@ -12,12 +12,12 @@ export default function WorkspacePage() {
   const workspaceName = id ? slugToTitle(id) : 'Workspace';
 
   return (
-    <div data-icod-id="src_pages_workspacepage_tsx_96fa">
+    <PageContainer data-icod-id="src_pages_workspacepage_tsx_7b9e">
       <PageHeader title={workspaceName} data-icod-id="src_pages_workspacepage_tsx_b9e2" />
       <EmptyState
         title="Sheets will appear here."
         description="Create your first sheet to get started."
         data-icod-id="src_pages_workspacepage_tsx_46b6" />
-    </div>
+    </PageContainer>
   );
 }

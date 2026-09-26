@@ -36,3 +36,5 @@ export { default as DataTable, type DataTableProps, type DataTableColumn } from 
 export { default as Pagination, type PaginationProps } from './Pagination';
 export { default as CopyField, type CopyFieldProps } from './CopyField';
 export { default as PasswordRequirements, type PasswordRequirementsProps } from './PasswordRequirements';
+export { default as PageContainer } from './PageContainer';
+export { default as WorkspaceIcon } from './WorkspaceIcon';
