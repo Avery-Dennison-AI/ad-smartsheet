@@ -125,6 +125,12 @@
   /* ─── Focus ring ──────────────────────────────────────────────────── */
   --focus-ring: 0 0 0 2px #FFFFFF, 0 0 0 4px #0F766E;
 
+  /* 2xs text — avatar initials, small badges */
+  --text-2xs: 10px;
+
+  /* Danger focus ring — white outline + danger border */
+  --focus-ring-danger: 0 0 0 2px #ffffff, 0 0 0 4px var(--color-danger);
+
   /* ─── Shell ───────────────────────────────────────────────────────── */
   --sidebar-width: 240px;
   --sidebar-collapsed-width: 56px;

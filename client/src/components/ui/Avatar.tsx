@@ -3,7 +3,7 @@ import { cn } from '@/utils/cn';
 export type AvatarSize = 'sm' | 'md' | 'lg';
 
 const sizeClass: Record<AvatarSize, string> = {
-  sm: 'h-6 w-6 text-[10px]',
+  sm: 'h-6 w-6',
   md: 'h-8 w-8 text-xs',
   lg: 'h-10 w-10 text-sm',
 };
@@ -56,7 +56,10 @@ export default function Avatar({ src, name, size = 'md', className }: AvatarProp
         sizeClass[size],
         className,
       )}
-      style={{ backgroundColor: `hsl(${hue}, 55%, 48%)` }}
+      style={{
+        backgroundColor: `hsl(${hue}, 55%, 48%)`,
+        ...(size === 'sm' ? { fontSize: 'var(--text-2xs)' } : {}),
+      }}
       data-icod-id="src_components_ui_avatar_tsx_9019">
       {initials}
     </div>

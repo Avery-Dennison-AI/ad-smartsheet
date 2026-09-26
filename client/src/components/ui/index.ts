@@ -9,11 +9,14 @@ export {
   type ButtonSize,
   type ButtonVariant,
 } from './Button';
+export { default as Breadcrumbs } from './Breadcrumbs';
 export { default as Card, type CardProps } from './Card';
 export { default as EmptyState, type EmptyStateProps } from './EmptyState';
 export { default as Field, type FieldProps } from './Field';
-export { default as Input, inputClass, type InputProps } from './Input';
+export { default as Input, inputClass, type InputProps, type InputSize } from './Input';
 export { default as Modal, type ModalProps } from './Modal';
+export { default as PageHeader } from './PageHeader';
+export { default as SectionHeader } from './SectionHeader';
 export { default as Spinner, type SpinnerProps } from './Spinner';
 export { default as IconButton, type IconButtonProps, type IconButtonSize } from './IconButton';
 export { default as Textarea, type TextareaProps } from './Textarea';

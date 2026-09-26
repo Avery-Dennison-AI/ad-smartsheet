@@ -1,16 +1,18 @@
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 import { cn } from '@/utils/cn';
-import { inputClass } from './Input';
+import { inputClass, type InputSize } from './Input';
 
-export interface TextareaProps extends ComponentPropsWithoutRef<'textarea'> {
+export interface TextareaProps extends Omit<ComponentPropsWithoutRef<'textarea'>, 'size'> {
   label?: string;
   helperText?: string;
   error?: string;
+  /** Size variant. Default 'md'. */
+  size?: InputSize;
 }
 
 /** Auto-resizable textarea with the same prop API as Input. */
 const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { label, helperText, error, className, id, ...rest },
+  { label, helperText, error, className, id, size = 'md', ...rest },
   ref,
 ) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
@@ -30,8 +32,8 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textare
         ref={ref}
         id={inputId}
         className={cn(
-          inputClass('min-h-[80px] resize-y'),
-          error && 'border-destructive focus:border-destructive focus:shadow-[0_0_0_2px_#FFFFFF,_0_0_0_4px_var(--color-danger)]',
+          inputClass('min-h-[80px] resize-y', size),
+          error && 'border-destructive focus:border-destructive focus:shadow-[var(--focus-ring-danger)]',
           className,
         )}
         aria-invalid={!!error}

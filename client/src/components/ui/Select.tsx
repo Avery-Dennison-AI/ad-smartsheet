@@ -1,17 +1,19 @@
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import { inputClass } from './Input';
+import { inputClass, type InputSize } from './Input';
 
-export interface SelectProps extends ComponentPropsWithoutRef<'select'> {
+export interface SelectProps extends Omit<ComponentPropsWithoutRef<'select'>, 'size'> {
   label?: string;
   helperText?: string;
   error?: string;
+  /** Size variant. Default 'md'. */
+  size?: InputSize;
 }
 
 /** Native select styled to match Input. */
 const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, helperText, error, className, id, children, ...rest },
+  { label, helperText, error, className, id, children, size = 'md', ...rest },
   ref,
 ) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
@@ -32,8 +34,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
           ref={ref}
           id={inputId}
           className={cn(
-            inputClass('appearance-none pr-8'),
-            error && 'border-destructive focus:border-destructive focus:shadow-[0_0_0_2px_#FFFFFF,_0_0_0_4px_var(--color-danger)]',
+            inputClass('appearance-none pr-8', size),
+            error && 'border-destructive focus:border-destructive focus:shadow-[var(--focus-ring-danger)]',
             className,
           )}
           aria-invalid={!!error}

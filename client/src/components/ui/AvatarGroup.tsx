@@ -43,8 +43,9 @@ export default function AvatarGroup({
         <div
           className={cn(
             'flex items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground ring-2 ring-card select-none',
-            size === 'sm' ? 'h-6 w-6 text-[10px]' : size === 'md' ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm',
+            size === 'sm' ? 'h-6 w-6' : size === 'md' ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm',
           )}
+          style={size === 'sm' ? { fontSize: 'var(--text-2xs)' } : undefined}
           data-icod-id="src_components_ui_avatargroup_tsx_4707">
           +{overflow}
         </div>

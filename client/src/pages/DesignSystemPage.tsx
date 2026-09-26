@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Settings, Trash2, Copy, Plus } from 'lucide-react';
+import { Search, Settings, Trash2, Copy, Plus, Home, Clock } from 'lucide-react';
 import {
   Button,
   IconButton,
@@ -22,16 +22,18 @@ import {
   Skeleton,
   Spinner,
   Alert,
+  SectionHeader,
+  Breadcrumbs,
+  PageHeader,
 } from '@/components/ui';
 import type { BadgeVariant } from '@/components/ui';
+import SidebarNavItem from '@/components/layout/SidebarNavItem';
 
 /* ─── Section wrapper ─────────────────────────────────────────────────────── */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-10" data-icod-id="src_pages_designsystempage_tsx_a136">
-      <h2
-        className="mb-4 text-[var(--text-lg)] font-semibold text-foreground"
-        data-icod-id="src_pages_designsystempage_tsx_0dc5">{title}</h2>
+      <SectionHeader title={title} data-icod-id="src_pages_designsystempage_tsx_8073" />
       {children}
     </section>
   );
@@ -51,7 +53,8 @@ function Swatch({ color, name, hex }: { color: string; name: string; hex: string
         className="text-[var(--text-xs)] font-medium text-foreground"
         data-icod-id="src_pages_designsystempage_tsx_bbb4">{name}</span>
       <span
-        className="text-[10px] text-muted-foreground"
+        className="text-muted-foreground"
+        style={{ fontSize: 'var(--text-2xs)' }}
         data-icod-id="src_pages_designsystempage_tsx_0715">{hex}</span>
     </div>
   );
@@ -366,9 +369,7 @@ export default function DesignSystemPage() {
       </Section>
       {/* ─── 5. Grid Tokens ──────────────────────────────────────────────── */}
       <Section title="Grid Tokens" data-icod-id="src_pages_designsystempage_tsx_5bcf">
-        <div
-          className="overflow-hidden rounded-[var(--radius-lg)] border border-border"
-          data-icod-id="src_pages_designsystempage_tsx_f32c">
+        <Card data-icod-id="src_pages_designsystempage_tsx_f32c">
           <table
             className="w-full text-left text-sm"
             data-icod-id="src_pages_designsystempage_tsx_0025">
@@ -404,7 +405,7 @@ export default function DesignSystemPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       </Section>
       {/* ─── 6. Button ───────────────────────────────────────────────────── */}
       <Section title="Button" data-icod-id="src_pages_designsystempage_tsx_604d">
@@ -718,9 +719,7 @@ export default function DesignSystemPage() {
       </Section>
       {/* ─── 17. EmptyState ──────────────────────────────────────────────── */}
       <Section title="EmptyState" data-icod-id="src_pages_designsystempage_tsx_ce1f">
-        <div
-          className="rounded-[var(--radius-lg)] border border-border bg-card"
-          data-icod-id="src_pages_designsystempage_tsx_a0e1">
+        <Card data-icod-id="src_pages_designsystempage_tsx_a0e1">
           <EmptyState
             icon={Search}
             title="No results found"
@@ -730,7 +729,7 @@ export default function DesignSystemPage() {
               size="sm"
               data-icod-id="src_pages_designsystempage_tsx_0e24">Clear filters</Button>}
             data-icod-id="src_pages_designsystempage_tsx_e0c1" />
-        </div>
+        </Card>
       </Section>
       {/* ─── 18. Skeleton Loaders ────────────────────────────────────────── */}
       <Section
@@ -813,6 +812,104 @@ export default function DesignSystemPage() {
           <Alert variant="success" data-icod-id="src_pages_designsystempage_tsx_d1db">Changes saved successfully.</Alert>
           <Alert variant="warning" data-icod-id="src_pages_designsystempage_tsx_c12f">Your session expires in 5 minutes.</Alert>
           <Alert variant="info" data-icod-id="src_pages_designsystempage_tsx_cf54">New features are available in the latest update.</Alert>
+        </div>
+      </Section>
+      {/* ─── Input — Left Icon & Sizes ───────────────────────────────────── */}
+      <Section title="Input — Left Icon & Sizes" data-icod-id="src_pages_designsystempage_tsx_input_sizes">
+        <div
+          className="flex items-end gap-4"
+          data-icod-id="src_pages_designsystempage_tsx_d651">
+          <div className="w-64" data-icod-id="src_pages_designsystempage_tsx_3024">
+            <Input
+              leftIcon={<Search className="h-4 w-4" data-icod-id="src_pages_designsystempage_tsx_fd7d" />}
+              placeholder="Search..."
+              size="sm"
+              data-icod-id="src_pages_designsystempage_tsx_4e61" />
+          </div>
+          <div className="w-64" data-icod-id="src_pages_designsystempage_tsx_01eb">
+            <Input
+              leftIcon={<Search className="h-4 w-4" data-icod-id="src_pages_designsystempage_tsx_85a3" />}
+              placeholder="Search..."
+              size="md"
+              data-icod-id="src_pages_designsystempage_tsx_5ae0" />
+          </div>
+        </div>
+      </Section>
+      {/* ─── SidebarNavItem ──────────────────────────────────────────────── */}
+      <Section title="SidebarNavItem" data-icod-id="src_pages_designsystempage_tsx_sidebar_nav">
+        <div className="flex gap-6" data-icod-id="src_pages_designsystempage_tsx_9575">
+          <div
+            className="w-[240px] rounded-[var(--radius-lg)] border border-border bg-card p-2"
+            data-icod-id="src_pages_designsystempage_tsx_a91f">
+            <div
+              className="flex flex-col gap-0.5"
+              data-icod-id="src_pages_designsystempage_tsx_73cb">
+              <SidebarNavItem
+                icon={<Home className="h-5 w-5" data-icod-id="src_pages_designsystempage_tsx_a78a" />}
+                label="Home"
+                active
+                data-icod-id="src_pages_designsystempage_tsx_8401" />
+              <SidebarNavItem
+                icon={<Clock className="h-5 w-5" data-icod-id="src_pages_designsystempage_tsx_9b42" />}
+                label="Recents"
+                data-icod-id="src_pages_designsystempage_tsx_2a53" />
+            </div>
+          </div>
+          <div
+            className="w-[56px] rounded-[var(--radius-lg)] border border-border bg-card p-2"
+            data-icod-id="src_pages_designsystempage_tsx_3c2f">
+            <div
+              className="flex flex-col gap-0.5"
+              data-icod-id="src_pages_designsystempage_tsx_06c3">
+              <SidebarNavItem
+                icon={<Home className="h-5 w-5" data-icod-id="src_pages_designsystempage_tsx_b5aa" />}
+                label="Home"
+                active
+                collapsed
+                data-icod-id="src_pages_designsystempage_tsx_a7a6" />
+              <SidebarNavItem
+                icon={<div
+                  className="h-2 w-2 rounded-[var(--radius-sm)]"
+                  style={{ backgroundColor: '#2563EB' }}
+                  data-icod-id="src_pages_designsystempage_tsx_1423" />}
+                label="Product Launch"
+                collapsed
+                colorDot="#2563EB"
+                data-icod-id="src_pages_designsystempage_tsx_f006" />
+            </div>
+          </div>
+        </div>
+      </Section>
+      {/* ─── Breadcrumbs ─────────────────────────────────────────────────── */}
+      <Section title="Breadcrumbs" data-icod-id="src_pages_designsystempage_tsx_breadcrumbs">
+        <Breadcrumbs
+          items={[{ label: 'Workspace', to: '#' }, { label: 'My Sheet' }]}
+          data-icod-id="src_pages_designsystempage_tsx_be52" />
+      </Section>
+      {/* ─── PageHeader ──────────────────────────────────────────────────── */}
+      <Section title="PageHeader" data-icod-id="src_pages_designsystempage_tsx_pageheader">
+        <div
+          className="rounded-[var(--radius-lg)] border border-border bg-card p-4"
+          data-icod-id="src_pages_designsystempage_tsx_c990">
+          <PageHeader
+            title="Page Title"
+            description="Optional description text"
+            actions={<Button size="sm" data-icod-id="src_pages_designsystempage_tsx_43de">Action</Button>}
+            data-icod-id="src_pages_designsystempage_tsx_4c2c" />
+        </div>
+      </Section>
+      {/* ─── SectionHeader ───────────────────────────────────────────────── */}
+      <Section title="SectionHeader" data-icod-id="src_pages_designsystempage_tsx_sectionheader">
+        <div
+          className="rounded-[var(--radius-lg)] border border-border bg-card p-4"
+          data-icod-id="src_pages_designsystempage_tsx_0ed2">
+          <SectionHeader
+            title="Section Title"
+            actions={<Button
+              variant="ghost"
+              size="sm"
+              data-icod-id="src_pages_designsystempage_tsx_5733">View all</Button>}
+            data-icod-id="src_pages_designsystempage_tsx_6fc6" />
         </div>
       </Section>
     </div>

@@ -1,5 +1,6 @@
 import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { cn } from '@/utils/cn';
+import Tooltip from './Tooltip';
 
 export type IconButtonSize = 'sm' | 'md' | 'lg';
 
@@ -15,10 +16,10 @@ const iconSizeClass: Record<IconButtonSize, string> = {
   lg: 'h-5 w-5',
 };
 
-export interface IconButtonProps extends ComponentPropsWithoutRef<'button'> {
+export interface IconButtonProps extends Omit<ComponentPropsWithoutRef<'button'>, 'title'> {
   size?: IconButtonSize;
-  /** Accessible label — rendered as title attribute and aria-label. */
-  tooltip?: string;
+  /** Accessible label — rendered as aria-label and tooltip content. Required. */
+  tooltip: string;
   /** The icon element to render (lucide-react component). */
   children: ReactNode;
 }
@@ -29,26 +30,27 @@ const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconB
   ref,
 ) {
   return (
-    <button
-      ref={ref}
-      type="button"
-      title={tooltip}
-      aria-label={tooltip}
-      className={cn(
-        'inline-flex items-center justify-center rounded-[var(--radius-md)] text-muted-foreground',
-        'transition-colors duration-150 ease-in-out',
-        'hover:bg-muted hover:text-foreground active:bg-muted/80',
-        'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
-        'disabled:pointer-events-none disabled:opacity-50',
-        sizeClass[size],
-        className,
-      )}
-      data-icod-id="src_components_ui_iconbutton_tsx_e994"
-      {...rest}>
-      <span
-        className={iconSizeClass[size]}
-        data-icod-id="src_components_ui_iconbutton_tsx_dc6b">{children}</span>
-    </button>
+    <Tooltip content={tooltip} data-icod-id="src_components_ui_iconbutton_tsx_d8d9">
+      <button
+        ref={ref}
+        type="button"
+        aria-label={tooltip}
+        className={cn(
+          'inline-flex items-center justify-center rounded-[var(--radius-md)] text-muted-foreground',
+          'transition-colors duration-150 ease-in-out',
+          'hover:bg-muted hover:text-foreground active:bg-muted/80',
+          'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+          'disabled:pointer-events-none disabled:opacity-50',
+          sizeClass[size],
+          className,
+        )}
+        data-icod-id="src_components_ui_iconbutton_tsx_e994"
+        {...rest}>
+        <span
+          className={iconSizeClass[size]}
+          data-icod-id="src_components_ui_iconbutton_tsx_dc6b">{children}</span>
+      </button>
+    </Tooltip>
   );
 });
 

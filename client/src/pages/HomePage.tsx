@@ -1,12 +1,10 @@
 import { LayoutGrid } from 'lucide-react';
-import { EmptyState } from '@/components/ui';
+import { EmptyState, PageHeader } from '@/components/ui';
 
 export default function HomePage() {
   return (
     <div data-icod-id="src_pages_homepage_tsx_e6f6">
-      <h1
-        className="mb-6 text-[var(--text-xl)] font-semibold text-foreground"
-        data-icod-id="src_pages_homepage_tsx_5b5e">Home</h1>
+      <PageHeader title="Home" data-icod-id="src_pages_homepage_tsx_1587" />
       <EmptyState
         icon={LayoutGrid}
         title="No sheets yet"

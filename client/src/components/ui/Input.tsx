@@ -1,32 +1,49 @@
-import { forwardRef, type ComponentPropsWithoutRef } from 'react';
+import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { cn } from '@/utils/cn';
+
+export type InputSize = 'sm' | 'md';
+
+const sizeStyles: Record<InputSize, string> = {
+  sm: 'h-[28px] text-xs px-2',
+  md: 'h-[32px] text-sm px-3',
+};
+
+const iconPaddingClass: Record<InputSize, string> = {
+  sm: 'pl-8',
+  md: 'pl-8',
+};
 
 /**
  * The form-control look as a class string. Use it directly on <textarea> and
  * <select>; use <Input> for <input>.
  */
-export function inputClass(className?: string): string {
+export function inputClass(className?: string, size: InputSize = 'md'): string {
   return cn(
-    'w-full rounded-[var(--radius-sm)] border border-border bg-card px-3 py-2 text-sm text-foreground',
+    'w-full rounded-[var(--radius-sm)] border border-border bg-card py-2 text-foreground',
     'placeholder:text-muted-foreground/70 transition-colors duration-150 ease-in-out',
     'focus:border-primary focus:outline-none focus:shadow-[var(--focus-ring)]',
     'disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground',
+    sizeStyles[size],
     className,
   );
 }
 
-export interface InputProps extends ComponentPropsWithoutRef<'input'> {
+export interface InputProps extends Omit<ComponentPropsWithoutRef<'input'>, 'size'> {
   /** Label rendered above the input. */
   label?: string;
   /** Helper text below the input (hidden when error is present). */
   helperText?: string;
   /** Error message — switches to error styling. */
   error?: string;
+  /** Icon rendered inside the input on the left side. */
+  leftIcon?: ReactNode;
+  /** Size variant. Default 'md'. */
+  size?: InputSize;
 }
 
 /** Text input with optional label, helper text, and error state. */
 const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, helperText, error, className, id, ...rest },
+  { label, helperText, error, className, id, leftIcon, size = 'md', ...rest },
   ref,
 ) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
@@ -42,17 +59,27 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           {label}
         </label>
       )}
-      <input
-        ref={ref}
-        id={inputId}
-        className={cn(
-          inputClass(),
-          error && 'border-destructive focus:border-destructive focus:shadow-[0_0_0_2px_#FFFFFF,_0_0_0_4px_var(--color-danger)]',
-          className,
+      <div className="relative" data-icod-id="src_components_ui_input_tsx_wrapper">
+        {leftIcon && (
+          <span
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-gray-400)] pointer-events-none"
+            data-icod-id="src_components_ui_input_tsx_icon">
+            {leftIcon}
+          </span>
         )}
-        aria-invalid={!!error}
-        data-icod-id="src_components_ui_input_tsx_3a37"
-        {...rest} />
+        <input
+          ref={ref}
+          id={inputId}
+          className={cn(
+            inputClass(undefined, size),
+            leftIcon && iconPaddingClass[size],
+            error && 'border-destructive focus:border-destructive focus:shadow-[var(--focus-ring-danger)]',
+            className,
+          )}
+          aria-invalid={!!error}
+          data-icod-id="src_components_ui_input_tsx_3a37"
+          {...rest} />
+      </div>
       {error && <p
         className="text-xs text-destructive"
         data-icod-id="src_components_ui_input_tsx_7c5a">{error}</p>}
