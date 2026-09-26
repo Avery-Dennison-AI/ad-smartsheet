@@ -48,11 +48,13 @@ export default function LoginPage() {
       navigate(safeRedirect, { replace: true });
     } catch (err: unknown) {
       const error = err as { response?: { status?: number; data?: { error?: { message?: string }; message?: string } } };
-      const status = error.response?.status;
-      if (status === 401) {
-        setError(error.response?.data?.error?.message || 'Invalid email or password');
-      } else if (status === 429) {
-        setError(error.response?.data?.error?.message || 'Too many login attempts. Please try again later.');
+      if (error.response) {
+        const status = error.response.status;
+        if (status && status >= 400 && status < 500) {
+          setError(error.response.data?.error?.message || 'Request failed');
+        } else {
+          setError('Something went wrong. Please try again.');
+        }
       } else {
         setError('Network error. Please try again.');
       }

@@ -57,19 +57,6 @@ export async function loginUser(email: string, password: string, _ip?: string): 
 }
 
 /**
- * Returns cookie-clear options for res.clearCookie().
- * No maxAge — clearCookie actually removes the cookie without it.
- */
-export function logoutUser() {
-  return {
-    path: '/',
-    httpOnly: true as const,
-    sameSite: 'lax' as const,
-    secure: env.NODE_ENV === 'production',
-  };
-}
-
-/**
  * Fetches the current user by ID, excluding passwordHash.
  * Throws 401 if not found.
  */

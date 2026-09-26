@@ -16,6 +16,7 @@ interface Env {
   ADMIN_PASSWORD: string | undefined;
   ADMIN_NAME: string | undefined;
   VITE_API_URL: string | undefined;
+  UPLOAD_DIR: string;
 }
 
 function loadEnv(): Env {
@@ -37,6 +38,7 @@ function loadEnv(): Env {
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     ADMIN_NAME: process.env.ADMIN_NAME,
     VITE_API_URL: process.env.VITE_API_URL,
+    UPLOAD_DIR: process.env.UPLOAD_DIR || 'uploads',
   };
 }
 

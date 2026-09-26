@@ -222,12 +222,12 @@ export default function AppShell({ children }: AppShellProps) {
               header={user ? (
                 <div data-icod-id="src_components_layout_appshell_tsx_user_header">
                   <div
-                    style={{ fontWeight: 500, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}
+                    className="text-[var(--text-sm)] font-medium text-[var(--color-gray-900)]"
                     data-icod-id="src_components_layout_appshell_tsx_user_name">
                     {user.fullName}
                   </div>
                   <div
-                    style={{ fontSize: 'var(--text-2xs)', color: 'var(--color-text-secondary)' }}
+                    className="text-[var(--text-xs)] text-[var(--color-gray-600)]"
                     data-icod-id="src_components_layout_appshell_tsx_user_email">
                     {user.email}
                   </div>

@@ -125,8 +125,7 @@ export default function DropdownMenu({ trigger, items, className, header }: Drop
             <>
               <div
                 role="none"
-                className="px-3 py-3"
-                style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}
+                className="px-3 py-3 text-[var(--text-sm)] font-medium text-[var(--color-gray-900)]"
                 data-icod-id="src_components_ui_dropdownmenu_tsx_header">
                 {header}
               </div>
