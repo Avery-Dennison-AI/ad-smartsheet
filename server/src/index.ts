@@ -9,6 +9,8 @@ import helmet from 'helmet';
 import { errorHandler } from './middleware/errorMiddleware';
 import { UPLOADS_DIR } from './paths';
 import authRouter from './routes/auth';
+import invitationsRouter from './routes/invitations';
+import adminUsersRouter from './routes/adminUsers';
 import { seedAdmin } from './config/seedAdmin';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -41,6 +43,10 @@ app.get('/api/health', (_req: Request, res: Response) =>
 
 // ─── Auth Routes ──────────────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
+
+// ─── Invitation & Admin User Routes ───────────────────────────────────────────
+app.use('/api', invitationsRouter);
+app.use('/api/admin', adminUsersRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use(errorHandler);

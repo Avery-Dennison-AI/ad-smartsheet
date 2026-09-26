@@ -1,6 +1,6 @@
-import bcrypt from 'bcryptjs';
 import User from '../models/User';
 import { env } from './env';
+import { hashPassword } from '../utils/password';
 
 /**
  * Seeds an admin user from environment variables.
@@ -23,7 +23,7 @@ export async function seedAdmin(): Promise<void> {
     return;
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await hashPassword(password);
   await User.create({
     fullName: name,
     email: email.trim().toLowerCase(),
