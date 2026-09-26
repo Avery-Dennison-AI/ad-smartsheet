@@ -14,10 +14,12 @@ export interface DropdownMenuProps {
   trigger: ReactNode;
   items: DropdownMenuItem[];
   className?: string;
+  /** Non-interactive header rendered above the items list. Skipped in keyboard navigation. */
+  header?: ReactNode;
 }
 
 /** Trigger + floating menu with keyboard navigation (arrow keys, Escape). */
-export default function DropdownMenu({ trigger, items, className }: DropdownMenuProps) {
+export default function DropdownMenu({ trigger, items, className, header }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
   const [focusIndex, setFocusIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -119,6 +121,20 @@ export default function DropdownMenu({ trigger, items, className }: DropdownMenu
             'absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-[var(--radius-md)] border border-border bg-card py-1 shadow-[var(--shadow-md)]',
           )}
           data-icod-id="src_components_ui_dropdownmenu_tsx_a5ea">
+          {header && (
+            <>
+              <div
+                role="none"
+                className="px-3 py-3"
+                style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}
+                data-icod-id="src_components_ui_dropdownmenu_tsx_header">
+                {header}
+              </div>
+              <div
+                className="my-1 border-t border-border"
+                data-icod-id="src_components_ui_dropdownmenu_tsx_header_divider" />
+            </>
+          )}
           {items.map((item, index) => {
             if (item.type === 'divider') {
               return (

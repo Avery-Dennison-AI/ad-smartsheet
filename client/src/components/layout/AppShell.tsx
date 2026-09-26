@@ -219,22 +219,21 @@ export default function AppShell({ children }: AppShellProps) {
                 name={user?.fullName || 'User'}
                 size="md"
                 data-icod-id="src_components_layout_appshell_tsx_32b9" />}
+              header={user ? (
+                <div data-icod-id="src_components_layout_appshell_tsx_user_header">
+                  <div
+                    style={{ fontWeight: 500, fontSize: 'var(--text-sm)', color: 'var(--color-text-primary)' }}
+                    data-icod-id="src_components_layout_appshell_tsx_user_name">
+                    {user.fullName}
+                  </div>
+                  <div
+                    style={{ fontSize: 'var(--text-2xs)', color: 'var(--color-text-secondary)' }}
+                    data-icod-id="src_components_layout_appshell_tsx_user_email">
+                    {user.email}
+                  </div>
+                </div>
+              ) : undefined}
               items={[
-                // User info header (non-clickable)
-                ...(user ? [
-                  {
-                    type: 'item' as const,
-                    label: user.fullName,
-                    icon: <User
-                      className="h-4 w-4"
-                      data-icod-id="src_components_layout_appshell_tsx_8774" />,
-                  },
-                  {
-                    type: 'item' as const,
-                    label: user.email,
-                  },
-                  { type: 'divider' as const },
-                ] : []),
                 { label: 'Profile', icon: <User
                   className="h-4 w-4"
                   data-icod-id="src_components_layout_appshell_tsx_ae81" /> },

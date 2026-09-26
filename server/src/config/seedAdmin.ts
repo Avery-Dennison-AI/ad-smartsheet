@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import User from '../models/User';
+import { env } from './env';
 
 /**
  * Seeds an admin user from environment variables.
@@ -7,18 +8,18 @@ import User from '../models/User';
  * Does nothing if a user with that email already exists.
  */
 export async function seedAdmin(): Promise<void> {
-  const email = process.env.ADMIN_EMAIL;
-  const password = process.env.ADMIN_PASSWORD;
-  const name = process.env.ADMIN_NAME;
+  const email = env.ADMIN_EMAIL;
+  const password = env.ADMIN_PASSWORD;
+  const name = env.ADMIN_NAME;
 
   if (!email || !password || !name) {
-    console.warn('Admin seeding skipped: ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME env vars required');
+    console.log('[seed] ADMIN_EMAIL, ADMIN_PASSWORD, or ADMIN_NAME not set — skipping admin seed');
     return;
   }
 
   const existing = await User.findOne({ email: email.trim().toLowerCase() });
   if (existing) {
-    console.log(`[seed] Admin user ${email} already exists — skipping`);
+    console.log('[seed] Admin user already exists, skipping');
     return;
   }
 
@@ -31,5 +32,5 @@ export async function seedAdmin(): Promise<void> {
     isActive: true,
   });
 
-  console.log(`[seed] Admin user ${email} created`);
+  console.log('[seed] Admin user created');
 }

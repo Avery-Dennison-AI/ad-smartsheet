@@ -24,9 +24,9 @@ const initialState: AuthState = {
 export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithValue }) => {
   try {
     const { data } = await apiClient.get('/auth/me');
-    return data.user as AuthUser;
+    return data.data as AuthUser;
   } catch (err: unknown) {
-    const error = err as { response?: { status?: number } };
+    const error = err as { response?: { status?: number; data?: { error?: { message?: string } } } };
     if (error.response?.status === 401) {
       return rejectWithValue(null);
     }
@@ -35,8 +35,13 @@ export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithVa
 });
 
 /** Logs out the current user by calling POST /api/auth/logout. */
-export const logoutUser = createAsyncThunk('auth/logout', async () => {
-  await apiClient.post('/auth/logout');
+export const logoutUser = createAsyncThunk('auth/logout', async (_, { rejectWithValue }) => {
+  try {
+    await apiClient.post('/auth/logout');
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { error?: { message?: string } } } };
+    return rejectWithValue(error.response?.data?.error?.message ?? 'Logout failed');
+  }
 });
 
 const authSlice = createSlice({

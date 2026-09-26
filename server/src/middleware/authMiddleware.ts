@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
+import { AppError } from '../utils/AppError';
 
 export interface AuthUser {
   id: string;
@@ -18,23 +20,26 @@ declare global {
 /**
  * Reads the JWT from the `token` httpOnly cookie.
  * Attaches { id, email, role } to req.user on success.
- * Returns 401 if the cookie is missing or the token is invalid.
+ * Forwards AppError(401) to the global error handler on failure.
  */
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
   const token = req.cookies?.token as string | undefined;
 
   if (!token) {
-    res.status(401).json({ message: 'Authentication required' });
+    next(new AppError('Authentication required', 401));
     return;
   }
 
   try {
-    const secret = process.env.JWT_SECRET!;
-    const payload = jwt.verify(token, secret) as { sub: string; email: string; role: string };
-    req.user = { id: payload.sub, email: payload.email, role: payload.role };
+    const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] }) as {
+      id: string;
+      email: string;
+      role: string;
+    };
+    req.user = { id: payload.id, email: payload.email, role: payload.role };
     next();
   } catch {
-    res.status(401).json({ message: 'Authentication required' });
+    next(new AppError('Authentication required', 401));
   }
 }
 
@@ -46,7 +51,7 @@ export function requireRole(role: string) {
   return (req: Request, res: Response, next: NextFunction): void => {
     requireAuth(req, res, () => {
       if (!req.user || req.user.role !== role) {
-        res.status(403).json({ message: 'Forbidden' });
+        next(new AppError('Forbidden', 403));
         return;
       }
       next();

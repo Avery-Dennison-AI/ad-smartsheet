@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, LayoutGrid } from 'lucide-react';
-import { Button, Input, Alert, Card } from '@/components/ui';
+import { Button, Input, Alert, Card, IconButton } from '@/components/ui';
 import apiClient from '@/services/apiClient';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchMe } from '@/store/slices/authSlice';
@@ -10,7 +10,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/home';
+  const redirect = searchParams.get('redirect');
+  const safeRedirect = (redirect?.startsWith('/') && !redirect.startsWith('//')) ? redirect : '/home';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,17 +42,17 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const { data } = await apiClient.post('/auth/login', { email, password });
+      await apiClient.post('/auth/login', { email, password });
       // Populate Redux auth state after successful login
       await dispatch(fetchMe());
-      navigate(redirect, { replace: true });
+      navigate(safeRedirect, { replace: true });
     } catch (err: unknown) {
-      const error = err as { response?: { status?: number; data?: { message?: string } } };
+      const error = err as { response?: { status?: number; data?: { error?: { message?: string }; message?: string } } };
       const status = error.response?.status;
       if (status === 401) {
-        setError(error.response?.data?.message || 'Invalid email or password');
+        setError(error.response?.data?.error?.message || 'Invalid email or password');
       } else if (status === 429) {
-        setError(error.response?.data?.message || 'Too many login attempts. Please try again later.');
+        setError(error.response?.data?.error?.message || 'Too many login attempts. Please try again later.');
       } else {
         setError('Network error. Please try again.');
       }
@@ -143,15 +144,13 @@ export default function LoginPage() {
               onChange={(e) => { setPassword(e.target.value); setFieldErrors((prev) => ({ ...prev, password: undefined })); }}
               error={fieldErrors.password}
               rightIcon={
-                <button
-                  type="button"
+                <IconButton
+                  size="sm"
+                  tooltip={showPassword ? 'Hide password' : 'Show password'}
                   onClick={() => setShowPassword(!showPassword)}
-                  className="cursor-pointer hover:text-foreground transition-colors"
-                  tabIndex={-1}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   data-icod-id="login_page_toggle_password">
                   {showPassword ? <EyeOff className="h-4 w-4" data-icod-id="src_pages_loginpage_tsx_44c0" /> : <Eye className="h-4 w-4" data-icod-id="src_pages_loginpage_tsx_63aa" />}
-                </button>
+                </IconButton>
               }
               data-icod-id="login_page_password_input" />
 
