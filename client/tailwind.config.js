@@ -45,13 +45,10 @@ export default {
         input: 'rgb(var(--input, 203 213 225) / <alpha-value>)',
         ring: 'rgb(var(--ring, 79 70 229) / <alpha-value>)',
       },
-      // Radius derives from one --radius token so rounded-md/lg/xl stay in
-      // proportion instead of drifting per component.
       borderRadius: {
-        md: 'calc(var(--radius, 0.75rem) - 4px)',
-        lg: 'calc(var(--radius, 0.75rem) - 2px)',
-        xl: 'var(--radius, 0.75rem)',
-        '2xl': 'calc(var(--radius, 0.75rem) + 4px)',
+        sm: 'var(--radius-sm)',   // 4px
+        md: 'var(--radius-md)',   // 6px
+        lg: 'var(--radius-lg)',   // 8px
       },
       fontFamily: {
         sans: ['"Inter Variable"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
