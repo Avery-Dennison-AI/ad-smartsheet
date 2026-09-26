@@ -8,4 +8,20 @@ const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// On 401 responses (excluding auth endpoints), redirect to login
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const url = error?.config?.url as string | undefined;
+
+    // Don't intercept auth endpoint failures — let them propagate to the caller
+    if (status === 401 && url && !url.includes('/auth/login') && !url.includes('/auth/me')) {
+      window.location.href = '/login';
+    }
+
+    return Promise.reject(error);
+  },
+);
+
 export default apiClient;

@@ -13,6 +13,11 @@ const iconPaddingClass: Record<InputSize, string> = {
   md: 'pl-8',
 };
 
+const rightIconPaddingClass: Record<InputSize, string> = {
+  sm: 'pr-8',
+  md: 'pr-8',
+};
+
 /**
  * The form-control look as a class string. Use it directly on <textarea> and
  * <select>; use <Input> for <input>.
@@ -37,13 +42,15 @@ export interface InputProps extends Omit<ComponentPropsWithoutRef<'input'>, 'siz
   error?: string;
   /** Icon rendered inside the input on the left side. */
   leftIcon?: ReactNode;
+  /** Icon rendered inside the input on the right side. */
+  rightIcon?: ReactNode;
   /** Size variant. Default 'md'. */
   size?: InputSize;
 }
 
 /** Text input with optional label, helper text, and error state. */
 const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, helperText, error, className, id, leftIcon, size = 'md', ...rest },
+  { label, helperText, error, className, id, leftIcon, rightIcon, size = 'md', ...rest },
   ref,
 ) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
@@ -73,12 +80,20 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           className={cn(
             inputClass(undefined, size),
             leftIcon && iconPaddingClass[size],
+            rightIcon && rightIconPaddingClass[size],
             error && 'border-destructive focus:border-destructive focus:shadow-[var(--focus-ring-danger)]',
             className,
           )}
           aria-invalid={!!error}
           data-icod-id="src_components_ui_input_tsx_3a37"
           {...rest} />
+        {rightIcon && (
+          <span
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--color-gray-400)]"
+            data-icod-id="src_components_ui_input_tsx_right_icon">
+            {rightIcon}
+          </span>
+        )}
       </div>
       {error && <p
         className="text-xs text-destructive"

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
   Clock,
@@ -17,7 +17,8 @@ import {
 import { cn } from '@/utils/cn';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSidebar } from '@/store/slices/uiSlice';
-import { IconButton, DropdownMenu, Avatar, Tooltip, Input, Breadcrumbs } from '@/components/ui';
+import { logoutUser, selectCurrentUser } from '@/store/slices/authSlice';
+import { IconButton, DropdownMenu, Avatar, Tooltip, Input, Breadcrumbs, useToast } from '@/components/ui';
 import SidebarNavItem from './SidebarNavItem';
 
 interface NavItem {
@@ -27,7 +28,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Home', path: '/', icon: Home },
+  { label: 'Home', path: '/home', icon: Home },
   { label: 'Recents', path: '/recents', icon: Clock },
   { label: 'Favorites', path: '/favorites', icon: Star },
 ];
@@ -46,7 +47,16 @@ interface AppShellProps {
 export default function AppShell({ children }: AppShellProps) {
   const dispatch = useAppDispatch();
   const collapsed = useAppSelector((s) => s.ui.sidebarCollapsed);
+  const user = useAppSelector(selectCurrentUser);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { addToast } = useToast();
+
+  async function handleLogout() {
+    await dispatch(logoutUser());
+    addToast('success', "You've been logged out");
+    navigate('/login');
+  }
 
   return (
     <div
@@ -206,10 +216,25 @@ export default function AppShell({ children }: AppShellProps) {
             </IconButton>
             <DropdownMenu
               trigger={<Avatar
-                name="Demo User"
+                name={user?.fullName || 'User'}
                 size="md"
                 data-icod-id="src_components_layout_appshell_tsx_32b9" />}
               items={[
+                // User info header (non-clickable)
+                ...(user ? [
+                  {
+                    type: 'item' as const,
+                    label: user.fullName,
+                    icon: <User
+                      className="h-4 w-4"
+                      data-icod-id="src_components_layout_appshell_tsx_8774" />,
+                  },
+                  {
+                    type: 'item' as const,
+                    label: user.email,
+                  },
+                  { type: 'divider' as const },
+                ] : []),
                 { label: 'Profile', icon: <User
                   className="h-4 w-4"
                   data-icod-id="src_components_layout_appshell_tsx_ae81" /> },
@@ -217,9 +242,14 @@ export default function AppShell({ children }: AppShellProps) {
                   className="h-4 w-4"
                   data-icod-id="src_components_layout_appshell_tsx_d1dd" /> },
                 { type: 'divider' },
-                { label: 'Log out', icon: <LogOut
-                  className="h-4 w-4"
-                  data-icod-id="src_components_layout_appshell_tsx_6b6d" />, danger: true },
+                {
+                  label: 'Log out',
+                  icon: <LogOut
+                    className="h-4 w-4"
+                    data-icod-id="src_components_layout_appshell_tsx_6b6d" />,
+                  danger: true,
+                  onClick: handleLogout,
+                },
               ]}
               data-icod-id="src_components_layout_appshell_tsx_8dbc" />
           </div>
