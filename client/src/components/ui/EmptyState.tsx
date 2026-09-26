@@ -9,6 +9,8 @@ export interface EmptyStateProps {
   description?: string;
   /** Primary call to action, usually a <Button>. */
   action?: ReactNode;
+  /** Compact inline variant for use inside cards. Hides description, action, and uses muted styling. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -18,8 +20,27 @@ export default function EmptyState({
   title,
   description,
   action,
+  compact = false,
   className,
 }: EmptyStateProps) {
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          'flex items-center gap-3 px-4 py-4',
+          className,
+        )}
+        data-icod-id="src_components_ui_emptystate_tsx_compact">
+        <Icon
+          className="h-5 w-5 shrink-0 text-[var(--color-gray-400)]"
+          data-icod-id="src_components_ui_emptystate_tsx_compact_icon" />
+        <span
+          className="font-normal text-[var(--text-sm)] text-[var(--color-gray-600)]"
+          data-icod-id="src_components_ui_emptystate_tsx_compact_title">{title}</span>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -35,11 +56,11 @@ export default function EmptyState({
           data-icod-id="src_components_ui_emptystate_tsx_c1bd" />
       </div>
       <h3
-        className="font-semibold text-foreground text-[var(--text-md)]"
+        className="font-medium text-[var(--color-gray-600)] text-[var(--text-md)]"
         data-icod-id="src_components_ui_emptystate_tsx_67d7">{title}</h3>
       {description && (
         <p
-          className="mt-1 max-w-sm text-sm text-muted-foreground"
+          className="mt-1 max-w-sm text-[var(--text-sm)] text-[var(--color-gray-400)]"
           data-icod-id="src_components_ui_emptystate_tsx_d55a">{description}</p>
       )}
       {action && <div className="mt-5" data-icod-id="src_components_ui_emptystate_tsx_0732">{action}</div>}

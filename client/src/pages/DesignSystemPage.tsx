@@ -725,17 +725,31 @@ export default function DesignSystemPage() {
       </Section>
       {/* ─── 17. EmptyState ──────────────────────────────────────────────── */}
       <Section title="EmptyState" data-icod-id="src_pages_designsystempage_tsx_ce1f">
-        <Card data-icod-id="src_pages_designsystempage_tsx_a0e1">
-          <EmptyState
-            icon={Search}
-            title="No results found"
-            description="Try adjusting your search or filters."
-            action={<Button
-              variant="primary"
-              size="sm"
-              data-icod-id="src_pages_designsystempage_tsx_0e24">Clear filters</Button>}
-            data-icod-id="src_pages_designsystempage_tsx_e0c1" />
-        </Card>
+        <div className="space-y-4" data-icod-id="src_pages_designsystempage_tsx_9149">
+          <Card data-icod-id="src_pages_designsystempage_tsx_a0e1">
+            <EmptyState
+              icon={Search}
+              title="No results found"
+              description="Try adjusting your search or filters."
+              action={<Button
+                variant="primary"
+                size="sm"
+                data-icod-id="src_pages_designsystempage_tsx_0e24">Clear filters</Button>}
+              data-icod-id="src_pages_designsystempage_tsx_e0c1" />
+          </Card>
+          <div data-icod-id="src_pages_designsystempage_tsx_c458">
+            <span
+              className="mb-2 block text-xs text-muted-foreground"
+              data-icod-id="ds_emptystate_compact_label">Compact variant</span>
+            <Card data-icod-id="ds_emptystate_compact_card">
+              <EmptyState
+                compact
+                icon={Clock}
+                title="Sheets you open will appear here."
+                data-icod-id="ds_emptystate_compact_instance" />
+            </Card>
+          </div>
+        </div>
       </Section>
       {/* ─── 18. Skeleton Loaders ────────────────────────────────────────── */}
       <Section

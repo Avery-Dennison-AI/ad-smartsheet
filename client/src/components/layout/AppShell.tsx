@@ -10,7 +10,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   Users,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
@@ -88,13 +87,13 @@ export default function AppShell({ children }: AppShellProps) {
       {/* ─── Sidebar ──────────────────────────────────────────────────────── */}
       <aside
         className={cn(
-          'flex flex-col border-r border-[var(--color-border)] bg-[var(--color-bg-surface)] transition-all duration-200 ease-in-out',
+          'flex flex-col border-r border-border bg-[var(--color-bg-surface)] transition-all duration-200 ease-in-out',
           collapsed ? 'w-[var(--sidebar-collapsed-width)]' : 'w-[var(--sidebar-width)]',
         )}
         data-icod-id="src_components_layout_appshell_tsx_63f3">
         {/* Logo area */}
         <div
-          className="flex h-[var(--topbar-height)] items-center border-b border-[var(--color-border)] px-3"
+          className="flex h-[var(--topbar-height)] items-center justify-between border-b border-border px-3"
           data-icod-id="src_components_layout_appshell_tsx_de83">
           {collapsed ? (
             <div
@@ -102,7 +101,7 @@ export default function AppShell({ children }: AppShellProps) {
               data-icod-id="src_components_layout_appshell_tsx_1e53">
               <Tooltip content="GridFlow" data-icod-id="src_components_layout_appshell_tsx_cfcf">
                 <div
-                  className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] text-[var(--text-2xs)] font-bold text-[var(--color-bg-surface)]"
+                  className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary)] text-[var(--text-sm)] font-bold text-white"
                   data-icod-id="src_components_layout_appshell_tsx_4cd2">
                   GF
                 </div>
@@ -123,7 +122,7 @@ export default function AppShell({ children }: AppShellProps) {
                 className="flex items-center gap-2"
                 data-icod-id="src_components_layout_appshell_tsx_1947">
                 <div
-                  className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-primary)] text-[var(--text-2xs)] font-bold text-[var(--color-bg-surface)]"
+                  className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary)] text-[var(--text-sm)] font-bold text-white"
                   data-icod-id="src_components_layout_appshell_tsx_eca9">
                   GF
                 </div>
@@ -169,7 +168,7 @@ export default function AppShell({ children }: AppShellProps) {
 
           {/* Divider */}
           <div
-            className="my-2 border-t border-[var(--color-border)]"
+            className="my-3 border-t border-border"
             data-icod-id="src_components_layout_appshell_tsx_2801" />
 
           {/* Workspaces section header */}
@@ -178,7 +177,7 @@ export default function AppShell({ children }: AppShellProps) {
               className="mb-1 flex items-center justify-between px-1"
               data-icod-id="src_components_layout_appshell_tsx_47c8">
               <span
-                className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-gray-400)]"
+                className="text-[var(--text-xs)] font-semibold uppercase tracking-widest text-[var(--color-gray-400)]"
                 data-icod-id="src_components_layout_appshell_tsx_b5c2">
                 Workspaces
               </span>
@@ -238,14 +237,14 @@ export default function AppShell({ children }: AppShellProps) {
           {user?.role === 'admin' && (
             <>
               <div
-                className="border-t border-[var(--color-border)] pt-2"
+                className="border-t border-border my-3 pt-2"
                 data-icod-id="src_components_layout_appshell_tsx_eee9">
                 {!collapsed && (
                   <div
                     className="mb-1 px-1"
                     data-icod-id="src_components_layout_appshell_tsx_2284">
                     <span
-                      className="text-[10px] font-semibold uppercase tracking-widest text-[var(--color-gray-400)]"
+                      className="text-[var(--text-xs)] font-semibold uppercase tracking-widest text-[var(--color-gray-400)]"
                       data-icod-id="src_components_layout_appshell_tsx_e56e">
                       Admin
                     </span>
@@ -263,61 +262,6 @@ export default function AppShell({ children }: AppShellProps) {
               </div>
             </>
           )}
-
-          {/* User area */}
-          <div
-            className="border-t border-[var(--color-border)] pt-2"
-            data-icod-id="src_components_layout_appshell_tsx_6ea9">
-            {collapsed ? (
-              <div
-                className="flex justify-center"
-                data-icod-id="src_components_layout_appshell_tsx_d9cb">
-                <DropdownMenu
-                  trigger={
-                    <Tooltip
-                      content={user?.fullName || 'User'}
-                      data-icod-id="src_components_layout_appshell_tsx_b545">
-                      <Avatar
-                        name={user?.fullName || 'User'}
-                        size="sm"
-                        data-icod-id="src_components_layout_appshell_tsx_d487" />
-                    </Tooltip>
-                  }
-                  header={userDropdownHeader}
-                  items={userDropdownItems}
-                  data-icod-id="src_components_layout_appshell_tsx_fd3f" />
-              </div>
-            ) : (
-              <div
-                className="flex items-center gap-2 px-1"
-                data-icod-id="src_components_layout_appshell_tsx_9453">
-                <Avatar
-                  name={user?.fullName || 'User'}
-                  size="sm"
-                  data-icod-id="src_components_layout_appshell_tsx_c627" />
-                <span
-                  className="truncate text-[var(--text-sm)] text-[var(--color-gray-900)]"
-                  data-icod-id="src_components_layout_appshell_tsx_215b">
-                  {user?.fullName || 'User'}
-                </span>
-                <DropdownMenu
-                  trigger={
-                <IconButton
-                  size="sm"
-                  tooltip="User menu"
-                  className="ml-auto"
-                  data-icod-id="src_components_layout_appshell_tsx_629e">
-                  <ChevronDown
-                    className="h-4 w-4"
-                    data-icod-id="src_components_layout_appshell_tsx_70c5" />
-                </IconButton>
-                  }
-                  header={userDropdownHeader}
-                  items={userDropdownItems}
-                  data-icod-id="src_components_layout_appshell_tsx_11c3" />
-              </div>
-            )}
-          </div>
         </div>
       </aside>
       {/* ─── Right panel ──────────────────────────────────────────────────── */}
@@ -326,7 +270,7 @@ export default function AppShell({ children }: AppShellProps) {
         data-icod-id="src_components_layout_appshell_tsx_c6e5">
         {/* Top bar */}
         <header
-          className="flex h-12 shrink-0 items-center gap-4 border-b border-[var(--color-border)] bg-[var(--color-bg-surface)] px-4"
+          className="flex h-12 shrink-0 items-center gap-4 border-b border-border bg-[var(--color-bg-surface)] px-4"
           data-icod-id="src_components_layout_appshell_tsx_88b5">
           {/* Breadcrumbs */}
           <Breadcrumbs
@@ -346,7 +290,7 @@ export default function AppShell({ children }: AppShellProps) {
               readOnly
               rightIcon={
                 <kbd
-                  className="text-[10px] text-[var(--color-gray-400)] bg-[var(--color-gray-100)] px-1 rounded border border-[var(--color-border)] font-mono leading-none"
+                  className="flex items-center rounded border border-border bg-[var(--color-gray-100)] px-1 font-mono leading-none text-[var(--text-2xs)] text-[var(--color-gray-400)]"
                   data-icod-id="src_components_layout_appshell_tsx_d263">
                   ⌘K
                 </kbd>
