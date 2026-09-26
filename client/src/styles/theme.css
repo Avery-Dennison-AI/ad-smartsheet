@@ -1,0 +1,148 @@
+/*
+ * GRIDFLOW DESIGN TOKENS — single source of truth for all CSS custom properties.
+ *
+ * The :root block defines the light theme. A [data-theme="dark"] block can be
+ * added later without touching any component files.
+ *
+ * Semantic colour variables (--background, --foreground, etc.) use space-separated
+ * R G B channel triplets so Tailwind opacity modifiers work (bg-primary/10).
+ * GridFlow-specific tokens use raw values (hex, px) and are consumed via var()
+ * or through extended Tailwind utilities.
+ */
+:root {
+  /* ─── Corner radius (global) ──────────────────────────────────────── */
+  --radius: 6px;
+
+  /* ─── Semantic colours (channel-triplet for Tailwind opacity mods) ── */
+  --background: 249 250 251;          /* #F9FAFB — app bg */
+  --foreground: 17 24 39;             /* #111827 — body text */
+  --card: 255 255 255;                /* #FFFFFF — surface */
+  --card-foreground: 17 24 39;        /* #111827 */
+  --muted: 243 244 246;              /* #F3F4F6 */
+  --muted-foreground: 75 85 99;      /* #4B5563 */
+  --primary: 15 118 110;             /* #0F766E — teal */
+  --primary-foreground: 255 255 255; /* white on teal */
+  --secondary: 243 244 246;          /* #F3F4F6 */
+  --secondary-foreground: 17 24 39;  /* #111827 */
+  --accent: 240 253 250;             /* #F0FDFA — primary-bg */
+  --accent-foreground: 15 118 110;   /* #0F766E */
+  --destructive: 220 38 38;          /* #DC2626 */
+  --destructive-foreground: 255 255 255;
+  --success: 22 163 74;              /* #16A34A */
+  --warning: 217 119 6;              /* #D97706 */
+  --border: 229 231 235;             /* #E5E7EB — gray-200 */
+  --input: 229 231 235;              /* #E5E7EB */
+  --ring: 15 118 110;                /* #0F766E — focus ring */
+
+  /* ─── Primary Teal ────────────────────────────────────────────────── */
+  --color-primary: #0F766E;
+  --color-primary-hover: #115E59;
+  --color-primary-pressed: #134E4A;
+  --color-primary-bg: #F0FDFA;
+  --color-primary-border: #99F6E4;
+
+  /* ─── Neutrals ────────────────────────────────────────────────────── */
+  --color-gray-50: #F9FAFB;
+  --color-gray-100: #F3F4F6;
+  --color-gray-200: #E5E7EB;
+  --color-gray-400: #9CA3AF;
+  --color-gray-600: #4B5563;
+  --color-gray-900: #111827;
+
+  /* ─── Surfaces ────────────────────────────────────────────────────── */
+  --color-bg-app: #F9FAFB;
+  --color-bg-surface: #FFFFFF;
+
+  /* ─── Semantic ────────────────────────────────────────────────────── */
+  --color-success: #16A34A;
+  --color-success-bg: #F0FDF4;
+  --color-warning: #D97706;
+  --color-warning-bg: #FFFBEB;
+  --color-danger: #DC2626;
+  --color-danger-bg: #FEF2F2;
+  --color-info: #2563EB;
+  --color-info-bg: #EFF6FF;
+
+  /* ─── Status palette (solid + light) ──────────────────────────────── */
+  --status-red: #DC2626;
+  --status-red-bg: #FEE2E2;
+  --status-yellow: #D97706;
+  --status-yellow-bg: #FEF9C3;
+  --status-green: #16A34A;
+  --status-green-bg: #DCFCE7;
+  --status-blue: #2563EB;
+  --status-blue-bg: #DBEAFE;
+  --status-gray: #6B7280;
+  --status-gray-bg: #F3F4F6;
+
+  /* ─── Selection ───────────────────────────────────────────────────── */
+  --color-selection-bg: #CCFBF1;
+  --color-selection-border: #0F766E;
+
+  /* ─── Typography ──────────────────────────────────────────────────── */
+  --font-family: 'Inter', system-ui, sans-serif;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --font-regular: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --line-height-ui: 1.4;
+
+  /* ─── Spacing ─────────────────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* ─── Radius ──────────────────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* ─── Shadows ─────────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06);
+
+  /* ─── Grid tokens ─────────────────────────────────────────────────── */
+  --grid-row-height-compact: 32px;
+  --grid-row-height-comfortable: 40px;
+  --grid-cell-padding: 0 8px;
+  --grid-header-bg: var(--color-gray-50);
+  --grid-header-text: var(--color-gray-600);
+  --grid-header-font-size: 12px;
+  --grid-header-font-weight: 500;
+  --grid-row-number-width: 48px;
+  --grid-line-color: var(--color-gray-200);
+
+  /* ─── Focus ring ──────────────────────────────────────────────────── */
+  --focus-ring: 0 0 0 2px #FFFFFF, 0 0 0 4px #0F766E;
+
+  /* ─── Shell ───────────────────────────────────────────────────────── */
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 56px;
+  --topbar-height: 48px;
+}
+
+/* ─── Keyframes ───────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(100%); }
+}
