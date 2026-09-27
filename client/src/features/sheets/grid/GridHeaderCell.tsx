@@ -17,6 +17,7 @@ const TYPE_ICONS: Record<ColumnType, typeof Type> = {
 interface GridHeaderCellProps {
   column: Column;
   userRole: WorkspaceRole;
+  isScrolled?: boolean;
   onRename: (columnId: string, name: string) => void;
   onChangeType: (columnId: string) => void;
   onEditOptions: (columnId: string) => void;
@@ -32,6 +33,7 @@ interface GridHeaderCellProps {
 export default function GridHeaderCell({
   column,
   userRole,
+  isScrolled,
   onRename,
   onChangeType,
   onEditOptions,

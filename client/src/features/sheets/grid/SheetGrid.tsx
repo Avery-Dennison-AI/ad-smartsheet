@@ -49,6 +49,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   const workspaceMembers = useAppSelector(selectGridMembers);
 
   const [scrollTop, setScrollTop] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [viewportHeight, setViewportHeight] = useState(600);
   const observerRef = useRef<ResizeObserver | null>(null);
   const scrollNodeRef = useRef<HTMLDivElement | null>(null);
@@ -131,6 +132,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   const handleScroll = useCallback(() => {
     if (scrollNodeRef.current) {
       setScrollTop(scrollNodeRef.current.scrollTop);
+      setIsScrolled(scrollNodeRef.current.scrollLeft > 0);
     }
   }, []);
 
@@ -432,7 +434,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
             data-icod-id="src_features_sheets_grid_sheetgrid_tsx_abaf">
             {/* Top-left corner cell */}
             <div
-              className="sticky left-0 z-30 flex items-center justify-center border-b border-r bg-[var(--grid-header-bg)]"
+              className="sticky left-0 z-[22] flex items-center justify-center border-b border-r bg-[var(--grid-header-bg)]"
               style={{
                 width: 'var(--grid-row-num-width)',
                 height: HEADER_HEIGHT,
@@ -449,12 +451,14 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                   minWidth: col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH,
                   position: col.isPrimary ? 'sticky' : undefined,
                   left: col.isPrimary ? 'var(--grid-row-num-width)' : undefined,
-                  zIndex: col.isPrimary ? 10 : undefined,
+                  zIndex: col.isPrimary ? 21 : undefined,
+                  boxShadow: col.isPrimary && isScrolled ? '4px 0 6px -2px rgba(0,0,0,0.12)' : undefined,
                 }}
                 data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_dc1c_${col.id}`}>
                 <GridHeaderCell
                   column={col}
                   userRole={userRole}
+                  isScrolled={col.isPrimary ? isScrolled : false}
                   onRename={handleRenameColumn}
                   onChangeType={handleChangeColumnType}
                   onEditOptions={handleEditOptions}
@@ -510,7 +514,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                 data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_d513_${rowIdx}`}>
                 {/* Row number cell */}
                 <div
-                  className="sticky left-0 z-10"
+                  className="sticky left-0 z-[12]"
                   style={{ width: 'var(--grid-row-num-width)' }}
                   data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_e4b5_${rowIdx}`}>
                   <GridRowNumCell
@@ -542,7 +546,9 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                         minWidth: col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH,
                         position: col.isPrimary ? 'sticky' : undefined,
                         left: col.isPrimary ? 'var(--grid-row-num-width)' : undefined,
-                        zIndex: col.isPrimary ? 10 : undefined,
+                        zIndex: col.isPrimary ? 11 : undefined,
+                        boxShadow: col.isPrimary && isScrolled ? '4px 0 6px -2px rgba(0,0,0,0.12)' : undefined,
+                        backgroundColor: col.isPrimary ? 'var(--color-bg-surface)' : undefined,
                       }}
                       data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_07af_${rowIdx}_${col.id}`}>
                       <GridCell

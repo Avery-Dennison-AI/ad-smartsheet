@@ -418,7 +418,7 @@ export default function DesignSystemPage() {
                 ['--grid-cell-padding', '0 8px'],
                 ['--grid-header-font-size', '12px'],
                 ['--grid-header-font-weight', '500'],
-                ['--grid-row-number-width', '48px'],
+                ['--grid-row-num-width', '52px'],
               ].map(([token, value]) => (
                 <tr key={token} data-icod-id={`src_pages_designsystempage_tsx_b3ec_${token}`}>
                   <td
