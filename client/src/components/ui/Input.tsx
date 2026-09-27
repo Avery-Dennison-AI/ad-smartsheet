@@ -4,8 +4,8 @@ import { cn } from '@/utils/cn';
 export type InputSize = 'sm' | 'md';
 
 const sizeStyles: Record<InputSize, string> = {
-  sm: 'py-1.5 text-xs px-2',
-  md: 'py-2 text-sm px-3',
+  sm: 'h-7 py-1.5 text-xs px-2',
+  md: 'h-8 py-2 text-sm px-3',
 };
 
 const iconPaddingClass: Record<InputSize, string> = {

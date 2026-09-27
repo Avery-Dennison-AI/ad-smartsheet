@@ -12,6 +12,9 @@ export interface ModalProps {
   children: ReactNode;
 }
 
+const FORM_FIELD_SELECTOR =
+  'input:not([type="hidden"]), textarea, select';
+
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -33,14 +36,15 @@ export default function Modal({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  // Auto-focus first focusable element — runs ONLY when open transitions to true.
+  // Auto-focus first form field (or fallback to first focusable) — runs ONLY when open transitions to true.
   useEffect(() => {
     if (!open) return;
 
     requestAnimationFrame(() => {
       if (dialogRef.current) {
-        const firstFocusable = dialogRef.current.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-        firstFocusable?.focus();
+        const firstField = dialogRef.current.querySelector<HTMLElement>(FORM_FIELD_SELECTOR);
+        const target = firstField ?? dialogRef.current.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+        target?.focus();
       }
     });
   }, [open]);

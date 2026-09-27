@@ -12,3 +12,4 @@ client/build/
 client/dist/
 server/uploads/
 *.tsbuildinfo
+vite.config.js.timestamp-*.mjs
