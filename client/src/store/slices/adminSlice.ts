@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import {
   fetchUsers as fetchUsersApi,
   updateUserRole,
@@ -234,11 +234,10 @@ const adminSlice = createSlice({
 export const selectAdminUsers = (state: { admin: AdminState }) => state.admin.users.items;
 export const selectAdminUsersStatus = (state: { admin: AdminState }) => state.admin.users.status;
 export const selectAdminUsersError = (state: { admin: AdminState }) => state.admin.users.error;
-export const selectAdminUsersPagination = (state: { admin: AdminState }) => ({
-  total: state.admin.users.total,
-  page: state.admin.users.page,
-  totalPages: state.admin.users.totalPages,
-});
+export const selectAdminUsersPagination = createSelector(
+  (state: { admin: AdminState }) => state.admin.users,
+  (users) => ({ total: users.total, page: users.page, totalPages: users.totalPages }),
+);
 
 export const selectAdminInvitations = (state: { admin: AdminState }) => state.admin.invitations.items;
 export const selectAdminInvitationsStatus = (state: { admin: AdminState }) => state.admin.invitations.status;

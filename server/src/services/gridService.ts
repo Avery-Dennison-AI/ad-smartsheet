@@ -109,6 +109,25 @@ function validateCellValue(type: ColumnType, value: unknown): unknown {
   }
 }
 
+// ─── Column serialization ──────────────────────────────────────────────────────
+
+/**
+ * Extracts explicit fields from a column (whether a raw object or a Mongoose
+ * subdocument) and returns a plain JS object. Spreading a Mongoose subdocument
+ * with `{ ...col }` copies internal properties like __parentArray instead of
+ * actual field values, which corrupts data on re-save.
+ */
+function serializeColumn(col: any): ColumnDef {
+  return {
+    id: col.id ?? col._id?.toString(),
+    name: col.name,
+    type: col.type,
+    order: col.order,
+    isPrimary: col.isPrimary ?? false,
+    options: col.options ? col.options.map((o: any) => ({ label: o.label, color: o.color })) : undefined,
+  };
+}
+
 // ─── Format helpers ────────────────────────────────────────────────────────
 
 function formatRow(row: IRow) {
@@ -129,7 +148,7 @@ export async function initDefaultColumns(sheetId: string, userId: string): Promi
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
 
   if (sheet.columns && sheet.columns.length > 0) {
-    return sheet.columns;
+    return sheet.columns.map(serializeColumn);
   }
 
   const defaults = createDefaultColumns();
@@ -152,7 +171,7 @@ export async function getGrid(sheetId: string, userId: string) {
     .sort({ order: 1 });
 
   return {
-    columns: columns.map((c) => ({ ...c })),
+    columns: columns.map(serializeColumn),
     rows: rows.map(formatRow),
   };
 }
@@ -187,7 +206,7 @@ export async function addColumn(
 
   await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: existingColumns } });
   // Return the full sorted column list so the client can replace its state
-  return existingColumns;
+  return existingColumns.map(serializeColumn);
 }
 
 /** Updates a column (rename, type change, reorder, edit options). Requires editor+. */
@@ -203,7 +222,7 @@ export async function updateColumn(
   const colIndex = columns.findIndex((c) => c.id === columnId);
   if (colIndex === -1) throw new AppError('Column not found', 404);
 
-  const col = { ...columns[colIndex] };
+  const col = serializeColumn(columns[colIndex]);
 
   if (patch.name !== undefined) {
     col.name = patch.name.trim();
@@ -295,7 +314,7 @@ export async function reorderColumns(
   for (let i = 0; i < orderedIds.length; i++) {
     const col = colMap.get(orderedIds[i]);
     if (!col) throw new AppError(`Column ${orderedIds[i]} not found`, 400);
-    reordered.push({ ...col, order: i });
+    reordered.push({ ...serializeColumn(col), order: i });
   }
 
   await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: reordered } });

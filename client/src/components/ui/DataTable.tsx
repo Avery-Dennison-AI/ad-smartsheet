@@ -1,5 +1,5 @@
 import type { ReactNode, KeyboardEvent, MouseEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import Skeleton from './Skeleton';
 import EmptyState from './EmptyState';
@@ -42,15 +42,20 @@ export default function DataTable<T>({
   onRowClick,
   rowHref,
 }: DataTableProps<T>) {
+  const navigate = useNavigate();
   const interactive = !!(onRowClick || rowHref);
 
   /** Bail out when the click target is inside an interactive control. */
   const isInteractiveTarget = (target: EventTarget | null): boolean =>
-    !!(target as Element | null)?.closest?.('button, a, input, select, [role="button"]');
+    !!(target as Element | null)?.closest?.('a, button, input, select, [role="button"]');
 
   const handleRowClick = (e: MouseEvent<HTMLTableRowElement>, row: T) => {
     if (isInteractiveTarget(e.target)) return;
-    onRowClick?.(row);
+    if (onRowClick) {
+      onRowClick(row);
+    } else if (rowHref) {
+      navigate(rowHref(row));
+    }
   };
 
   const handleRowKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, row: T) => {
@@ -58,7 +63,11 @@ export default function DataTable<T>({
     // Don't fire for interactive elements that already handle these keys
     if (isInteractiveTarget(e.target)) return;
     e.preventDefault();
-    onRowClick?.(row);
+    if (onRowClick) {
+      onRowClick(row);
+    } else if (rowHref) {
+      navigate(rowHref(row));
+    }
   };
 
   if (loading) {

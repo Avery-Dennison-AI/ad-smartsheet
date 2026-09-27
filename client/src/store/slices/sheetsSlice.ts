@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import * as sheetService from '../../services/sheetService';
 import { parseApiError } from '../../utils/parseApiError';
 import type { Sheet } from '../../types';
@@ -204,9 +204,10 @@ export const selectCurrentSheet = (state: RootState) => {
   return id ? state.sheets.byId[id] ?? null : null;
 };
 
-export const selectSheetsByWorkspace = (workspaceId: string) => (state: RootState) => {
-  const ids = state.sheets.byWorkspace[workspaceId] ?? [];
-  return ids.map((id) => state.sheets.byId[id]).filter(Boolean) as Sheet[];
-};
+export const selectSheetsByWorkspace = createSelector(
+  [(state: RootState) => state.sheets.byId,
+   (state: RootState, workspaceId: string) => state.sheets.byWorkspace[workspaceId]],
+  (byId, ids) => (ids ?? []).map(id => byId[id]).filter(Boolean) as Sheet[],
+);
 
 export default sheetsSlice.reducer;

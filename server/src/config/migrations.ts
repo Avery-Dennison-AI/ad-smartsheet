@@ -1,4 +1,5 @@
 import Workspace, { WORKSPACE_COLORS } from '../models/Workspace';
+import Sheet from '../models/Sheet';
 
 /** Hex-to-palette-name mapping for one-time colour migration. */
 const HEX_TO_PALETTE: Record<string, string> = {
@@ -28,4 +29,48 @@ export async function migrateWorkspaceColors(): Promise<void> {
     migrated++;
   }
   console.log(`[startup] Migrated ${migrated} workspace(s) from hex colours to palette names`);
+}
+
+/**
+ * Repairs sheets whose columns were corrupted by spreading Mongoose
+ * subdocuments (which copies internal properties instead of field values).
+ * A column is considered broken if it lacks an `id` or `name` field.
+ */
+export async function repairBrokenColumns(): Promise<void> {
+  const sheets = await Sheet.find({}).select('_id columns');
+  let repairedCount = 0;
+
+  for (const sheet of sheets) {
+    const columns = sheet.columns;
+    if (!columns || columns.length === 0) continue;
+
+    let needsRepair = false;
+    const repaired = columns.map((col: any) => {
+      const hasId = col.id != null && col.id !== '';
+      const hasName = col.name != null && col.name !== '';
+
+      if (hasId && hasName) return col;
+
+      needsRepair = true;
+      return {
+        id: col.id ?? col._id?.toString() ?? `repaired-${Math.random().toString(36).slice(2, 10)}`,
+        name: col.name || 'Column',
+        type: col.type || 'text',
+        order: col.order ?? 0,
+        isPrimary: col.isPrimary ?? false,
+        options: col.options
+          ? col.options.map((o: any) => ({ label: o.label, color: o.color }))
+          : undefined,
+      };
+    });
+
+    if (needsRepair) {
+      await Sheet.findByIdAndUpdate(sheet._id, { $set: { columns: repaired } });
+      repairedCount++;
+    }
+  }
+
+  if (repairedCount > 0) {
+    console.log(`[startup] Repaired ${repairedCount} sheet(s) with broken column data`);
+  }
 }

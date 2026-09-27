@@ -17,7 +17,7 @@ export default function WorkspacePage() {
   const user = useAppSelector(selectCurrentUser);
   const workspace = useAppSelector(selectCurrentWorkspace);
   const status = useAppSelector(selectCurrentWorkspaceStatus);
-  const sheets = useAppSelector(selectSheetsByWorkspace(id || ''));
+  const sheets = useAppSelector((state) => selectSheetsByWorkspace(state, id || ''));
   const sheetsLoading = useAppSelector(selectSheetsLoading);
   const favorites = useAppSelector(selectFavorites);
   const { handleAccessLost, isAccessError } = useWorkspaceAccessLost();
