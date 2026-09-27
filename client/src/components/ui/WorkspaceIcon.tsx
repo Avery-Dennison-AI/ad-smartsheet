@@ -4,7 +4,7 @@ import { workspaceColorValue } from '@/utils/workspaceColors';
 interface WorkspaceIconProps {
   name: string;
   color: string;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
 
@@ -13,7 +13,7 @@ export default function WorkspaceIcon({ name, color, size = 'sm', className }: W
   const letter = name.charAt(0).toUpperCase();
   const resolvedColor = workspaceColorValue(color);
 
-  const sizeClasses = size === 'sm' ? 'h-5 w-5 text-2xs' : 'h-8 w-8 text-sm';
+  const sizeClasses = size === 'sm' ? 'h-5 w-5 text-2xs' : size === 'md' ? 'h-8 w-8 text-sm' : 'h-10 w-10 text-base';
 
   return (
     <div

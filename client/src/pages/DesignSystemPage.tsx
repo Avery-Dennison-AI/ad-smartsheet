@@ -73,6 +73,7 @@ export default function DesignSystemPage() {
   // Local state for interactive demos
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTypeOpen, setConfirmTypeOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('tab1');
   const [toggleOn, setToggleOn] = useState(false);
   const [checkboxChecked, setCheckboxChecked] = useState(false);
@@ -565,6 +566,11 @@ export default function DesignSystemPage() {
             size="md"
             onClick={() => setConfirmOpen(true)}
             data-icod-id="src_pages_designsystempage_tsx_4488">Open Confirm</Button>
+          <Button
+            variant="danger"
+            size="md"
+            onClick={() => setConfirmTypeOpen(true)}
+            data-icod-id="ds_confirmdialog_typeconfirm_btn">Type-to-Confirm</Button>
         </div>
 
         <Modal
@@ -589,6 +595,17 @@ export default function DesignSystemPage() {
           confirmLabel="Delete"
           onConfirm={() => addToast('info', 'Confirmed (no-op in design system)')}
           data-icod-id="src_pages_designsystempage_tsx_b141" />
+
+        <ConfirmDialog
+          open={confirmTypeOpen}
+          onClose={() => setConfirmTypeOpen(false)}
+          title="Delete workspace?"
+          description="This will permanently delete the workspace and all its contents. This action cannot be undone."
+          confirmText="My workspace"
+          confirmInputLabel='Type "My workspace" to confirm'
+          confirmLabel="Delete workspace"
+          onConfirm={() => addToast('info', 'Type-to-confirm succeeded (no-op in design system)')}
+          data-icod-id="ds_confirmdialog_typeconfirm_instance" />
       </Section>
       {/* ─── 11. Toast ───────────────────────────────────────────────────── */}
       <Section title="Toast" data-icod-id="src_pages_designsystempage_tsx_a0d8">

@@ -1,24 +1,24 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Settings, Users, LayoutGrid, AlertTriangle } from 'lucide-react';
-import { PageContainer, EmptyState, Button, AvatarGroup, Skeleton, DropdownMenu, WorkspaceIcon } from '@/components/ui';
+import { useParams } from 'react-router-dom';
+import { Settings, Users, LayoutGrid, AlertTriangle, Trash2 } from 'lucide-react';
+import { PageContainer, EmptyState, Button, AvatarGroup, Skeleton, DropdownMenu, WorkspaceIcon, PageHeader } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 import { fetchWorkspace, selectCurrentWorkspace, selectCurrentWorkspaceStatus, clearCurrentWorkspace } from '@/store/slices/workspaceSlice';
-import { ShareModal, WorkspaceSettingsModal } from '@/features/workspaces';
+import { ShareModal, WorkspaceSettingsModal, DeleteWorkspaceDialog } from '@/features/workspaces';
 import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 
 export default function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUser);
   const workspace = useAppSelector(selectCurrentWorkspace);
   const status = useAppSelector(selectCurrentWorkspaceStatus);
-  const { handleAccessLost } = useWorkspaceAccessLost();
+  const { handleAccessLost, isAccessError } = useWorkspaceAccessLost();
 
   const [shareOpen, setShareOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   /** Load or reload the workspace — handles both initial load and retry. */
@@ -28,15 +28,13 @@ export default function WorkspacePage() {
     dispatch(fetchWorkspace(id))
       .unwrap()
       .catch((err: unknown) => {
-        const e = err as { status?: number; statusCode?: number };
-        const statusCode = e?.status || e?.statusCode;
-        if (statusCode === 403 || statusCode === 404) {
+        if (isAccessError(err)) {
           handleAccessLost(err);
         } else {
           setFetchError('Failed to load workspace. Please try again.');
         }
       });
-  }, [id, dispatch, handleAccessLost]);
+  }, [id, dispatch, handleAccessLost, isAccessError]);
 
   useEffect(() => {
     loadWorkspace();
@@ -100,9 +98,9 @@ export default function WorkspacePage() {
     settingsItems.push({ type: 'divider' as const });
     settingsItems.push({
       label: 'Delete workspace',
-      icon: <LayoutGrid className="h-4 w-4" data-icod-id="src_pages_workspacepage_tsx_9f9c" />,
+      icon: <Trash2 className="h-4 w-4" data-icod-id="src_pages_workspacepage_tsx_9f9c" />,
       danger: true,
-      onClick: () => setSettingsOpen(true),
+      onClick: () => setDeleteDialogOpen(true),
     });
   }
 
@@ -114,60 +112,45 @@ export default function WorkspacePage() {
   return (
     <PageContainer fullWidth data-icod-id="src_pages_workspacepage_tsx_9d88">
       {/* Page header */}
-      <div
-        className="mb-6 flex items-start justify-between gap-4"
-        data-icod-id="src_pages_workspacepage_tsx_3da5">
-        <div
-          className="flex items-center gap-3 min-w-0"
-          data-icod-id="src_pages_workspacepage_tsx_fd90">
-          <WorkspaceIcon
-            name={workspace.name}
-            color={workspace.color}
-            size="md"
-            data-icod-id="src_pages_workspacepage_tsx_993e" />
-          <div className="min-w-0" data-icod-id="src_pages_workspacepage_tsx_3f6e">
-            <h1
-              className="truncate text-xl font-bold text-foreground"
-              data-icod-id="src_pages_workspacepage_tsx_7e01">{workspace.name}</h1>
-            {workspace.description && (
-              <p
-                className="truncate text-sm text-muted-foreground"
-                data-icod-id="src_pages_workspacepage_tsx_1dd5">{workspace.description}</p>
+      <PageHeader
+        icon={<WorkspaceIcon
+          name={workspace.name}
+          color={workspace.color}
+          size="lg"
+          data-icod-id="src_pages_workspacepage_tsx_2729" />}
+        title={workspace.name}
+        description={workspace.description || undefined}
+        actions={
+          <div className="flex shrink-0 items-center gap-2" data-icod-id="src_pages_workspacepage_tsx_7f1f">
+            <AvatarGroup
+              items={avatarItems}
+              max={5}
+              size="sm"
+              data-icod-id="src_pages_workspacepage_tsx_22e5" />
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<Users className="h-4 w-4" data-icod-id="src_pages_workspacepage_tsx_c8a5" />}
+              onClick={() => setShareOpen(true)}
+              data-icod-id="src_pages_workspacepage_tsx_e503">
+              Share
+            </Button>
+            {settingsItems.length > 0 && (
+              <DropdownMenu
+                trigger={<Settings
+                  className="h-5 w-5 cursor-pointer text-muted-foreground hover:text-foreground"
+                  data-icod-id="src_pages_workspacepage_tsx_c710" />}
+                items={settingsItems}
+                data-icod-id="src_pages_workspacepage_tsx_4090" />
             )}
           </div>
-        </div>
-
-        <div
-          className="flex shrink-0 items-center gap-2"
-          data-icod-id="src_pages_workspacepage_tsx_7f1f">
-          <AvatarGroup
-            items={avatarItems}
-            max={5}
-            size="sm"
-            data-icod-id="src_pages_workspacepage_tsx_22e5" />
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon={<Users className="h-4 w-4" data-icod-id="src_pages_workspacepage_tsx_c8a5" />}
-            onClick={() => setShareOpen(true)}
-            data-icod-id="src_pages_workspacepage_tsx_e503">
-            Share
-          </Button>
-          {settingsItems.length > 0 && (
-            <DropdownMenu
-              trigger={<Settings
-                className="h-5 w-5 cursor-pointer text-muted-foreground hover:text-foreground"
-                data-icod-id="src_pages_workspacepage_tsx_c710" />}
-              items={settingsItems}
-              data-icod-id="src_pages_workspacepage_tsx_4090" />
-          )}
-        </div>
-      </div>
+        }
+        data-icod-id="src_pages_workspacepage_tsx_30c3" />
       {/* Main content area — placeholder for sheets */}
       <EmptyState
         icon={LayoutGrid}
         title="No sheets yet"
-        description="Sheets are coming in the next step."
+        description="Sheets you create in this workspace will appear here."
         data-icod-id="src_pages_workspacepage_tsx_8040" />
       {/* Modals */}
       <ShareModal
@@ -181,6 +164,13 @@ export default function WorkspacePage() {
           onClose={() => setSettingsOpen(false)}
           workspace={workspace}
           data-icod-id="src_pages_workspacepage_tsx_ab36" />
+      )}
+      {workspace && (
+        <DeleteWorkspaceDialog
+          open={deleteDialogOpen}
+          workspace={workspace}
+          onClose={() => setDeleteDialogOpen(false)}
+          data-icod-id="src_pages_workspacepage_tsx_4c04" />
       )}
     </PageContainer>
   );
