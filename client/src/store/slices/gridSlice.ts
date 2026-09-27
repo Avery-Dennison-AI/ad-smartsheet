@@ -118,11 +118,27 @@ export const setPrimaryColumn = createAsyncThunk(
 export const addRow = createAsyncThunk(
   'grid/addRow',
   async (
-    { sheetId, data }: { sheetId: string; data?: { afterRowId?: string; cells?: Record<string, unknown> } },
+    { sheetId, data }: { sheetId: string; data?: { afterRowId?: string; beforeRowId?: string; cells?: Record<string, unknown> } },
     { rejectWithValue },
   ) => {
     try {
       const res = await gridService.addRow(sheetId, data);
+      return res.data.data as GridRow;
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
+
+/** Insert a row above or below a reference row. Uses beforeRowId / afterRowId. */
+export const insertRow = createAsyncThunk(
+  'grid/insertRow',
+  async (
+    { sheetId, afterRowId, beforeRowId }: { sheetId: string; afterRowId?: string; beforeRowId?: string },
+    { rejectWithValue },
+  ) => {
+    try {
+      const res = await gridService.addRow(sheetId, { afterRowId, beforeRowId });
       return res.data.data as GridRow;
     } catch (err: unknown) {
       return rejectWithValue(parseApiError(err).message);
@@ -145,17 +161,7 @@ export const updateCell = createAsyncThunk(
   },
 );
 
-export const deleteRows = createAsyncThunk(
-  'grid/deleteRows',
-  async ({ sheetId, rowIds }: { sheetId: string; rowIds: string[] }, { rejectWithValue }) => {
-    try {
-      await gridService.deleteRows(sheetId, rowIds);
-      return rowIds;
-    } catch (err: unknown) {
-      return rejectWithValue(parseApiError(err).message);
-    }
-  },
-);
+// deleteRows thunk is defined after the slice so it can reference optimisticDeleteRows/rollbackDeleteRows
 
 export const reorderRows = createAsyncThunk(
   'grid/reorderRows',
@@ -339,6 +345,23 @@ const gridSlice = createSlice({
         }
       }
     },
+    optimisticDeleteRows(
+      state,
+      action: PayloadAction<string[]>,
+    ) {
+      const deletedIds = new Set(action.payload);
+      state.rows = state.rows.filter((r) => !deletedIds.has(r.id));
+    },
+    rollbackDeleteRows(
+      state,
+      action: PayloadAction<Array<{ row: GridRow; index: number }>>,
+    ) {
+      // Re-insert rows at their original positions
+      for (const entry of action.payload) {
+        const insertIdx = Math.min(entry.index, state.rows.length);
+        state.rows.splice(insertIdx, 0, entry.row);
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -423,6 +446,17 @@ const gridSlice = createSlice({
         state.saving = false;
         state.saveError = (action.payload as string) || 'Failed to add row';
       })
+      // insertRow
+      .addCase(insertRow.pending, (state) => { state.saving = true; state.saveError = null; })
+      .addCase(insertRow.fulfilled, (state, action) => {
+        state.saving = false;
+        state.rows.push(action.payload);
+        state.rows.sort((a, b) => a.order - b.order);
+      })
+      .addCase(insertRow.rejected, (state, action) => {
+        state.saving = false;
+        state.saveError = (action.payload as string) || 'Failed to insert row';
+      })
       // updateCell
       .addCase(updateCell.pending, (state) => { state.saving = true; state.saveError = null; })
       .addCase(updateCell.fulfilled, (state, action) => {
@@ -437,12 +471,10 @@ const gridSlice = createSlice({
         state.saving = false;
         state.saveError = (action.payload as string) || 'Failed to update cell';
       })
-      // deleteRows
+      // deleteRows (optimistic — rows removed in thunk, rollback on failure)
       .addCase(deleteRows.pending, (state) => { state.saving = true; state.saveError = null; })
-      .addCase(deleteRows.fulfilled, (state, action) => {
+      .addCase(deleteRows.fulfilled, (state) => {
         state.saving = false;
-        const deletedIds = new Set(action.payload);
-        state.rows = state.rows.filter((r) => !deletedIds.has(r.id));
       })
       .addCase(deleteRows.rejected, (state, action) => {
         state.saving = false;
@@ -489,7 +521,36 @@ const gridSlice = createSlice({
   },
 });
 
-export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting, optimisticApplyColumnFormatting, rollbackColumnFormatting, clearCellFormattingOverrides, optimisticResizeColumn, rollbackColumnWidth, optimisticResizeRows, rollbackRowHeights } = gridSlice.actions;
+export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting, optimisticApplyColumnFormatting, rollbackColumnFormatting, clearCellFormattingOverrides, optimisticResizeColumn, rollbackColumnWidth, optimisticResizeRows, rollbackRowHeights, optimisticDeleteRows, rollbackDeleteRows } = gridSlice.actions;
+
+// ─── Thunk: deleteRows (optimistic with rollback, defined after slice) ──
+
+export const deleteRows = createAsyncThunk(
+  'grid/deleteRows',
+  async ({ sheetId, rowIds }: { sheetId: string; rowIds: string[] }, { getState, dispatch, rejectWithValue }) => {
+    // Optimistic: remove rows immediately, save them for rollback
+    const state = getState() as RootState;
+    const removedRows: Array<{ row: GridRow; index: number }> = [];
+    for (const id of rowIds) {
+      const idx = state.grid.rows.findIndex((r) => r.id === id);
+      if (idx !== -1) {
+        removedRows.push({ row: state.grid.rows[idx], index: idx });
+      }
+    }
+
+    // Optimistically remove from state
+    dispatch(optimisticDeleteRows(rowIds));
+
+    try {
+      await gridService.deleteRows(sheetId, rowIds);
+      return rowIds;
+    } catch (err: unknown) {
+      // Rollback: re-insert removed rows at their original positions
+      dispatch(rollbackDeleteRows(removedRows.map((r) => ({ row: r.row, index: r.index }))));
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
 
 // ─── Thunk: applyFormatting (defined after slice so it can reference actions) ──
 

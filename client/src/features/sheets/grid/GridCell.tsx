@@ -40,6 +40,10 @@ interface GridCellProps {
   isRowSelected?: boolean;
   /** Whether this cell's column is selected via column header click. */
   isColSelected?: boolean;
+  /** Called on right-click to open row context menu. */
+  onContextMenu?: (rowIndex: number, x: number, y: number) => void;
+  /** The index of this cell's row in the grid. */
+  rowIndex?: number;
 }
 
 export default function GridCell({
@@ -62,6 +66,8 @@ export default function GridCell({
   isRowHovered,
   isRowSelected,
   isColSelected,
+  onContextMenu,
+  rowIndex,
 }: GridCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -668,6 +674,13 @@ export default function GridCell({
         }
       }}
       onDoubleClick={handleDoubleClick}
+      onContextMenu={(e) => {
+        if (onContextMenu && rowIndex !== undefined) {
+          e.preventDefault();
+          e.stopPropagation();
+          onContextMenu(rowIndex, e.clientX, e.clientY);
+        }
+      }}
       data-editing={isEditing ? 'true' : undefined}
       data-icod-id="src_features_sheets_grid_gridcell_tsx_fe64">
       {isEditing && column.type !== 'checkbox' ? (

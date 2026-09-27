@@ -44,8 +44,8 @@ export const setPrimaryColumn = asyncHandler(async (req: Request, res: Response)
 
 /** POST /api/sheets/:sheetId/grid/rows */
 export const addRow = asyncHandler(async (req: Request, res: Response) => {
-  const { afterRowId, cells } = req.body;
-  const row = await gridService.addRow(req.params.sheetId, req.user!.id, { afterRowId, cells });
+  const { afterRowId, beforeRowId, cells } = req.body;
+  const row = await gridService.addRow(req.params.sheetId, req.user!.id, { afterRowId, beforeRowId, cells });
   sendSuccess(res, row, 201);
 });
 

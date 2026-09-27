@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
-import { DropdownMenu, ResizeHandle } from '@/components/ui';
+import { DropdownMenu, IconButton, ConfirmDialog, ResizeHandle } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
 import type { WorkspaceRole } from '@/types';
@@ -13,22 +13,25 @@ interface SelectionModifiers {
 interface GridRowNumCellProps {
   rowNumber: number;
   rowIndex: number;
+  rowId?: string;
   userRole: WorkspaceRole;
   isSelected?: boolean;
   onSelectRow: (rowIndex: number, modifiers: SelectionModifiers) => void;
-  onInsertAbove: (rowIndex: number) => void;
-  onInsertBelow: (rowIndex: number) => void;
-  onDeleteRows: (rowIndices: number[]) => void;
+  onInsertAbove: (rowId: string) => void;
+  onInsertBelow: (rowId: string) => void;
+  onDeleteRows: (rowIds: string[]) => void;
   onDragStart?: (rowIndex: number) => void;
   onDragOver?: (rowIndex: number) => void;
   onDrop?: (rowIndex: number) => void;
   onRowResizeStart?: (e: React.MouseEvent, rowIndex: number) => void;
   onRowResizeDoubleClick?: (rowIndex: number) => void;
+  onRowContextMenu?: (rowIndex: number, x: number, y: number) => void;
 }
 
 export default function GridRowNumCell({
   rowNumber,
   rowIndex,
+  rowId,
   userRole,
   isSelected,
   onSelectRow,
@@ -40,23 +43,25 @@ export default function GridRowNumCell({
   onDrop,
   onRowResizeStart,
   onRowResizeDoubleClick,
+  onRowContextMenu,
 }: GridRowNumCellProps) {
   const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
-  const canDelete = userRole === 'admin' || userRole === 'owner';
+  const isData = !!rowId;
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const menuItems: DropdownMenuItem[] = [];
 
-  if (canEdit) {
+  if (canEdit && isData) {
     menuItems.push(
-      { label: 'Insert row above', onClick: () => onInsertAbove(rowIndex) },
-      { label: 'Insert row below', onClick: () => onInsertBelow(rowIndex) },
-    );
-  }
-
-  if (canDelete) {
-    menuItems.push(
+      { label: 'Insert row above', onClick: () => onInsertAbove(rowId!) },
+      { label: 'Insert row below', onClick: () => onInsertBelow(rowId!) },
       { type: 'divider' },
-      { label: 'Delete row', danger: true, onClick: () => onDeleteRows([rowIndex]) },
+      {
+        label: 'Delete row',
+        danger: true,
+        onClick: () => setDeleteConfirmOpen(true),
+      },
     );
   }
 
@@ -64,6 +69,23 @@ export default function GridRowNumCell({
     e.stopPropagation();
     onSelectRow(rowIndex, { shift: e.shiftKey, meta: e.metaKey || e.ctrlKey });
   }, [onSelectRow, rowIndex]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isData || !canEdit) return;
+    // If this row isn't selected, select it first
+    if (!isSelected) {
+      onSelectRow(rowIndex, { shift: false, meta: false });
+    }
+    onRowContextMenu?.(rowIndex, e.clientX, e.clientY);
+  }, [isData, canEdit, isSelected, onSelectRow, rowIndex, onRowContextMenu]);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (rowId) {
+      onDeleteRows([rowId]);
+    }
+  }, [rowId, onDeleteRows]);
 
   return (
     <div
@@ -76,6 +98,7 @@ export default function GridRowNumCell({
       )}
       style={{ borderColor: 'var(--grid-line-color)' }}
       onClick={handleClick}
+      onContextMenu={handleContextMenu}
       draggable={canEdit}
       onDragStart={() => onDragStart?.(rowIndex)}
       onDragOver={(e) => { e.preventDefault(); onDragOver?.(rowIndex); }}
@@ -96,17 +119,18 @@ export default function GridRowNumCell({
         {menuItems.length > 0 && (
           <DropdownMenu
             trigger={
-              <button
-                className="rounded p-0.5 hover:bg-muted transition-colors"
-                aria-label="Row menu"
-                onClick={(e) => e.stopPropagation()}
+              <IconButton
+                size="sm"
+                tooltip="Row actions"
+                onMouseDown={(e) => e.stopPropagation()}
                 data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_ea5b">
                 <MoreHorizontal
                   className="h-3 w-3"
-                  data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_0603" />
-              </button>
+                  data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_52ef" />
+              </IconButton>
             }
             items={menuItems}
+            skipRestoreFocus
             data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_e9e0" />
         )}
       </div>
@@ -116,6 +140,15 @@ export default function GridRowNumCell({
         disabled={!canEdit}
         onDragStart={(e) => onRowResizeStart?.(e, rowIndex)}
         data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_e0f2" />
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        title="Delete 1 row?"
+        description="This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={handleConfirmDelete}
+        data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_confirm" />
     </div>
   );
 }

@@ -400,11 +400,11 @@ export async function reorderColumns(
   return reordered;
 }
 
-/** Adds a row. Optionally insert after a specific row. Requires editor+. */
+/** Adds a row. Optionally insert after or before a specific row. Requires editor+. */
 export async function addRow(
   sheetId: string,
   userId: string,
-  data?: { afterRowId?: string; cells?: Record<string, unknown> },
+  data?: { afterRowId?: string; beforeRowId?: string; cells?: Record<string, unknown> },
 ) {
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
 
@@ -423,7 +423,48 @@ export async function addRow(
 
   let order: number;
 
-  if (data?.afterRowId) {
+  if (data?.beforeRowId) {
+    // Insert before the specified row: find that row and place the new row just before it
+    const beforeRow = await Row.findById(data.beforeRowId);
+    if (!beforeRow || beforeRow.sheetId.toString() !== sheetId) {
+      throw new AppError('Row not found', 404);
+    }
+
+    // Find the row immediately before the target row
+    const prevRow = await Row.findOne({
+      sheetId: new mongoose.Types.ObjectId(sheetId),
+      order: { $lt: beforeRow.order },
+    }).sort({ order: -1 });
+
+    if (prevRow) {
+      // Insert between prevRow and beforeRow
+      order = (prevRow.order + beforeRow.order) / 2;
+    } else {
+      // No row before — insert at the very beginning
+      order = beforeRow.order - 1;
+    }
+
+    // Normalize orders if they get too close (fractional gap < 0.001)
+    if (prevRow && Math.abs(order - prevRow.order) < 0.001) {
+      // Re-normalize all row orders to integers
+      const allRows = await Row.find({ sheetId: new mongoose.Types.ObjectId(sheetId) })
+        .sort({ order: 1 });
+      const ops = allRows.map((r, i) => ({
+        updateOne: {
+          filter: { _id: r._id },
+          update: { $set: { order: i } },
+        },
+      }));
+      if (ops.length > 0) await Row.bulkWrite(ops);
+      // Recalculate order based on normalized positions
+      const normalizedBeforeRow = await Row.findById(data.beforeRowId);
+      const normalizedPrevRow = await Row.findOne({
+        sheetId: new mongoose.Types.ObjectId(sheetId),
+        order: { $lt: normalizedBeforeRow!.order },
+      }).sort({ order: -1 });
+      order = normalizedPrevRow ? (normalizedPrevRow.order + normalizedBeforeRow!.order) / 2 : normalizedBeforeRow!.order - 1;
+    }
+  } else if (data?.afterRowId) {
     const afterRow = await Row.findById(data.afterRowId);
     if (!afterRow || afterRow.sheetId.toString() !== sheetId) {
       throw new AppError('Row not found', 404);
@@ -495,13 +536,13 @@ export async function updateCell(
   return { rowId, columnId, value: validated };
 }
 
-/** Deletes multiple rows. Requires admin/owner. */
+/** Deletes multiple rows. Requires editor+. */
 export async function deleteRows(
   sheetId: string,
   userId: string,
   rowIds: string[],
 ) {
-  await getSheetWithAccess(sheetId, userId, 'admin');
+  await getSheetWithAccess(sheetId, userId, 'editor');
 
   // Validate all row IDs belong to this sheet
   const validIds = rowIds.filter((id) => mongoose.Types.ObjectId.isValid(id));

@@ -32,7 +32,7 @@ export function setPrimaryColumn(sheetId: string, columnId: string) {
   return apiClient.patch(`/api/sheets/${sheetId}/grid/columns/${columnId}/set-primary`);
 }
 
-export function addRow(sheetId: string, data?: { afterRowId?: string; cells?: Record<string, unknown> }) {
+export function addRow(sheetId: string, data?: { afterRowId?: string; beforeRowId?: string; cells?: Record<string, unknown> }) {
   return apiClient.post(`/api/sheets/${sheetId}/grid/rows`, data || {});
 }
 

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { Plus } from 'lucide-react';
 import { Button, Spinner, ConfirmDialog } from '@/components/ui';
+import type { DropdownMenuItem } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchGrid,
@@ -10,6 +12,7 @@ import {
   reorderColumns,
   setPrimaryColumn,
   addRow,
+  insertRow,
   updateCell,
   deleteRows,
   reorderRows,
@@ -137,6 +140,15 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pendingDeleteColId, setPendingDeleteColId] = useState<string | null>(null);
+
+  // Row delete confirmation state
+  const [rowDeleteConfirmOpen, setRowDeleteConfirmOpen] = useState(false);
+  const [pendingDeleteRowIds, setPendingDeleteRowIds] = useState<string[]>([]);
+
+  // Context menu state
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number; rowIndex: number } | null>(null);
+
+  const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
 
   // Drag state
   const [dragColId, setDragColId] = useState<string | null>(null);
@@ -453,37 +465,96 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   );
 
   const handleInsertRowAbove = useCallback(
-    (rowIndex: number) => {
-      const row = rows[rowIndex];
-      if (row) {
-        const prevRow = rowIndex > 0 ? rows[rowIndex - 1] : undefined;
-        dispatch(addRow({ sheetId, data: prevRow ? { afterRowId: prevRow.id } : undefined }));
-      }
+    (rowId: string) => {
+      dispatch(insertRow({ sheetId, beforeRowId: rowId }));
     },
-    [sheetId, rows, dispatch],
+    [sheetId, dispatch],
   );
 
   const handleInsertRowBelow = useCallback(
-    (rowIndex: number) => {
-      const row = rows[rowIndex];
-      if (row) {
-        dispatch(addRow({ sheetId, data: { afterRowId: row.id } }));
-      }
+    (rowId: string) => {
+      dispatch(insertRow({ sheetId, afterRowId: rowId }));
     },
-    [sheetId, rows, dispatch],
+    [sheetId, dispatch],
   );
 
   const handleDeleteRows = useCallback(
-    (rowIndices: number[]) => {
-      const rowIds = rowIndices
-        .map((i) => rows[i]?.id)
-        .filter(Boolean) as string[];
+    (rowIds: string[]) => {
       if (rowIds.length > 0) {
         dispatch(deleteRows({ sheetId, rowIds }));
       }
     },
-    [sheetId, rows, dispatch],
+    [sheetId, dispatch],
   );
+
+  // ─── Context menu handler ──────────────────────────────────────────────
+
+  const handleRowContextMenu = useCallback(
+    (rowIndex: number, x: number, y: number) => {
+      const row = rows[rowIndex];
+      if (!row || !canEdit) return;
+      setContextMenuPos({ x, y, rowIndex });
+    },
+    [rows, canEdit],
+  );
+
+  // Close context menu on outside click / scroll
+  useEffect(() => {
+    if (!contextMenuPos) return;
+    const close = () => setContextMenuPos(null);
+    document.addEventListener('mousedown', close);
+    window.addEventListener('scroll', close, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('scroll', close, { capture: true });
+    };
+  }, [contextMenuPos]);
+
+  // ─── Keyboard shortcut: Ctrl/Cmd + Minus to delete selected rows ──────
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '-' && (e.ctrlKey || e.metaKey)) {
+        // Check if grid container has focus
+        if (!scrollNodeRef.current?.contains(document.activeElement as Node)) return;
+        // Only act when rows are selected
+        if (selection.selectedRowIndices.size === 0) return;
+        e.preventDefault();
+        const rowIds: string[] = [];
+        for (const idx of selection.selectedRowIndices) {
+          const row = rows[idx];
+          if (row) rowIds.push(row.id);
+        }
+        if (rowIds.length > 0) {
+          setPendingDeleteRowIds(rowIds);
+          setRowDeleteConfirmOpen(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selection.selectedRowIndices, rows]);
+
+  // ─── Row delete confirmation ───────────────────────────────────────────
+
+  const confirmDeleteRows = useCallback(() => {
+    if (pendingDeleteRowIds.length > 0) {
+      dispatch(deleteRows({ sheetId, rowIds: pendingDeleteRowIds }));
+      // Move selection to the next row after deleted range, or last remaining row
+      const maxDeletedIdx = Math.max(
+        ...pendingDeleteRowIds.map((id) => rows.findIndex((r) => r.id === id)),
+      );
+      const remainingCount = rows.length - pendingDeleteRowIds.length;
+      if (remainingCount > 0) {
+        const nextIdx = Math.min(maxDeletedIdx, remainingCount - 1);
+        selection.selectRow(nextIdx, { shift: false, meta: false });
+      } else {
+        selection.clearRowColumnSelection();
+      }
+    }
+    setRowDeleteConfirmOpen(false);
+    setPendingDeleteRowIds([]);
+  }, [sheetId, pendingDeleteRowIds, rows, dispatch, selection]);
 
   // ─── Cell operations ────────────────────────────────────────────────────
 
@@ -714,8 +785,6 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     };
   }, [rowResizeDrag, sheetId, dispatch]);
 
-  const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
-
   if (loading) {
     return (
       <div
@@ -748,6 +817,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         className="flex-1 overflow-auto"
         style={{ scrollPaddingTop: HEADER_HEIGHT }}
         onScroll={handleScroll}
+        onContextMenu={(e) => e.preventDefault()}
         tabIndex={0}
         data-icod-id="src_features_sheets_grid_sheetgrid_tsx_f8f4">
         <div
@@ -870,6 +940,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                   <GridRowNumCell
                     rowNumber={rowIdx + 1}
                     rowIndex={rowIdx}
+                    rowId={row?.id}
                     userRole={userRole}
                     isSelected={selection.isRowSelected(rowIdx)}
                     onSelectRow={selection.selectRow}
@@ -881,6 +952,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                     onDrop={handleRowDrop}
                     onRowResizeStart={handleRowResizeStart}
                     onRowResizeDoubleClick={handleRowResizeDoubleClick}
+                    onRowContextMenu={handleRowContextMenu}
                     data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_6b31_${rowIdx}`} />
                 </div>
                 {/* Data cells */}
@@ -934,6 +1006,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                         isRowHovered={col.isPrimary ? isRowHovered : false}
                         isRowSelected={selection.isRowSelected(rowIdx)}
                         isColSelected={selection.isColSelected(colIdx)}
+                        onContextMenu={!isBlankRow ? handleRowContextMenu : undefined}
+                        rowIndex={rowIdx}
                         data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_1587_${rowIdx}_${col.id}`} />
                     </div>
                   );
@@ -1005,6 +1079,95 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         confirmLabel="Delete"
         onConfirm={confirmDeleteColumn}
         data-icod-id="src_features_sheets_grid_sheetgrid_tsx_b261" />
+      {/* Row delete confirmation dialog */}
+      <ConfirmDialog
+        open={rowDeleteConfirmOpen}
+        onClose={() => {
+          setRowDeleteConfirmOpen(false);
+          setPendingDeleteRowIds([]);
+        }}
+        title={`Delete ${pendingDeleteRowIds.length} row${pendingDeleteRowIds.length !== 1 ? 's' : ''}?`}
+        description="This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDeleteRows}
+        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_row_delete_confirm" />
+      {/* Floating context menu for right-click on rows */}
+      {contextMenuPos && (() => {
+        const ctxRow = rows[contextMenuPos.rowIndex];
+        if (!ctxRow) return null;
+
+        const ctxItems: DropdownMenuItem[] = [];
+        if (canEdit) {
+          ctxItems.push(
+            { label: 'Insert row above', onClick: () => handleInsertRowAbove(ctxRow.id) },
+            { label: 'Insert row below', onClick: () => handleInsertRowBelow(ctxRow.id) },
+            { type: 'divider' },
+            {
+              label: `Delete ${selection.selectedRowIndices.size > 1 ? `${selection.selectedRowIndices.size} rows` : 'row'}`,
+              danger: true,
+              onClick: () => {
+                // Collect all selected row IDs, or just the right-clicked row
+                const ids: string[] = [];
+                if (selection.selectedRowIndices.size > 1) {
+                  for (const idx of selection.selectedRowIndices) {
+                    const r = rows[idx];
+                    if (r) ids.push(r.id);
+                  }
+                } else {
+                  ids.push(ctxRow.id);
+                }
+                setPendingDeleteRowIds(ids);
+                setRowDeleteConfirmOpen(true);
+              },
+            },
+          );
+        }
+
+        if (ctxItems.length === 0) return null;
+
+        // Calculate position to prevent off-screen overflow
+        let left = contextMenuPos.x;
+        let top = contextMenuPos.y;
+        const menuWidth = 200;
+        const menuHeight = ctxItems.length * 36 + 8;
+        if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 8;
+        if (top + menuHeight > window.innerHeight) top = window.innerHeight - menuHeight - 8;
+
+        return ReactDOM.createPortal(
+          <div
+            className="fixed z-[9999] min-w-[180px] rounded-[var(--radius-md)] border border-border bg-card py-1 shadow-[var(--shadow-md)]"
+            style={{ left, top }}
+            onMouseDown={(e) => e.stopPropagation()}
+            data-icod-id="src_features_sheets_grid_sheetgrid_tsx_ctx_menu">
+            {ctxItems.map((item, index) => {
+              if (item.type === 'divider') {
+                return (
+                  <div
+                    key={`ctx-div-${index}`}
+                    className="my-1 border-t border-border"
+                    data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_ctx_div_${index}`} />
+                );
+              }
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-muted ${item.danger ? 'text-destructive hover:bg-destructive/10' : 'text-foreground'}`}
+                  onClick={() => {
+                    item.onClick?.();
+                    setContextMenuPos(null);
+                  }}
+                  data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_ctx_item_${index}`}>
+                  <span
+                    className="flex-1 text-left"
+                    data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_345d_${index}`}>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        );
+      })()}
     </div>
   );
 }
