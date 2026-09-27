@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import * as sheetService from '../../services/sheetService';
+import { parseApiError } from '../../utils/parseApiError';
 import type { SheetMetaItem } from '../../types';
 import type { RootState } from '../store';
 import { deleteSheet as deleteSheetThunk } from './sheetsSlice';
@@ -22,25 +23,37 @@ const initialState: UserMetaState = {
 
 export const fetchRecents = createAsyncThunk(
   'userMeta/fetchRecents',
-  async () => {
-    const { data } = await sheetService.getRecents();
-    return data.data as SheetMetaItem[];
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await sheetService.getRecents();
+      return data.data as SheetMetaItem[];
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
   },
 );
 
 export const fetchFavorites = createAsyncThunk(
   'userMeta/fetchFavorites',
-  async () => {
-    const { data } = await sheetService.getFavorites();
-    return data.data as SheetMetaItem[];
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await sheetService.getFavorites();
+      return data.data as SheetMetaItem[];
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
   },
 );
 
 export const setFavoriteMeta = createAsyncThunk(
   'userMeta/setFavorite',
-  async ({ sheetId, starred }: { sheetId: string; starred: boolean }) => {
-    const res = await sheetService.setFavorite(sheetId, starred);
-    return res.data.data as { sheetId: string; isFavorite: boolean };
+  async ({ sheetId, starred }: { sheetId: string; starred: boolean }, { rejectWithValue }) => {
+    try {
+      const res = await sheetService.setFavorite(sheetId, starred);
+      return res.data.data as { sheetId: string; isFavorite: boolean };
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
   },
 );
 
@@ -58,9 +71,9 @@ const userMetaSlice = createSlice({
         state.loading = false;
         state.recents = action.payload;
       })
-      .addCase(fetchRecents.rejected, (state) => {
+      .addCase(fetchRecents.rejected, (state, action) => {
         state.loading = false;
-        state.error = 'Failed to load recents';
+        state.error = (action.payload as string) || 'Failed to load recents';
       })
       // fetchFavorites
       .addCase(fetchFavorites.pending, (state) => { state.loading = true; state.error = null; })
@@ -68,9 +81,9 @@ const userMetaSlice = createSlice({
         state.loading = false;
         state.favorites = action.payload;
       })
-      .addCase(fetchFavorites.rejected, (state) => {
+      .addCase(fetchFavorites.rejected, (state, action) => {
         state.loading = false;
-        state.error = 'Failed to load favorites';
+        state.error = (action.payload as string) || 'Failed to load favorites';
       })
       // setFavoriteMeta
       .addCase(setFavoriteMeta.fulfilled, (state, action) => {

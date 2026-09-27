@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import * as workspaceService from '../../services/workspaceService';
+import { parseApiError } from '../../utils/parseApiError';
 import type { Workspace, WorkspaceRole } from '../../types';
 import type { RootState } from '../store';
 
@@ -28,8 +29,7 @@ export const fetchWorkspaces = createAsyncThunk('workspaces/fetchAll', async (_,
     const { data } = await workspaceService.listWorkspaces();
     return data.data as Workspace[];
   } catch (err: unknown) {
-    const error = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
-    return rejectWithValue(error.response?.data?.error?.message ?? error.message ?? 'Failed to load workspaces');
+    return rejectWithValue(parseApiError(err).message);
   }
 });
 
@@ -40,10 +40,9 @@ export const fetchWorkspace = createAsyncThunk(
       const { data } = await workspaceService.getWorkspace(id);
       return data.data as Workspace;
     } catch (err: unknown) {
-      const error = err as { response?: { status?: number; data?: { error?: string; statusCode?: number } } };
-      const status = error.response?.status;
-      if (status === 403 || status === 404) {
-        return rejectWithValue({ status, message: error.response?.data?.error || 'Access denied' });
+      const parsed = parseApiError(err);
+      if (parsed.status === 403 || parsed.status === 404) {
+        return rejectWithValue({ status: parsed.status, message: parsed.message });
       }
       throw err;
     }

@@ -8,6 +8,7 @@ import {
   regenerateInvitation as regenerateInvitationApi,
   revokeInvitation as revokeInvitationApi,
 } from '../../services/adminService';
+import { parseApiError } from '../../utils/parseApiError';
 import type { AdminUser, UserListResponse, InvitationItem } from '../../types';
 
 // ─── Users State ────────────────────────────────────────────────────────────
@@ -36,8 +37,7 @@ export const fetchAdminUsers = createAsyncThunk(
     try {
       return await fetchUsersApi(params);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      return rejectWithValue(error.response?.data?.error?.message ?? 'Failed to fetch users');
+      return rejectWithValue(parseApiError(err).message);
     }
   },
 );
@@ -48,8 +48,7 @@ export const updateAdminUserRole = createAsyncThunk(
     try {
       return await updateUserRole(userId, role);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      return rejectWithValue(error.response?.data?.error?.message ?? 'Failed to update user role');
+      return rejectWithValue(parseApiError(err).message);
     }
   },
 );
@@ -60,8 +59,7 @@ export const updateAdminUserStatus = createAsyncThunk(
     try {
       return await updateUserStatus(userId, isActive);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      return rejectWithValue(error.response?.data?.error?.message ?? 'Failed to update user status');
+      return rejectWithValue(parseApiError(err).message);
     }
   },
 );
@@ -86,8 +84,7 @@ export const fetchAdminInvitations = createAsyncThunk(
     try {
       return await fetchInvitationsApi();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      return rejectWithValue(error.response?.data?.error?.message ?? 'Failed to fetch invitations');
+      return rejectWithValue(parseApiError(err).message);
     }
   },
 );
@@ -98,8 +95,7 @@ export const createAdminInvitation = createAsyncThunk(
     try {
       return await createInvitationApi(data);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      return rejectWithValue(error.response?.data?.error?.message ?? 'Failed to create invitation');
+      return rejectWithValue(parseApiError(err).message);
     }
   },
 );
@@ -110,8 +106,7 @@ export const regenerateAdminInvitation = createAsyncThunk(
     try {
       return await regenerateInvitationApi(invitationId);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      return rejectWithValue(error.response?.data?.error?.message ?? 'Failed to regenerate invitation');
+      return rejectWithValue(parseApiError(err).message);
     }
   },
 );
@@ -122,8 +117,7 @@ export const revokeAdminInvitation = createAsyncThunk(
     try {
       return await revokeInvitationApi(invitationId);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      return rejectWithValue(error.response?.data?.error?.message ?? 'Failed to revoke invitation');
+      return rejectWithValue(parseApiError(err).message);
     }
   },
 );

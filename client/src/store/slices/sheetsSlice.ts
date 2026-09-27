@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import * as sheetService from '../../services/sheetService';
+import { parseApiError } from '../../utils/parseApiError';
 import type { Sheet } from '../../types';
 import type { RootState } from '../store';
 
@@ -30,8 +31,7 @@ export const fetchSheets = createAsyncThunk(
       const { data } = await sheetService.listSheets(workspaceId);
       return { workspaceId, sheets: data.data as Sheet[] };
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
-      return rejectWithValue(error.response?.data?.error?.message ?? error.message ?? 'Failed to load sheets');
+      return rejectWithValue(parseApiError(err).message);
     }
   },
 );
@@ -43,10 +43,9 @@ export const fetchSheet = createAsyncThunk(
       const { data } = await sheetService.getSheet(sheetId);
       return data.data as Sheet;
     } catch (err: unknown) {
-      const error = err as { response?: { status?: number; data?: { error?: string } } };
-      const status = error.response?.status;
-      if (status === 403 || status === 404) {
-        return rejectWithValue({ status, message: error.response?.data?.error || 'Access denied' });
+      const parsed = parseApiError(err);
+      if (parsed.status === 403 || parsed.status === 404) {
+        return rejectWithValue({ status: parsed.status, message: parsed.message });
       }
       throw err;
     }

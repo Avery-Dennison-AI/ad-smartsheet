@@ -7,6 +7,7 @@ import { getInvitationPreview, acceptInvitation } from '@/services/adminService'
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchMe, logoutUser, selectCurrentUser } from '@/store/slices/authSlice';
 import { PASSWORD_RULES } from '@/utils/passwordPolicy';
+import { parseApiError } from '@/utils/parseApiError';
 import type { InvitationPreview } from '@/types';
 
 export default function AcceptInvitePage() {
@@ -41,8 +42,7 @@ export default function AcceptInvitePage() {
         }
       } catch (err: unknown) {
         if (!cancelled) {
-          const e = err as { response?: { data?: { error?: { message?: string } } } };
-          setPreviewError(e.response?.data?.error?.message ?? 'This invitation link is invalid or has expired.');
+          setPreviewError(parseApiError(err).message);
         }
       } finally {
         if (!cancelled) setLoadingPreview(false);
@@ -80,17 +80,8 @@ export default function AcceptInvitePage() {
       await dispatch(fetchMe());
       navigate('/home', { replace: true });
     } catch (err: unknown) {
-      const e = err as { response?: { status?: number; data?: { error?: { message?: string } } } };
-      if (e.response) {
-        const status = e.response.status;
-        if (status && status >= 400 && status < 500) {
-          setError(e.response.data?.error?.message || 'Request failed');
-        } else {
-          setError('Something went wrong. Please try again.');
-        }
-      } else {
-        setError('Network error. Please try again.');
-      }
+      const parsed = parseApiError(err);
+      setError(parsed.message);
     } finally {
       setSubmitting(false);
     }

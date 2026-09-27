@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import apiClient from '../../services/apiClient';
+import { parseApiError } from '../../utils/parseApiError';
 
 export interface AuthUser {
   id: string;
@@ -26,8 +27,8 @@ export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithVa
     const { data } = await apiClient.get('/api/auth/me');
     return data.data as AuthUser;
   } catch (err: unknown) {
-    const error = err as { response?: { status?: number; data?: { error?: { message?: string } } } };
-    if (error.response?.status === 401) {
+    const parsed = parseApiError(err);
+    if (parsed.status === 401) {
       return rejectWithValue(null);
     }
     throw err;
@@ -42,15 +43,11 @@ export const login = createAsyncThunk(
       const { data } = await apiClient.post('/api/auth/login', credentials);
       return data.data as { user: AuthUser };
     } catch (err: unknown) {
-      const error = err as { response?: { status?: number; data?: { error?: { message?: string }; message?: string } } };
-      if (error.response) {
-        const status = error.response.status;
-        if (status && status >= 400 && status < 500) {
-          return rejectWithValue(error.response.data?.error?.message || 'Request failed');
-        }
-        return rejectWithValue('Something went wrong. Please try again.');
+      const parsed = parseApiError(err);
+      if (parsed.status && parsed.status >= 400 && parsed.status < 500) {
+        return rejectWithValue(parsed.message);
       }
-      return rejectWithValue('Network error. Please try again.');
+      return rejectWithValue(parsed.message);
     }
   },
 );
@@ -60,8 +57,8 @@ export const logoutUser = createAsyncThunk('auth/logout', async (_, { rejectWith
   try {
     await apiClient.post('/api/auth/logout');
   } catch (err: unknown) {
-    const error = err as { response?: { data?: { error?: { message?: string } } } };
-    return rejectWithValue(error.response?.data?.error?.message ?? 'Logout failed');
+    const parsed = parseApiError(err);
+    return rejectWithValue(parsed.message);
   }
 });
 
