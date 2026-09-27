@@ -75,3 +75,10 @@ export const reorderRows = asyncHandler(async (req: Request, res: Response) => {
   const result = await gridService.reorderRows(req.params.sheetId, req.user!.id, orderedIds);
   sendSuccess(res, result);
 });
+
+/** PATCH /api/sheets/:sheetId/grid/formatting */
+export const updateFormatting = asyncHandler(async (req: Request, res: Response) => {
+  const { cells } = req.body;
+  const result = await gridService.updateFormatting(req.params.sheetId, req.user!.id, cells);
+  sendSuccess(res, result);
+});

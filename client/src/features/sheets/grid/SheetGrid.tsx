@@ -25,6 +25,7 @@ import GridHeaderCell from './GridHeaderCell';
 import GridRowNumCell from './GridRowNumCell';
 import GridCell from './GridCell';
 import ColumnPropertiesModal from './ColumnPropertiesModal';
+import FormattingToolbar from './FormattingToolbar';
 import type { ColumnType, DropdownOption, WorkspaceRole } from '@/types';
 
 const ROW_HEIGHT = 34; // matches --grid-row-height
@@ -184,6 +185,27 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
       }
     },
   });
+
+  // Derive activeCell and selectedCells for FormattingToolbar
+  const fmtActiveCell = useMemo(() => {
+    if (!selection.activeCell) return null;
+    const row = rows[selection.activeCell.rowIdx];
+    const col = columns[selection.activeCell.colIdx];
+    if (!row || !col) return null;
+    return { rowId: row.id, columnId: col.id };
+  }, [selection.activeCell, rows, columns]);
+
+  const fmtSelectedCells = useMemo(() => {
+    const cells = selection.getSelectedCells();
+    return cells
+      .map((pos) => {
+        const row = rows[pos.rowIdx];
+        const col = columns[pos.colIdx];
+        if (!row || !col) return null;
+        return { rowId: row.id, columnId: col.id };
+      })
+      .filter(Boolean) as Array<{ rowId: string; columnId: string }>;
+  }, [selection, rows, columns]);
 
   // ─── Column operations ──────────────────────────────────────────────────
 
@@ -438,6 +460,13 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     <div
       className="relative flex h-full flex-col overflow-hidden"
       data-icod-id="src_features_sheets_grid_sheetgrid_tsx_f837">
+      {/* Formatting toolbar */}
+      <FormattingToolbar
+        sheetId={sheetId}
+        userRole={userRole}
+        activeCell={fmtActiveCell}
+        selectedCells={fmtSelectedCells}
+        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_1675" />
       {/* Scrollable grid container */}
       <div
         ref={scrollContainerRef}
@@ -585,6 +614,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                       data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_41f3_${rowIdx}_${col.id}`}>
                       <GridCell
                         column={col}
+                        rowId={row?.id}
                         value={cellValue}
                         isActive={isActive}
                         isSelected={isSelected}

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Search, Settings, Trash2, Copy, Plus, Home, Clock } from 'lucide-react';
+import { Search, Settings, Trash2, Copy, Plus, Home, Clock, Bold, Italic, Underline, Strikethrough, Eraser } from 'lucide-react';
 import {
   Button,
   IconButton,
   Input,
+  inputClass,
   Textarea,
   Select,
   Checkbox,
@@ -40,6 +41,9 @@ import {
   DatePicker,
   Pill,
   SaveIndicator,
+  ToggleButton,
+  Toolbar,
+  ToolbarGroup,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { RoleValue } from '@/components/ui/RoleMenu';
@@ -1244,6 +1248,47 @@ export default function DesignSystemPage() {
           </div>
         </div>
       </Section>
+      {/* ─── Toolbar & ToggleButton ──────────────────────────────────────── */}
+      <Section title="Toolbar & ToggleButton" data-icod-id="ds_toolbar_section">
+        <div className="space-y-6" data-icod-id="ds_toolbar_wrap">
+          {/* Active toolbar */}
+          <div data-icod-id="ds_toolbar_active">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_toolbar_active_label">Toolbar with font selects, toggle buttons, and clear action</span>
+            <ToolbarDemo data-icod-id="ds_toolbar_active_instance" />
+          </div>
+          {/* Disabled toolbar */}
+          <div data-icod-id="ds_toolbar_disabled">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_toolbar_disabled_label">Disabled toolbar (viewer mode)</span>
+            <Toolbar disabled data-icod-id="ds_toolbar_disabled_instance">
+              <ToolbarGroup data-icod-id="src_pages_designsystempage_tsx_f48e">
+                <ToggleButton
+                  pressed={false}
+                  onToggle={() => {}}
+                  tooltip="Bold"
+                  icon={<Bold className="h-4 w-4" data-icod-id="src_pages_designsystempage_tsx_c4c9" />}
+                  size="sm"
+                  data-icod-id="src_pages_designsystempage_tsx_999c" />
+                <ToggleButton
+                  pressed={true}
+                  onToggle={() => {}}
+                  tooltip="Italic"
+                  icon={<Italic className="h-4 w-4" data-icod-id="src_pages_designsystempage_tsx_5340" />}
+                  size="sm"
+                  data-icod-id="src_pages_designsystempage_tsx_b2bb" />
+              </ToolbarGroup>
+              <ToolbarGroup data-icod-id="src_pages_designsystempage_tsx_0e1a">
+                <IconButton
+                  size="sm"
+                  tooltip="Clear"
+                  data-icod-id="src_pages_designsystempage_tsx_3628"><Eraser
+                  className="h-3.5 w-3.5"
+                  data-icod-id="src_pages_designsystempage_tsx_8a93" /></IconButton>
+              </ToolbarGroup>
+              <div className="flex-1" data-icod-id="src_pages_designsystempage_tsx_79d9" />
+            </Toolbar>
+          </div>
+        </div>
+      </Section>
       {/* ─── Grid Components ──────────────────────────────────────────────── */}
       <Section title="Grid Components" data-icod-id="ds_grid_components_section">
         <div className="space-y-6" data-icod-id="ds_grid_components_wrap">
@@ -1386,5 +1431,83 @@ function ColumnPropertiesModalDemo() {
         existingCellCount={12}
         data-icod-id="src_pages_designsystempage_tsx_8b4e" />
     </div>
+  );
+}
+
+/* ─── Toolbar interactive demo ──────────────────────────────────────────── */
+function ToolbarDemo() {
+  const [bold, setBold] = useState(false);
+  const [italic, setItalic] = useState(true);
+  const [underline, setUnderline] = useState(false);
+  const [strikethrough, setStrikethrough] = useState(false);
+  const [fontFamily, setFontFamily] = useState('default');
+  const [fontSize, setFontSize] = useState('');
+
+  return (
+    <Toolbar data-icod-id="src_pages_designsystempage_tsx_4d1c">
+      <ToolbarGroup data-icod-id="src_pages_designsystempage_tsx_4c6c">
+        <select
+          className={inputClass('w-28 h-6 text-xs py-0')}
+          value={fontFamily}
+          onChange={(e) => setFontFamily(e.target.value)}
+          aria-label="Font family"
+          data-icod-id="src_pages_designsystempage_tsx_adf6">
+          <option value="default" data-icod-id="src_pages_designsystempage_tsx_77b8">Default</option>
+          <option value="Arial" data-icod-id="src_pages_designsystempage_tsx_8ef3">Arial</option>
+          <option value="Georgia" data-icod-id="src_pages_designsystempage_tsx_a133">Georgia</option>
+          <option value="Courier New" data-icod-id="src_pages_designsystempage_tsx_8a90">Courier New</option>
+        </select>
+        <select
+          className={inputClass('w-14 h-6 text-xs py-0')}
+          value={fontSize}
+          onChange={(e) => setFontSize(e.target.value)}
+          aria-label="Font size"
+          data-icod-id="src_pages_designsystempage_tsx_bbac">
+          <option value="" data-icod-id="src_pages_designsystempage_tsx_3af0">Auto</option>
+          <option value="12" data-icod-id="src_pages_designsystempage_tsx_63c3">12px</option>
+          <option value="14" data-icod-id="src_pages_designsystempage_tsx_0aa3">14px</option>
+          <option value="16" data-icod-id="src_pages_designsystempage_tsx_0150">16px</option>
+        </select>
+      </ToolbarGroup>
+      <ToolbarGroup data-icod-id="src_pages_designsystempage_tsx_b98b">
+        <ToggleButton
+          pressed={bold}
+          onToggle={() => setBold(!bold)}
+          tooltip="Bold (Ctrl+B)"
+          icon={<Bold className="h-4 w-4" data-icod-id="src_pages_designsystempage_tsx_30ab" />}
+          size="sm"
+          data-icod-id="src_pages_designsystempage_tsx_4df5" />
+        <ToggleButton
+          pressed={italic}
+          onToggle={() => setItalic(!italic)}
+          tooltip="Italic (Ctrl+I)"
+          icon={<Italic className="h-4 w-4" data-icod-id="src_pages_designsystempage_tsx_bf0b" />}
+          size="sm"
+          data-icod-id="src_pages_designsystempage_tsx_d954" />
+        <ToggleButton
+          pressed={underline}
+          onToggle={() => setUnderline(!underline)}
+          tooltip="Underline (Ctrl+U)"
+          icon={<Underline className="h-4 w-4" data-icod-id="src_pages_designsystempage_tsx_fd56" />}
+          size="sm"
+          data-icod-id="src_pages_designsystempage_tsx_f38a" />
+        <ToggleButton
+          pressed={strikethrough}
+          onToggle={() => setStrikethrough(!strikethrough)}
+          tooltip="Strikethrough"
+          icon={<Strikethrough className="h-4 w-4" data-icod-id="src_pages_designsystempage_tsx_d98b" />}
+          size="sm"
+          data-icod-id="src_pages_designsystempage_tsx_f877" />
+      </ToolbarGroup>
+      <ToolbarGroup data-icod-id="src_pages_designsystempage_tsx_96d0">
+        <IconButton
+          size="sm"
+          tooltip="Clear formatting"
+          data-icod-id="src_pages_designsystempage_tsx_63be"><Eraser
+          className="h-3.5 w-3.5"
+          data-icod-id="src_pages_designsystempage_tsx_8803" /></IconButton>
+      </ToolbarGroup>
+      <div className="flex-1" data-icod-id="src_pages_designsystempage_tsx_3702" />
+    </Toolbar>
   );
 }

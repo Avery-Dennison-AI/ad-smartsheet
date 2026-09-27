@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import * as gridService from '../../services/gridService';
 import { parseApiError } from '../../utils/parseApiError';
-import type { Column, GridRow } from '../../types';
+import type { Column, GridRow, CellFormatting } from '../../types';
 import type { RootState } from '../store';
 
 interface GridMember {
@@ -204,6 +204,38 @@ const gridSlice = createSlice({
     clearSaveError(state) {
       state.saveError = null;
     },
+    optimisticApplyFormatting(
+      state,
+      action: PayloadAction<Array<{ rowId: string; columnId: string; formatting: CellFormatting | null }>>,
+    ) {
+      for (const entry of action.payload) {
+        const row = state.rows.find((r) => r.id === entry.rowId);
+        if (row) {
+          if (!row.formatting) row.formatting = {};
+          if (entry.formatting && Object.keys(entry.formatting).length > 0) {
+            row.formatting[entry.columnId] = entry.formatting;
+          } else {
+            delete row.formatting[entry.columnId];
+          }
+        }
+      }
+    },
+    rollbackFormatting(
+      state,
+      action: PayloadAction<Array<{ rowId: string; columnId: string; prev: CellFormatting | undefined }>>,
+    ) {
+      for (const entry of action.payload) {
+        const row = state.rows.find((r) => r.id === entry.rowId);
+        if (row) {
+          if (!row.formatting) row.formatting = {};
+          if (entry.prev) {
+            row.formatting[entry.columnId] = entry.prev;
+          } else {
+            delete row.formatting[entry.columnId];
+          }
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -321,11 +353,53 @@ const gridSlice = createSlice({
       .addCase(reorderRows.rejected, (state, action) => {
         state.saving = false;
         state.saveError = (action.payload as string) || 'Failed to reorder rows';
+      })
+      // applyFormatting
+      .addCase(applyFormatting.pending, (state) => { state.saving = true; state.saveError = null; })
+      .addCase(applyFormatting.fulfilled, (state) => {
+        state.saving = false;
+      })
+      .addCase(applyFormatting.rejected, (state, action) => {
+        state.saving = false;
+        state.saveError = (action.payload as string) || 'Failed to update formatting';
       });
   },
 });
 
-export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError } = gridSlice.actions;
+export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting } = gridSlice.actions;
+
+// ─── Thunk: applyFormatting (defined after slice so it can reference actions) ──
+
+export const applyFormatting = createAsyncThunk(
+  'grid/applyFormatting',
+  async (
+    { sheetId, cells }: { sheetId: string; cells: Array<{ rowId: string; columnId: string; formatting: CellFormatting | null }> },
+    { dispatch, getState, rejectWithValue },
+  ) => {
+    // Optimistic update: immediately apply formatting to state
+    const state = getState() as RootState;
+    const previousValues: Array<{ rowId: string; columnId: string; prev: CellFormatting | undefined }> = [];
+
+    for (const entry of cells) {
+      const row = state.grid.rows.find((r) => r.id === entry.rowId);
+      if (row) {
+        const prev = row.formatting?.[entry.columnId];
+        previousValues.push({ rowId: entry.rowId, columnId: entry.columnId, prev });
+      }
+    }
+
+    dispatch(optimisticApplyFormatting(cells));
+
+    try {
+      const res = await gridService.updateFormatting(sheetId, cells);
+      return res.data.data as { updated: number };
+    } catch (err: unknown) {
+      // Rollback on failure
+      dispatch(rollbackFormatting(previousValues));
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
 
 // ─── Selectors ─────────────────────────────────────────────────────────────
 
@@ -337,5 +411,11 @@ export const selectGridSaving = (state: RootState) => state.grid.saving;
 export const selectGridError = (state: RootState) => state.grid.error;
 export const selectGridSaveError = (state: RootState) => state.grid.saveError;
 export const selectGridErrorStatus = (state: RootState) => state.grid.errorStatus;
+
+/** Returns the CellFormatting for a specific cell, or {} if none. */
+export function selectCellFormatting(state: RootState, rowId: string, columnId: string): CellFormatting {
+  const row = state.grid.rows.find((r) => r.id === rowId);
+  return row?.formatting?.[columnId] ?? {};
+}
 
 export default gridSlice.reducer;

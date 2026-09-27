@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import type { Column, GridRow } from '../types';
+import type { Column, GridRow, CellFormatting } from '../types';
 
 export function getGrid(sheetId: string) {
   return apiClient.get(`/api/sheets/${sheetId}/grid`);
@@ -46,4 +46,11 @@ export function deleteRows(sheetId: string, rowIds: string[]) {
 
 export function reorderRows(sheetId: string, orderedIds: string[]) {
   return apiClient.patch(`/api/sheets/${sheetId}/grid/rows/reorder`, { orderedIds });
+}
+
+export function updateFormatting(
+  sheetId: string,
+  cells: Array<{ rowId: string; columnId: string; formatting: CellFormatting | null }>,
+) {
+  return apiClient.patch(`/api/sheets/${sheetId}/grid/formatting`, { cells });
 }

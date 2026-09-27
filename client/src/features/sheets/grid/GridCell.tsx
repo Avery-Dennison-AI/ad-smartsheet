@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
 import { Pill, Avatar } from '@/components/ui';
 import { cn } from '@/utils/cn';
+import { useAppSelector } from '@/store/hooks';
+import { selectCellFormatting } from '@/store/slices/gridSlice';
 import FloatingCellList, { type FloatingCellListItem } from './FloatingCellList';
 import type { Column } from '@/types';
 
@@ -13,6 +15,7 @@ interface GridMember {
 
 interface GridCellProps {
   column: Column;
+  rowId?: string;
   value: string | number | boolean | null;
   isActive: boolean;
   isSelected: boolean;
@@ -33,6 +36,7 @@ interface GridCellProps {
 
 export default function GridCell({
   column,
+  rowId,
   value,
   isActive,
   isSelected,
@@ -56,6 +60,20 @@ export default function GridCell({
   const cellRef = useRef<HTMLDivElement>(null);
   // Track whether we've already committed in this edit session to prevent double-fire
   const committedRef = useRef(false);
+
+  // Read cell formatting from Redux store
+  const fmt = useAppSelector((state) =>
+    rowId ? selectCellFormatting(state, rowId, column.id) : {},
+  );
+
+  // Build inline styles from formatting
+  const formattingStyle: React.CSSProperties = {
+    fontFamily: fmt.fontFamily && fmt.fontFamily !== 'default' ? fmt.fontFamily : undefined,
+    fontSize: fmt.fontSize ? `${fmt.fontSize}px` : undefined,
+    fontWeight: fmt.bold ? 'bold' : undefined,
+    fontStyle: fmt.italic ? 'italic' : undefined,
+    textDecoration: [fmt.underline && 'underline', fmt.strikethrough && 'line-through'].filter(Boolean).join(' ') || undefined,
+  };
 
   // Reset committed flag when entering edit mode
   useEffect(() => {
@@ -148,12 +166,14 @@ export default function GridCell({
         return (
           <span
             className="truncate"
+            style={formattingStyle}
             data-icod-id="src_features_sheets_grid_gridcell_tsx_b822">{String(value)}</span>
         );
       case 'number':
         return (
           <span
             className="truncate text-right w-full block"
+            style={formattingStyle}
             data-icod-id="src_features_sheets_grid_gridcell_tsx_00de">{String(value)}</span>
         );
       case 'date': {
@@ -492,6 +512,7 @@ export default function GridCell({
           <input
             ref={inputRef}
             className="h-full w-full bg-transparent px-1 text-sm outline-none"
+            style={formattingStyle}
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -504,6 +525,7 @@ export default function GridCell({
             ref={inputRef}
             type="number"
             className="h-full w-full bg-transparent px-1 text-right text-sm outline-none"
+            style={formattingStyle}
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -585,6 +607,7 @@ export default function GridCell({
       ) : (
         <div
           className="flex w-full items-center overflow-hidden"
+          style={formattingStyle}
           data-icod-id="src_features_sheets_grid_gridcell_tsx_288d">
           {renderDisplayValue()}
           {/* Chevron icon for dropdown cells when not editing */}

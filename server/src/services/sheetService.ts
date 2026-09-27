@@ -238,6 +238,7 @@ export async function duplicateSheet(sheetId: string, userId: string) {
       sheetId: newSheet._id,
       order: r.order,
       cells: r.cells || {},
+      formatting: r.formatting instanceof Map ? Object.fromEntries(r.formatting) : (r.toObject().formatting || {}),
     }));
     await Row.insertMany(newRows);
   }

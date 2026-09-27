@@ -136,6 +136,7 @@ function formatRow(row: IRow) {
     id: row._id.toString(),
     order: row.order,
     cells: obj.cells || {},
+    formatting: row.formatting instanceof Map ? Object.fromEntries(row.formatting) : (obj.formatting || {}),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -548,4 +549,38 @@ export async function deleteRowsByWorkspace(workspaceId: string): Promise<void> 
   if (sheetIds.length > 0) {
     await Row.deleteMany({ sheetId: { $in: sheetIds } });
   }
+}
+
+/** Updates cell formatting for multiple cells across rows. Requires editor+. */
+export async function updateFormatting(
+  sheetId: string,
+  userId: string,
+  cells: Array<{ rowId: string; columnId: string; formatting: Record<string, unknown> | null }>,
+) {
+  await getSheetWithAccess(sheetId, userId, 'editor');
+
+  let updated = 0;
+
+  for (const entry of cells) {
+    if (!mongoose.Types.ObjectId.isValid(entry.rowId)) continue;
+
+    // Validate the row belongs to this sheet
+    const row = await Row.findById(entry.rowId).select('sheetId');
+    if (!row || row.sheetId.toString() !== sheetId) continue;
+
+    if (entry.formatting && Object.keys(entry.formatting).length > 0) {
+      await Row.findByIdAndUpdate(entry.rowId, {
+        $set: { [`formatting.${entry.columnId}`]: entry.formatting },
+      });
+    } else {
+      // Clear formatting for that cell
+      await Row.findByIdAndUpdate(entry.rowId, {
+        $unset: { [`formatting.${entry.columnId}`]: '' },
+      });
+    }
+
+    updated++;
+  }
+
+  return { updated };
 }

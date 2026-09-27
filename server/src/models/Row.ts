@@ -4,6 +4,7 @@ export interface IRow extends Document {
   sheetId: mongoose.Types.ObjectId;
   order: number;
   cells: Map<string, unknown>;
+  formatting: Map<string, Record<string, unknown>>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -13,6 +14,7 @@ const rowSchema = new Schema<IRow>(
     sheetId: { type: Schema.Types.ObjectId, ref: 'Sheet', required: true, index: true },
     order: { type: Number, required: true },
     cells: { type: Schema.Types.Mixed, default: {} },
+    formatting: { type: Map, of: Schema.Types.Mixed, default: () => new Map() },
   },
   { timestamps: true },
 );

@@ -130,8 +130,18 @@ export interface GridRow {
   id: string;
   order: number;
   cells: Record<string, string | number | boolean | null>;
+  formatting?: Record<string, CellFormatting>;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface CellFormatting {
+  fontFamily?: string;
+  fontSize?: number;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
 }
 
 export interface GridState {
