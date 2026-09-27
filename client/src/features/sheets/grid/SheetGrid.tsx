@@ -20,14 +20,12 @@ import {
   selectGridLoading,
   selectGridMembers,
 } from '@/store/slices/gridSlice';
-import { cn } from '@/utils/cn';
 import { useGridSelection } from './useGridSelection';
 import GridHeaderCell from './GridHeaderCell';
 import GridRowNumCell from './GridRowNumCell';
 import GridCell from './GridCell';
-import ColumnTypeModal from './ColumnTypeModal';
-import DropdownOptionsModal from './DropdownOptionsModal';
-import type { Column, ColumnType, WorkspaceRole } from '@/types';
+import ColumnPropertiesModal from './ColumnPropertiesModal';
+import type { ColumnType, DropdownOption, WorkspaceRole } from '@/types';
 
 const ROW_HEIGHT = 34; // matches --grid-row-height
 const HEADER_HEIGHT = 36; // matches --grid-header-height
@@ -40,6 +38,26 @@ interface SheetGridProps {
   sheetId: string;
   userRole: WorkspaceRole;
 }
+
+interface ColumnPropertiesState {
+  open: boolean;
+  columnId: string | null;
+  initialName: string;
+  initialType: ColumnType;
+  initialOptions: DropdownOption[];
+  isPrimary: boolean;
+  existingCellCount: number;
+}
+
+const defaultColumnPropertiesState: ColumnPropertiesState = {
+  open: false,
+  columnId: null,
+  initialName: '',
+  initialType: 'text',
+  initialOptions: [],
+  isPrimary: false,
+  existingCellCount: 0,
+};
 
 export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   const dispatch = useAppDispatch();
@@ -54,15 +72,12 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   const observerRef = useRef<ResizeObserver | null>(null);
   const scrollNodeRef = useRef<HTMLDivElement | null>(null);
 
-  // Modals state
-  const [typeModalOpen, setTypeModalOpen] = useState(false);
-  const [typeModalColumnId, setTypeModalColumnId] = useState<string | null>(null);
-  const [optionsModalOpen, setOptionsModalOpen] = useState(false);
-  const [optionsModalColumnId, setOptionsModalColumnId] = useState<string | null>(null);
-  // When true, the options modal is being shown as part of a type-change flow
-  // (the column hasn't been saved as dropdown yet). On save we dispatch both
-  // type + options in a single updateColumn call.
-  const [pendingDropdownTypeChange, setPendingDropdownTypeChange] = useState(false);
+  // Track hovered row index for primary column hover state
+  const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
+
+  // Column properties modal state (replaces ColumnTypeModal + DropdownOptionsModal)
+  const [colPropsModal, setColPropsModal] = useState<ColumnPropertiesState>(defaultColumnPropertiesState);
+
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pendingDeleteColId, setPendingDeleteColId] = useState<string | null>(null);
 
@@ -76,11 +91,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   }, [sheetId, dispatch]);
 
   // Callback ref: attaches ResizeObserver + window resize listener when the
-  // scroll container mounts (after loading finishes). Replaces the old
-  // useEffect([]) that failed because the container didn't exist during the
-  // initial render while the spinner was showing.
+  // scroll container mounts (after loading finishes).
   const scrollContainerRef = useCallback((node: HTMLDivElement | null) => {
-    // Cleanup previous observer / listener
     if (observerRef.current) {
       observerRef.current.disconnect();
       observerRef.current = null;
@@ -89,10 +101,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
 
     if (!node) return;
 
-    // Measure immediately
     setViewportHeight(node.clientHeight);
 
-    // ResizeObserver for container resizes
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setViewportHeight(entry.contentRect.height);
@@ -101,13 +111,11 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     ro.observe(node);
     observerRef.current = ro;
 
-    // Window resize listener for sidebar-collapse scenarios
     const handleWindowResize = () => {
       setViewportHeight(node.clientHeight);
     };
     window.addEventListener('resize', handleWindowResize);
 
-    // Store cleanup on the node so we can tear down when it changes
     (node as any).__cleanupResize = () => {
       ro.disconnect();
       window.removeEventListener('resize', handleWindowResize);
@@ -177,7 +185,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     },
   });
 
-  // Column operations
+  // ─── Column operations ──────────────────────────────────────────────────
+
   const handleRenameColumn = useCallback(
     (columnId: string, name: string) => {
       dispatch(updateColumn({ sheetId, columnId, patch: { name } }));
@@ -185,52 +194,61 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     [sheetId, dispatch],
   );
 
-  const handleChangeColumnType = useCallback(
+  // Open column properties modal for editing an existing column
+  const handleEditColumnProperties = useCallback(
     (columnId: string) => {
-      setTypeModalColumnId(columnId);
-      setTypeModalOpen(true);
-    },
-    [],
-  );
+      const col = columns.find((c) => c.id === columnId);
+      if (!col) return;
 
-  const handleTypeSelect = useCallback(
-    (type: ColumnType) => {
-      if (!typeModalColumnId) return;
-
-      if (type === 'dropdown') {
-        // Chain: open options editor before saving the type change
-        setPendingDropdownTypeChange(true);
-        setOptionsModalColumnId(typeModalColumnId);
-        setOptionsModalOpen(true);
-      } else {
-        dispatch(updateColumn({ sheetId, columnId: typeModalColumnId, patch: { type } }));
-      }
-    },
-    [sheetId, typeModalColumnId, dispatch],
-  );
-
-  const handleEditOptions = useCallback(
-    (columnId: string) => {
-      setOptionsModalColumnId(columnId);
-      setOptionsModalOpen(true);
-    },
-    [],
-  );
-
-  const handleOptionsSave = useCallback(
-    (options: { label: string; color: string }[]) => {
-      if (optionsModalColumnId) {
-        if (pendingDropdownTypeChange) {
-          // Type-change flow: save type + options together
-          dispatch(updateColumn({ sheetId, columnId: optionsModalColumnId, patch: { type: 'dropdown', options } }));
-          setPendingDropdownTypeChange(false);
-        } else {
-          // Normal edit-options flow
-          dispatch(updateColumn({ sheetId, columnId: optionsModalColumnId, patch: { options } }));
+      // Count existing non-null cell values for this column
+      let cellCount = 0;
+      for (const row of rows) {
+        if (row.cells[columnId] != null && row.cells[columnId] !== '') {
+          cellCount++;
         }
       }
+
+      setColPropsModal({
+        open: true,
+        columnId,
+        initialName: col.name,
+        initialType: col.type,
+        initialOptions: col.options ?? [],
+        isPrimary: !!col.isPrimary,
+        existingCellCount: cellCount,
+      });
     },
-    [sheetId, optionsModalColumnId, pendingDropdownTypeChange, dispatch],
+    [columns, rows],
+  );
+
+  // Save handler for the unified column properties modal
+  const handleColumnPropertiesSave = useCallback(
+    (data: { name: string; type: ColumnType; options?: DropdownOption[] }) => {
+      if (colPropsModal.columnId) {
+        // Editing existing column
+        dispatch(updateColumn({
+          sheetId,
+          columnId: colPropsModal.columnId,
+          patch: {
+            name: data.name,
+            type: data.type,
+            ...(data.type === 'dropdown' ? { options: data.options } : {}),
+          },
+        }));
+      } else {
+        // Adding new column
+        dispatch(addColumn({
+          sheetId,
+          data: {
+            name: data.name,
+            type: data.type,
+            ...(data.type === 'dropdown' ? { options: data.options } : {}),
+          },
+        }));
+      }
+      setColPropsModal(defaultColumnPropertiesState);
+    },
+    [sheetId, colPropsModal.columnId, dispatch],
   );
 
   const handleDeleteColumn = useCallback(
@@ -253,9 +271,18 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     (afterColumnId: string, direction: 'left' | 'right') => {
       const colIndex = columns.findIndex((c) => c.id === afterColumnId);
       const position = direction === 'left' ? colIndex : colIndex + 1;
-      dispatch(addColumn({ sheetId, data: { name: 'New Column', type: 'text', position } }));
+      // Open the properties modal for the new column instead of creating directly
+      setColPropsModal({
+        open: true,
+        columnId: null, // null = new column
+        initialName: 'New Column',
+        initialType: 'text',
+        initialOptions: [],
+        isPrimary: false,
+        existingCellCount: 0,
+      });
     },
-    [sheetId, columns, dispatch],
+    [columns],
   );
 
   const handleSetPrimaryColumn = useCallback(
@@ -265,7 +292,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     [sheetId, dispatch],
   );
 
-  // Row operations
+  // ─── Row operations ─────────────────────────────────────────────────────
+
   const handleAddRow = useCallback(
     (afterRowId?: string) => {
       dispatch(addRow({ sheetId, data: afterRowId ? { afterRowId } : undefined }));
@@ -277,7 +305,6 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     (rowIndex: number) => {
       const row = rows[rowIndex];
       if (row) {
-        // Insert before this row by finding the previous row's ID
         const prevRow = rowIndex > 0 ? rows[rowIndex - 1] : undefined;
         dispatch(addRow({ sheetId, data: prevRow ? { afterRowId: prevRow.id } : undefined }));
       }
@@ -307,7 +334,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     [sheetId, rows, dispatch],
   );
 
-  // Cell operations
+  // ─── Cell operations ────────────────────────────────────────────────────
+
   const handleCellCommit = useCallback(
     (rowId: string, columnId: string, value: unknown) => {
       const row = rows.find((r) => r.id === rowId);
@@ -338,7 +366,6 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   // Handle committing a value from a blank row — creates a new row with first cell value
   const handleBlankRowCommit = useCallback(
     (colIdx: number, value: unknown) => {
-      // Only create a row if the value is non-empty
       if (value == null || value === '' || value === false) return;
       const col = columns[colIdx];
       if (!col) return;
@@ -347,9 +374,9 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     [sheetId, columns, dispatch],
   );
 
-  // Column drag-and-drop
+  // ─── Column drag-and-drop ───────────────────────────────────────────────
+
   const handleColDragStart = useCallback((colId: string) => {
-    // Prevent dragging the primary column
     const col = columns.find((c) => c.id === colId);
     if (col?.isPrimary) return;
     setDragColId(colId);
@@ -362,7 +389,6 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         const fromIdx = ids.indexOf(dragColId);
         let toIdx = ids.indexOf(targetColId);
         if (fromIdx !== -1 && toIdx !== -1) {
-          // Clamp: non-primary columns cannot be dropped before the primary column (index 0)
           if (toIdx < 1) toIdx = 1;
           ids.splice(fromIdx, 1);
           ids.splice(toIdx, 0, dragColId);
@@ -374,7 +400,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     [dragColId, columns, sheetId, dispatch],
   );
 
-  // Row drag-and-drop
+  // ─── Row drag-and-drop ──────────────────────────────────────────────────
+
   const handleRowDragStart = useCallback((rowIdx: number) => {
     setDragRowIndex(rowIdx);
   }, []);
@@ -396,10 +423,6 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   );
 
   const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
-
-  // Get the column being edited for type modal
-  const typeModalColumn = columns.find((c) => c.id === typeModalColumnId);
-  const optionsModalColumn = columns.find((c) => c.id === optionsModalColumnId);
 
   if (loading) {
     return (
@@ -452,7 +475,6 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                   position: col.isPrimary ? 'sticky' : undefined,
                   left: col.isPrimary ? 'var(--grid-row-num-width)' : undefined,
                   zIndex: col.isPrimary ? 21 : undefined,
-                  boxShadow: col.isPrimary && isScrolled ? '4px 0 6px -2px rgba(0,0,0,0.12)' : undefined,
                 }}
                 data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_dc1c_${col.id}`}>
                 <GridHeaderCell
@@ -460,8 +482,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                   userRole={userRole}
                   isScrolled={col.isPrimary ? isScrolled : false}
                   onRename={handleRenameColumn}
-                  onChangeType={handleChangeColumnType}
-                  onEditOptions={handleEditOptions}
+                  onEditProperties={handleEditColumnProperties}
                   onDelete={handleDeleteColumn}
                   onInsertLeft={(id) => handleInsertColumn(id, 'left')}
                   onInsertRight={(id) => handleInsertColumn(id, 'right')}
@@ -485,7 +506,17 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => dispatch(addColumn({ sheetId, data: { name: 'New Column', type: 'text' } }))}
+                  onClick={() => {
+                    setColPropsModal({
+                      open: true,
+                      columnId: null,
+                      initialName: '',
+                      initialType: 'text',
+                      initialOptions: [],
+                      isPrimary: false,
+                      existingCellCount: 0,
+                    });
+                  }}
                   data-icod-id="src_features_sheets_grid_sheetgrid_tsx_6c44">
                   <Plus
                     className="mr-1 h-3 w-3"
@@ -501,6 +532,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
             const row = rows[rowIdx];
             const isBlankRow = !row;
             const top = HEADER_HEIGHT + rowIdx * ROW_HEIGHT;
+            const isRowHovered = hoveredRowIndex === rowIdx;
 
             return (
               <div
@@ -511,12 +543,14 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                   height: ROW_HEIGHT,
                   willChange: 'transform',
                 }}
-                data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_d513_${rowIdx}`}>
+                onMouseEnter={() => setHoveredRowIndex(rowIdx)}
+                onMouseLeave={() => setHoveredRowIndex((prev) => prev === rowIdx ? null : prev)}
+                data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_a4d5_${rowIdx}`}>
                 {/* Row number cell */}
                 <div
                   className="sticky left-0 z-[12]"
                   style={{ width: 'var(--grid-row-num-width)' }}
-                  data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_e4b5_${rowIdx}`}>
+                  data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_3381_${rowIdx}`}>
                   <GridRowNumCell
                     rowNumber={rowIdx + 1}
                     rowIndex={rowIdx}
@@ -529,7 +563,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                     onDragStart={handleRowDragStart}
                     onDragOver={() => {}}
                     onDrop={handleRowDrop}
-                    data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_581e_${rowIdx}`} />
+                    data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_6b31_${rowIdx}`} />
                 </div>
                 {/* Data cells */}
                 {columns.map((col, colIdx) => {
@@ -547,10 +581,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                         position: col.isPrimary ? 'sticky' : undefined,
                         left: col.isPrimary ? 'var(--grid-row-num-width)' : undefined,
                         zIndex: col.isPrimary ? 11 : undefined,
-                        boxShadow: col.isPrimary && isScrolled ? '4px 0 6px -2px rgba(0,0,0,0.12)' : undefined,
-                        backgroundColor: col.isPrimary ? 'var(--color-bg-surface)' : undefined,
                       }}
-                      data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_07af_${rowIdx}_${col.id}`}>
+                      data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_41f3_${rowIdx}_${col.id}`}>
                       <GridCell
                         column={col}
                         value={cellValue}
@@ -571,7 +603,10 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                         }}
                         onStopEdit={selection.stopEditing}
                         onAddDropdownOption={handleAddDropdownOption}
-                        data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_5e20_${rowIdx}_${col.id}`} />
+                        isPrimary={!!col.isPrimary}
+                        isScrolled={col.isPrimary ? isScrolled : false}
+                        isRowHovered={col.isPrimary ? isRowHovered : false}
+                        data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_1587_${rowIdx}_${col.id}`} />
                     </div>
                   );
                 })}
@@ -581,18 +616,16 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         </div>
       </div>
       {/* Modals */}
-      <ColumnTypeModal
-        open={typeModalOpen}
-        onClose={() => setTypeModalOpen(false)}
-        currentType={typeModalColumn?.type || 'text'}
-        onSelect={handleTypeSelect}
-        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_7860" />
-      <DropdownOptionsModal
-        open={optionsModalOpen}
-        onClose={() => setOptionsModalOpen(false)}
-        options={optionsModalColumn?.options || []}
-        onSave={handleOptionsSave}
-        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_6f88" />
+      <ColumnPropertiesModal
+        open={colPropsModal.open}
+        onClose={() => setColPropsModal(defaultColumnPropertiesState)}
+        onSave={handleColumnPropertiesSave}
+        initialName={colPropsModal.initialName}
+        initialType={colPropsModal.initialType}
+        initialOptions={colPropsModal.initialOptions}
+        isPrimary={colPropsModal.isPrimary}
+        existingCellCount={colPropsModal.existingCellCount}
+        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_b979" />
       <ConfirmDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
@@ -600,7 +633,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         description="This will permanently delete this column and all its data. This action cannot be undone."
         confirmLabel="Delete"
         onConfirm={confirmDeleteColumn}
-        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_ca62" />
+        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_b261" />
     </div>
   );
 }

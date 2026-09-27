@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import ReactDOM from 'react-dom';
-import { Check, X } from 'lucide-react';
+import { Check, ChevronDown, X } from 'lucide-react';
 import { Pill, Avatar } from '@/components/ui';
 import { cn } from '@/utils/cn';
+import FloatingCellList, { type FloatingCellListItem } from './FloatingCellList';
 import type { Column } from '@/types';
 
 interface GridMember {
@@ -23,6 +23,12 @@ interface GridCellProps {
   onStartEdit: () => void;
   onStopEdit: () => void;
   onAddDropdownOption?: (columnId: string, label: string) => void;
+  /** Whether this cell belongs to the primary (frozen) column. */
+  isPrimary?: boolean;
+  /** Whether the grid container has been scrolled horizontally. */
+  isScrolled?: boolean;
+  /** Whether the row is currently hovered. */
+  isRowHovered?: boolean;
 }
 
 export default function GridCell({
@@ -37,6 +43,9 @@ export default function GridCell({
   onStartEdit,
   onStopEdit,
   onAddDropdownOption,
+  isPrimary,
+  isScrolled,
+  isRowHovered,
 }: GridCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -128,7 +137,7 @@ export default function GridCell({
       return (
         <span
           className="text-muted-foreground/40"
-          data-icod-id="src_features_sheets_grid_gridcell_tsx_e913" />
+          data-icod-id="src_features_sheets_grid_gridcell_tsx_7eea" />
       );
     }
 
@@ -137,13 +146,13 @@ export default function GridCell({
         return (
           <span
             className="truncate"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_8734">{String(value)}</span>
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_b822">{String(value)}</span>
         );
       case 'number':
         return (
           <span
             className="truncate text-right w-full block"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_01d1">{String(value)}</span>
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_00de">{String(value)}</span>
         );
       case 'date': {
         try {
@@ -151,13 +160,13 @@ export default function GridCell({
           return (
             <span
               className="truncate"
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_b9f9">{d.toLocaleDateString()}</span>
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_1727">{d.toLocaleDateString()}</span>
           );
         } catch {
           return (
             <span
               className="truncate"
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_8304">{String(value)}</span>
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_b7f9">{String(value)}</span>
           );
         }
       }
@@ -168,24 +177,24 @@ export default function GridCell({
             <Pill
               label={opt.label}
               color={opt.color}
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_2ebb" />
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_242c" />
           );
         }
         return (
           <span
             className="truncate"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_3b51">{String(value)}</span>
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_333a">{String(value)}</span>
         );
       }
       case 'checkbox':
         return value ? (
           <Check
             className="h-4 w-4 text-primary"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_5315" />
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_e0fa" />
         ) : (
           <div
             className="h-3.5 w-3.5 rounded border border-border"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_2f38" />
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_4891" />
         );
       case 'contact': {
         const member = workspaceMembers?.find((m) => m.id === String(value));
@@ -193,31 +202,321 @@ export default function GridCell({
           return (
             <div
               className="flex items-center gap-1.5 truncate"
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_d7ec">
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_39bd">
               <Avatar
                 name={member.fullName}
                 size="sm"
                 className="!h-5 !w-5"
-                data-icod-id="src_features_sheets_grid_gridcell_tsx_09a5" />
+                data-icod-id="src_features_sheets_grid_gridcell_tsx_7a18" />
               <span
                 className="truncate text-xs"
-                data-icod-id="src_features_sheets_grid_gridcell_tsx_7b8c">{member.fullName}</span>
+                data-icod-id="src_features_sheets_grid_gridcell_tsx_7bdf">{member.fullName}</span>
             </div>
           );
         }
         return (
           <span
             className="truncate"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_87d7">{String(value)}</span>
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_109a">{String(value)}</span>
         );
       }
       default:
         return (
           <span
             className="truncate"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_0c91">{String(value)}</span>
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_83c3">{String(value)}</span>
         );
     }
+  };
+
+  // ─── Dropdown editor via FloatingCellList ────────────────────────────────
+  const renderDropdownEditor = () => {
+    const filteredOptions = column.options?.filter(
+      (opt) => !dropdownSearch || opt.label.toLowerCase().includes(dropdownSearch.toLowerCase()),
+    ) ?? [];
+    const searchHasExactMatch = filteredOptions.some(
+      (opt) => opt.label.toLowerCase() === dropdownSearch.trim().toLowerCase(),
+    );
+    const showAddOption = !readOnly && dropdownSearch.trim() !== '' && !searchHasExactMatch && onAddDropdownOption;
+
+    const listItems: FloatingCellListItem<{ label: string; color: string }>[] = filteredOptions.map((opt) => ({
+      id: opt.label,
+      data: opt,
+    }));
+
+    const handleSelectItem = (item: FloatingCellListItem<{ label: string; color: string }>) => {
+      if (!committedRef.current) {
+        committedRef.current = true;
+        onCommit(item.data.label);
+        setDropdownOpen(false);
+        onStopEdit();
+      }
+    };
+
+    return (
+      <div
+        className="relative h-full w-full"
+        data-icod-id="src_features_sheets_grid_gridcell_tsx_3f46">
+        <input
+          ref={inputRef}
+          className="h-full w-full bg-transparent px-1 text-sm outline-none"
+          value={dropdownSearch}
+          placeholder="Select..."
+          onChange={(e) => setDropdownSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              cancelEdit();
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (filteredOptions.length > 0) {
+                if (!committedRef.current) {
+                  committedRef.current = true;
+                  onCommit(filteredOptions[0].label);
+                  setDropdownOpen(false);
+                  onStopEdit();
+                }
+              } else if (showAddOption) {
+                if (!committedRef.current) {
+                  committedRef.current = true;
+                  onAddDropdownOption(column.id, dropdownSearch.trim());
+                  onCommit(dropdownSearch.trim());
+                  setDropdownOpen(false);
+                  onStopEdit();
+                }
+              }
+            }
+          }}
+          onFocus={() => setDropdownOpen(true)}
+          onBlur={() => {
+            setTimeout(() => {
+              if (!committedRef.current) {
+                committedRef.current = true;
+                setDropdownOpen(false);
+                onStopEdit();
+              }
+            }, 200);
+          }}
+          data-icod-id="src_features_sheets_grid_gridcell_tsx_2c7e" />
+        <FloatingCellList
+          anchorRef={cellRef}
+          open={dropdownOpen}
+          onClose={() => {
+            setDropdownOpen(false);
+            if (!committedRef.current) {
+              committedRef.current = true;
+              onStopEdit();
+            }
+          }}
+          items={listItems}
+          renderItem={(item, _idx, isFocused) => (
+            <button
+              className={cn(
+                'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs',
+                isFocused && 'bg-muted',
+              )}
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_1310">
+              <Pill
+                label={item.data.label}
+                color={item.data.color}
+                data-icod-id="src_features_sheets_grid_gridcell_tsx_5450" />
+            </button>
+          )}
+          onSelect={handleSelectItem}
+          header={
+            <input
+              className="h-full w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+              placeholder="Filter options..."
+              value={dropdownSearch}
+              onChange={(e) => setDropdownSearch(e.target.value)}
+              autoFocus
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_5f71" />
+          }
+          footer={
+            <>
+              {/* Clear option */}
+              {value != null && value !== '' && (
+                <button
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (!committedRef.current) {
+                      committedRef.current = true;
+                      onCommit(null);
+                      setDropdownOpen(false);
+                      onStopEdit();
+                    }
+                  }}
+                  data-icod-id="src_features_sheets_grid_gridcell_tsx_e9b9">
+                  <X
+                    className="h-3 w-3 text-muted-foreground"
+                    data-icod-id="src_features_sheets_grid_gridcell_tsx_26a5" />
+                  <span
+                    className="text-muted-foreground"
+                    data-icod-id="src_features_sheets_grid_gridcell_tsx_5338">Clear</span>
+                </button>
+              )}
+              {/* Add new option */}
+              {showAddOption && (
+                <button
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium text-primary hover:bg-muted"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (!committedRef.current) {
+                      committedRef.current = true;
+                      onAddDropdownOption(column.id, dropdownSearch.trim());
+                      onCommit(dropdownSearch.trim());
+                      setDropdownOpen(false);
+                      onStopEdit();
+                    }
+                  }}
+                  data-icod-id="src_features_sheets_grid_gridcell_tsx_a3f4">
+                  Add &quot;{dropdownSearch.trim()}&quot; as option
+                </button>
+              )}
+            </>
+          }
+          maxHeight={192}
+          data-icod-id="src_features_sheets_grid_gridcell_tsx_3be8" />
+      </div>
+    );
+  };
+
+  // ─── Contact editor via FloatingCellList ─────────────────────────────────
+  const renderContactEditor = () => {
+    const filteredMembers = workspaceMembers?.filter(
+      (m) =>
+        !contactQuery ||
+        m.fullName.toLowerCase().includes(contactQuery.toLowerCase()) ||
+        m.email.toLowerCase().includes(contactQuery.toLowerCase()),
+    ) ?? [];
+
+    const listItems: FloatingCellListItem<GridMember>[] = filteredMembers.map((m) => ({
+      id: m.id,
+      data: m,
+    }));
+
+    const handleSelectMember = (item: FloatingCellListItem<GridMember>) => {
+      if (!committedRef.current) {
+        committedRef.current = true;
+        onCommit(item.data.id);
+        setContactOpen(false);
+        onStopEdit();
+      }
+    };
+
+    return (
+      <div
+        className="relative h-full w-full"
+        data-icod-id="src_features_sheets_grid_gridcell_tsx_0ee2">
+        <input
+          ref={inputRef}
+          className="h-full w-full bg-transparent px-1 text-sm outline-none"
+          value={contactQuery}
+          placeholder="Search members..."
+          onChange={(e) => setContactQuery(e.target.value)}
+          onFocus={() => setContactOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setContactOpen(false);
+              cancelEdit();
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              // Keyboard navigation handled by FloatingCellList
+            } else if (e.key === 'Enter') {
+              e.preventDefault();
+              if (filteredMembers.length > 0) {
+                if (!committedRef.current) {
+                  committedRef.current = true;
+                  onCommit(filteredMembers[0].id);
+                  setContactOpen(false);
+                  onStopEdit();
+                }
+              }
+            }
+          }}
+          onBlur={() => {
+            setTimeout(() => {
+              if (!committedRef.current) {
+                committedRef.current = true;
+                setContactOpen(false);
+                onStopEdit();
+              }
+            }, 200);
+          }}
+          data-icod-id="src_features_sheets_grid_gridcell_tsx_7472" />
+        <FloatingCellList
+          anchorRef={cellRef}
+          open={contactOpen}
+          onClose={() => {
+            setContactOpen(false);
+            if (!committedRef.current) {
+              committedRef.current = true;
+              onStopEdit();
+            }
+          }}
+          items={listItems}
+          minWidth={220}
+          renderItem={(item, _idx, isFocused) => (
+            <button
+              className={cn(
+                'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs',
+                isFocused && 'bg-muted',
+              )}
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_98a6">
+              <Avatar
+                name={item.data.fullName}
+                size="sm"
+                className="!h-5 !w-5"
+                data-icod-id="src_features_sheets_grid_gridcell_tsx_1788" />
+              <div
+                className="min-w-0 flex-1"
+                data-icod-id="src_features_sheets_grid_gridcell_tsx_a744">
+                <div
+                  className="truncate font-medium"
+                  data-icod-id="src_features_sheets_grid_gridcell_tsx_2a72">{item.data.fullName}</div>
+                <div
+                  className="truncate text-muted-foreground"
+                  data-icod-id="src_features_sheets_grid_gridcell_tsx_f5e7">{item.data.email}</div>
+              </div>
+            </button>
+          )}
+          onSelect={handleSelectMember}
+          header={
+            <input
+              className="h-full w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+              placeholder="Search members..."
+              value={contactQuery}
+              onChange={(e) => setContactQuery(e.target.value)}
+              autoFocus
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_2b68" />
+          }
+          footer={
+            value != null && value !== '' ? (
+              <button
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  if (!committedRef.current) {
+                    committedRef.current = true;
+                    onCommit(null);
+                    setContactOpen(false);
+                    onStopEdit();
+                  }
+                }}
+                data-icod-id="src_features_sheets_grid_gridcell_tsx_539a">
+                <X
+                  className="h-3 w-3 text-muted-foreground"
+                  data-icod-id="src_features_sheets_grid_gridcell_tsx_a119" />
+                <span
+                  className="text-muted-foreground"
+                  data-icod-id="src_features_sheets_grid_gridcell_tsx_6182">Clear</span>
+              </button>
+            ) : undefined
+          }
+          maxHeight={220}
+          data-icod-id="src_features_sheets_grid_gridcell_tsx_5c8a" />
+      </div>
+    );
   };
 
   // Render edit mode
@@ -232,7 +531,7 @@ export default function GridCell({
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={() => { if (!committedRef.current) commitEdit(); }}
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_f796" />
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_c428" />
         );
       case 'number':
         return (
@@ -244,13 +543,13 @@ export default function GridCell({
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={() => { if (!committedRef.current) commitEdit(); }}
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_5c82" />
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_a5a7" />
         );
       case 'date':
         return (
           <div
             className="relative h-full w-full"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_24d4">
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_0a57">
             <input
               ref={inputRef}
               type="date"
@@ -258,7 +557,6 @@ export default function GridCell({
               value={editValue}
               onChange={(e) => {
                 setEditValue(e.target.value);
-                // Date picker fires onChange on selection — commit immediately
                 if (e.target.value) {
                   if (!committedRef.current) {
                     committedRef.current = true;
@@ -269,257 +567,30 @@ export default function GridCell({
               }}
               onKeyDown={handleKeyDown}
               onBlur={() => { if (!committedRef.current) commitEdit(); }}
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_42f1" />
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_5aca" />
           </div>
         );
-      case 'dropdown': {
-        const filteredOptions = column.options?.filter(
-          (opt) => !dropdownSearch || opt.label.toLowerCase().includes(dropdownSearch.toLowerCase()),
-        ) ?? [];
-        const searchHasExactMatch = filteredOptions.some(
-          (opt) => opt.label.toLowerCase() === dropdownSearch.trim().toLowerCase(),
-        );
-        const showAddOption = !readOnly && dropdownSearch.trim() !== '' && !searchHasExactMatch && onAddDropdownOption;
-
-        return (
-          <div
-            className="relative h-full w-full"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_32ee">
-            <input
-              ref={inputRef}
-              className="h-full w-full bg-transparent px-1 text-sm outline-none"
-              value={dropdownSearch}
-              placeholder="Select..."
-              onChange={(e) => setDropdownSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  cancelEdit();
-                } else if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (filteredOptions.length > 0) {
-                    if (!committedRef.current) {
-                      committedRef.current = true;
-                      onCommit(filteredOptions[0].label);
-                      setDropdownOpen(false);
-                      onStopEdit();
-                    }
-                  } else if (showAddOption) {
-                    if (!committedRef.current) {
-                      committedRef.current = true;
-                      onAddDropdownOption(column.id, dropdownSearch.trim());
-                      onCommit(dropdownSearch.trim());
-                      setDropdownOpen(false);
-                      onStopEdit();
-                    }
-                  }
-                }
-              }}
-              onFocus={() => setDropdownOpen(true)}
-              onBlur={() => {
-                setTimeout(() => {
-                  if (!committedRef.current) {
-                    committedRef.current = true;
-                    setDropdownOpen(false);
-                    onStopEdit();
-                  }
-                }, 200);
-              }}
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_5735" />
-            {dropdownOpen && (
-              <div
-                className="absolute left-0 top-full z-50 mt-1 max-h-48 min-w-[120px] overflow-y-auto rounded-md border border-border bg-card py-1 shadow-md"
-                data-icod-id="src_features_sheets_grid_gridcell_tsx_3c74">
-                {filteredOptions.map((opt) => (
-                  <button
-                    key={opt.label}
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      if (!committedRef.current) {
-                        committedRef.current = true;
-                        onCommit(opt.label);
-                        setDropdownOpen(false);
-                        onStopEdit();
-                      }
-                    }}
-                    data-icod-id="src_features_sheets_grid_gridcell_tsx_8c4b">
-                    <Pill
-                      label={opt.label}
-                      color={opt.color}
-                      data-icod-id="src_features_sheets_grid_gridcell_tsx_9b1a" />
-                  </button>
-                ))}
-                {showAddOption && (
-                  <button
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium text-primary hover:bg-muted"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      if (!committedRef.current) {
-                        committedRef.current = true;
-                        onAddDropdownOption(column.id, dropdownSearch.trim());
-                        onCommit(dropdownSearch.trim());
-                        setDropdownOpen(false);
-                        onStopEdit();
-                      }
-                    }}
-                    data-icod-id="src_features_sheets_grid_gridcell_tsx_add_option">
-                    Add "{dropdownSearch.trim()}" as option
-                  </button>
-                )}
-                {filteredOptions.length === 0 && !showAddOption && (
-                  <div
-                    className="px-3 py-2 text-xs text-muted-foreground"
-                    data-icod-id="src_features_sheets_grid_gridcell_tsx_f4e7">No options</div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      }
+      case 'dropdown':
+        return renderDropdownEditor();
       case 'checkbox':
-        // Checkbox doesn't have a separate edit mode
         return null;
-      case 'contact': {
-        const filteredMembers = workspaceMembers?.filter(
-          (m) =>
-            !contactQuery ||
-            m.fullName.toLowerCase().includes(contactQuery.toLowerCase()) ||
-            m.email.toLowerCase().includes(contactQuery.toLowerCase()),
-        ) ?? [];
-
-        // Compute portal position based on cell rect
-        const cellRect = cellRef.current?.getBoundingClientRect();
-        const gap = 4;
-        const listHeight = Math.min(filteredMembers.length * 40 + 48, 220);
-        let portalTop = cellRect ? cellRect.bottom + gap : 0;
-        let portalLeft = cellRect ? cellRect.left : 0;
-        const portalWidth = Math.max(cellRect?.width ?? 180, 220);
-
-        // Flip upward if near bottom of viewport
-        if (cellRect && portalTop + listHeight > window.innerHeight) {
-          portalTop = cellRect.top - gap - listHeight;
-        }
-
-        return (
-          <div
-            className="relative h-full w-full"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_48c1">
-            <input
-              ref={inputRef}
-              className="h-full w-full bg-transparent px-1 text-sm outline-none"
-              value={contactQuery}
-              placeholder="Search members..."
-              onChange={(e) => setContactQuery(e.target.value)}
-              onFocus={() => setContactOpen(true)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setContactOpen(false);
-                  cancelEdit();
-                } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                  e.preventDefault();
-                  // Keyboard navigation handled by portal list
-                } else if (e.key === 'Enter') {
-                  e.preventDefault();
-                  // Select first filtered result
-                  if (filteredMembers.length > 0) {
-                    if (!committedRef.current) {
-                      committedRef.current = true;
-                      onCommit(filteredMembers[0].id);
-                      setContactOpen(false);
-                      onStopEdit();
-                    }
-                  }
-                }
-              }}
-              onBlur={() => {
-                setTimeout(() => {
-                  if (!committedRef.current) {
-                    committedRef.current = true;
-                    setContactOpen(false);
-                    onStopEdit();
-                  }
-                }, 200);
-              }}
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_0847" />
-            {contactOpen && ReactDOM.createPortal(
-              <div
-                className="fixed z-[9999] overflow-hidden rounded-md border border-border bg-card shadow-md"
-                style={{ top: portalTop, left: portalLeft, width: portalWidth }}
-                onMouseDown={(e) => e.preventDefault()}
-                data-icod-id="src_features_sheets_grid_gridcell_tsx_portal">
-                {/* Clear option */}
-                {value != null && value !== '' && (
-                  <button
-                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      if (!committedRef.current) {
-                        committedRef.current = true;
-                        onCommit(null);
-                        setContactOpen(false);
-                        onStopEdit();
-                      }
-                    }}
-                    data-icod-id="src_features_sheets_grid_gridcell_tsx_clear">
-                    <X
-                      className="h-3 w-3 text-muted-foreground"
-                      data-icod-id="src_features_sheets_grid_gridcell_tsx_fd3f" />
-                    <span
-                      className="text-muted-foreground"
-                      data-icod-id="src_features_sheets_grid_gridcell_tsx_33d5">Clear</span>
-                  </button>
-                )}
-                {/* Filtered member list */}
-                <div
-                  className="max-h-48 overflow-y-auto"
-                  data-icod-id="src_features_sheets_grid_gridcell_tsx_5efc">
-                  {filteredMembers.map((member) => (
-                    <button
-                      key={member.id}
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        if (!committedRef.current) {
-                          committedRef.current = true;
-                          onCommit(member.id);
-                          setContactOpen(false);
-                          onStopEdit();
-                        }
-                      }}
-                      data-icod-id={`src_features_sheets_grid_gridcell_tsx_c630_${member.id}`}>
-                      <Avatar
-                        name={member.fullName}
-                        size="sm"
-                        className="!h-5 !w-5"
-                        data-icod-id={`src_features_sheets_grid_gridcell_tsx_2acf_${member.id}`} />
-                      <div
-                        className="min-w-0 flex-1"
-                        data-icod-id={`src_features_sheets_grid_gridcell_tsx_c2c3_${member.id}`}>
-                        <div
-                          className="truncate font-medium"
-                          data-icod-id={`src_features_sheets_grid_gridcell_tsx_a0ea_${member.id}`}>{member.fullName}</div>
-                        <div
-                          className="truncate text-muted-foreground"
-                          data-icod-id={`src_features_sheets_grid_gridcell_tsx_2509_${member.id}`}>{member.email}</div>
-                      </div>
-                    </button>
-                  ))}
-                  {filteredMembers.length === 0 && (
-                    <div
-                      className="px-3 py-2 text-xs text-muted-foreground"
-                      data-icod-id="src_features_sheets_grid_gridcell_tsx_no_match">No matching people</div>
-                  )}
-                </div>
-              </div>,
-              document.body,
-            )}
-          </div>
-        );
-      }
+      case 'contact':
+        return renderContactEditor();
       default:
         return null;
     }
   };
+
+  // ─── Cell background logic for primary column states ─────────────────────
+  const getCellBg = (): string | undefined => {
+    if (!isPrimary) return undefined;
+    if (isActive) return 'var(--grid-selection-bg)';
+    if (isSelected) return 'var(--grid-range-bg)';
+    if (isRowHovered) return 'var(--grid-row-hover-bg)';
+    return 'var(--grid-bg)';
+  };
+
+  const cellBg = getCellBg();
 
   return (
     <div
@@ -529,24 +600,34 @@ export default function GridCell({
         'h-[var(--grid-row-height)] px-[var(--grid-cell-padding-x)]',
         'text-sm text-foreground cursor-cell',
         isActive && 'ring-2 ring-inset ring-[var(--grid-selected-border)] z-10',
-        isSelected && !isActive && 'bg-[var(--grid-range-bg)]',
-        !isSelected && !isActive && 'hover:bg-[var(--grid-row-hover)]',
+        isSelected && !isActive && !isPrimary && 'bg-[var(--grid-range-bg)]',
+        !isSelected && !isActive && !isPrimary && 'hover:bg-[var(--grid-row-hover)]',
       )}
-      style={{ borderColor: 'var(--grid-line-color)' }}
+      style={{
+        borderColor: 'var(--grid-line-color)',
+        backgroundColor: cellBg,
+        boxShadow: isPrimary && isScrolled ? '2px 0 6px -1px rgba(0,0,0,0.12)' : undefined,
+      }}
       onClick={() => {
         if (column.type === 'checkbox' && !readOnly) {
           handleCheckboxClick();
         }
       }}
       onDoubleClick={handleDoubleClick}
-      data-icod-id="src_features_sheets_grid_gridcell_tsx_fd40">
+      data-icod-id="src_features_sheets_grid_gridcell_tsx_fe64">
       {isEditing && column.type !== 'checkbox' ? (
         renderEditMode()
       ) : (
         <div
           className="flex w-full items-center overflow-hidden"
-          data-icod-id="src_features_sheets_grid_gridcell_tsx_0577">
+          data-icod-id="src_features_sheets_grid_gridcell_tsx_288d">
           {renderDisplayValue()}
+          {/* Chevron icon for dropdown cells when not editing */}
+          {column.type === 'dropdown' && !isEditing && !readOnly && (
+            <ChevronDown
+              className="ml-auto h-3 w-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_ff9f" />
+          )}
         </div>
       )}
     </div>

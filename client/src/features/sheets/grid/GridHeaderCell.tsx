@@ -19,8 +19,7 @@ interface GridHeaderCellProps {
   userRole: WorkspaceRole;
   isScrolled?: boolean;
   onRename: (columnId: string, name: string) => void;
-  onChangeType: (columnId: string) => void;
-  onEditOptions: (columnId: string) => void;
+  onEditProperties: (columnId: string) => void;
   onDelete: (columnId: string) => void;
   onInsertLeft: (columnId: string) => void;
   onInsertRight: (columnId: string) => void;
@@ -35,8 +34,7 @@ export default function GridHeaderCell({
   userRole,
   isScrolled,
   onRename,
-  onChangeType,
-  onEditOptions,
+  onEditProperties,
   onDelete,
   onInsertLeft,
   onInsertRight,
@@ -74,12 +72,8 @@ export default function GridHeaderCell({
   if (canEdit) {
     menuItems.push(
       { label: 'Rename', onClick: startRenaming },
-      { label: 'Change type', onClick: () => onChangeType(column.id) },
+      { label: 'Edit column properties', onClick: () => onEditProperties(column.id) },
     );
-
-    if (column.type === 'dropdown') {
-      menuItems.push({ label: 'Edit options', onClick: () => onEditOptions(column.id) });
-    }
 
     // "Set as primary column" — only for non-primary text columns
     if (!column.isPrimary && column.type === 'text' && onSetPrimary) {
@@ -127,12 +121,15 @@ export default function GridHeaderCell({
         'bg-[var(--grid-header-bg)] text-[var(--grid-header-text)]',
         'text-xs font-medium',
       )}
-      style={{ borderColor: 'var(--grid-line-color)' }}
+      style={{
+        borderColor: 'var(--grid-line-color)',
+        boxShadow: column.isPrimary && isScrolled ? '2px 0 6px -1px rgba(0,0,0,0.12)' : undefined,
+      }}
       draggable={canEdit}
       onDragStart={() => onDragStart?.(column.id)}
       onDragOver={(e) => { e.preventDefault(); onDragOver?.(column.id); }}
       onDrop={() => onDrop?.(column.id)}
-      data-icod-id="src_features_sheets_grid_gridheadercell_tsx_4443">
+      data-icod-id="src_features_sheets_grid_gridheadercell_tsx_649d">
       {renaming ? (
         <input
           ref={inputRef}
@@ -144,46 +141,46 @@ export default function GridHeaderCell({
             if (e.key === 'Enter') handleRenameSubmit();
             if (e.key === 'Escape') { setRenameValue(column.name); setRenaming(false); }
           }}
-          data-icod-id="src_features_sheets_grid_gridheadercell_tsx_58f5" />
+          data-icod-id="src_features_sheets_grid_gridheadercell_tsx_c336" />
       ) : (
         <>
           <Icon
             className="mr-1.5 h-3 w-3 shrink-0 text-muted-foreground"
-            data-icod-id="src_features_sheets_grid_gridheadercell_tsx_570e" />
+            data-icod-id="src_features_sheets_grid_gridheadercell_tsx_953d" />
           <span
             className="truncate cursor-pointer"
             onDoubleClick={() => { if (canEdit) startRenaming(); }}
-            data-icod-id="src_features_sheets_grid_gridheadercell_tsx_d968">{column.name}</span>
+            data-icod-id="src_features_sheets_grid_gridheadercell_tsx_a875">{column.name}</span>
         </>
       )}
       {canEdit && !renaming && (
         <div
           className="ml-auto hidden items-center gap-0.5 group-hover:flex"
-          data-icod-id="src_features_sheets_grid_gridheadercell_tsx_26df">
+          data-icod-id="src_features_sheets_grid_gridheadercell_tsx_d303">
           <DropdownMenu
             trigger={
               <button
                 className="rounded p-0.5 hover:bg-muted transition-colors"
                 aria-label="Column menu"
-                data-icod-id="src_features_sheets_grid_gridheadercell_tsx_1905">
+                data-icod-id="src_features_sheets_grid_gridheadercell_tsx_e82a">
                 <ChevronDown
                   className="h-3 w-3"
-                  data-icod-id="src_features_sheets_grid_gridheadercell_tsx_8325" />
+                  data-icod-id="src_features_sheets_grid_gridheadercell_tsx_41a0" />
               </button>
             }
             items={menuItems}
             skipRestoreFocus
-            data-icod-id="src_features_sheets_grid_gridheadercell_tsx_cd5c" />
+            data-icod-id="src_features_sheets_grid_gridheadercell_tsx_e3ac" />
         </div>
       )}
       {/* Drag handle indicator */}
       {canEdit && (
         <div
           className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize opacity-0 group-hover:opacity-40 hover:!opacity-80 transition-opacity"
-          data-icod-id="src_features_sheets_grid_gridheadercell_tsx_7480">
+          data-icod-id="src_features_sheets_grid_gridheadercell_tsx_206f">
           <GripVertical
             className="h-3 w-3 mt-2.5 -ml-0.5 text-muted-foreground"
-            data-icod-id="src_features_sheets_grid_gridheadercell_tsx_fd3e" />
+            data-icod-id="src_features_sheets_grid_gridheadercell_tsx_2633" />
         </div>
       )}
     </div>

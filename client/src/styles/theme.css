@@ -136,6 +136,9 @@
   --grid-header-font-size: 12px;
   --grid-header-font-weight: 500;
   --grid-line-color: var(--color-gray-200);
+  --grid-bg: var(--color-bg-surface);
+  --grid-row-hover-bg: var(--color-gray-50);
+  --grid-selection-bg: rgba(15, 118, 110, 0.06);
 
   /* ─── Focus ring ──────────────────────────────────────────────────── */
   --focus-ring: 0 0 0 2px #FFFFFF, 0 0 0 4px #0F766E;

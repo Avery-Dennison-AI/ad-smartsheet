@@ -44,6 +44,8 @@ import {
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { RoleValue } from '@/components/ui/RoleMenu';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
+import ColumnPropertiesModal from '@/features/sheets/grid/ColumnPropertiesModal';
+import type { DropdownOption } from '@/types';
 
 /* ─── Section wrapper ─────────────────────────────────────────────────────── */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -1242,6 +1244,19 @@ export default function DesignSystemPage() {
           </div>
         </div>
       </Section>
+      {/* ─── Grid Components ──────────────────────────────────────────────── */}
+      <Section title="Grid Components" data-icod-id="ds_grid_components_section">
+        <div className="space-y-6" data-icod-id="ds_grid_components_wrap">
+          <p className="text-sm text-muted-foreground" data-icod-id="ds_grid_components_desc">
+            These components are internal to the sheet grid feature. They are shown here for reference only.
+          </p>
+          {/* ColumnPropertiesModal demo */}
+          <div data-icod-id="ds_grid_col_props_demo">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_grid_col_props_label">ColumnPropertiesModal — unified column editor</span>
+            <ColumnPropertiesModalDemo data-icod-id="ds_grid_col_props_instance" />
+          </div>
+        </div>
+      </Section>
     </div>
   );
 }
@@ -1336,5 +1351,40 @@ function RoleMenuDemoViewer() {
       onChange={setRole}
       onLeave={() => {}}
       data-icod-id="src_pages_designsystempage_tsx_269c" />
+  );
+}
+
+/* ─── ColumnPropertiesModal demo ──────────────────────────────────────── */
+function ColumnPropertiesModalDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="flex flex-col gap-3"
+      data-icod-id="src_pages_designsystempage_tsx_3903">
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={() => setOpen(true)}
+        data-icod-id="src_pages_designsystempage_tsx_1c3f">
+        Open Column Properties Modal
+      </Button>
+      <ColumnPropertiesModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onSave={(data: { name: string; type: string; options?: DropdownOption[] }) => {
+          // no-op in design system demo
+          console.log('Column properties saved:', data);
+          setOpen(false);
+        }}
+        initialName="Status"
+        initialType="dropdown"
+        initialOptions={[
+          { label: 'Not Started', color: 'gray' },
+          { label: 'In Progress', color: 'blue' },
+          { label: 'Complete', color: 'green' },
+        ]}
+        existingCellCount={12}
+        data-icod-id="src_pages_designsystempage_tsx_8b4e" />
+    </div>
   );
 }
