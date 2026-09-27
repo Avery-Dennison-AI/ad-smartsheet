@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Search, Settings, Trash2, Copy, Plus, Home, Clock, Bold, Italic, Underline, Strikethrough, Eraser } from 'lucide-react';
+import { Search, Settings, Trash2, Copy, Plus, Home, Clock, Bold, Italic, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight, ChevronDown, PaintBucket, Type, Check } from 'lucide-react';
 import {
   Button,
   IconButton,
@@ -45,6 +45,7 @@ import {
   ToggleButton,
   Toolbar,
   ToolbarGroup,
+  ColorSwatchPicker,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { RoleValue } from '@/components/ui/RoleMenu';
@@ -1204,6 +1205,11 @@ export default function DesignSystemPage() {
             <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_calendardatepicker_label">CalendarDatePicker — floating calendar popover</span>
             <CalendarDatePickerDemo data-icod-id="ds_shared_calendardatepicker_instance" />
           </div>
+          {/* ColorSwatchPicker */}
+          <div data-icod-id="ds_colorswatch_section">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_colorswatch_label">ColorSwatchPicker — portal-rendered color palette popover for text/fill colors</span>
+            <ColorSwatchPickerDemo data-icod-id="ds_colorswatch_instance" />
+          </div>
           {/* Pill */}
           <div data-icod-id="ds_shared_pill">
             <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_pill_label">Pill — colored status labels</span>
@@ -1448,6 +1454,16 @@ function ToolbarDemo() {
   const [strikethrough, setStrikethrough] = useState(false);
   const [fontFamily, setFontFamily] = useState('default');
   const [fontSize, setFontSize] = useState('');
+  const [textColor, setTextColor] = useState<string | null>(null);
+  const [fillColor, setFillColor] = useState<string | null>(null);
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right' | null>(null);
+  const [verticalAlign, setVerticalAlign] = useState<'top' | 'middle' | 'bottom' | null>(null);
+  const textColorBtnRef = useRef<HTMLButtonElement>(null);
+  const fillColorBtnRef = useRef<HTMLButtonElement>(null);
+  const vertAlignBtnRef = useRef<HTMLButtonElement>(null);
+  const [textColorOpen, setTextColorOpen] = useState(false);
+  const [fillColorOpen, setFillColorOpen] = useState(false);
+  const [vertAlignOpen, setVertAlignOpen] = useState(false);
 
   return (
     <Toolbar data-icod-id="src_pages_designsystempage_tsx_4d1c">
@@ -1512,10 +1528,177 @@ function ToolbarDemo() {
           size="sm"
           data-icod-id="src_pages_designsystempage_tsx_f877" />
       </ToolbarGroup>
+      {/* Group A: Text color & Fill color */}
+      <ToolbarGroup data-icod-id="ds_toolbar_colors">
+        <div className="relative" data-icod-id="ds_textcolor_wrap">
+          <button
+            ref={textColorBtnRef}
+            type="button"
+            className="inline-flex h-6 flex-col items-center justify-center rounded-[var(--radius-sm)] px-1 transition-colors hover:bg-muted"
+            onClick={() => setTextColorOpen(!textColorOpen)}
+            onMouseDown={(e) => e.preventDefault()}
+            aria-label="Text color"
+            title="Text color"
+            data-icod-id="ds_textcolor_btn"
+          >
+            <span className="relative" data-icod-id="src_pages_designsystempage_tsx_ccd9">
+              <Type
+                className="h-3.5 w-3.5"
+                data-icod-id="src_pages_designsystempage_tsx_fb86" />
+              <span
+                className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full"
+                style={{ backgroundColor: textColor || '#CBD5E1' }}
+                data-icod-id="ds_textcolor_bar"
+              />
+            </span>
+          </button>
+          {textColorOpen && (
+            <ColorSwatchPicker
+              anchorRef={textColorBtnRef}
+              value={textColor}
+              onChange={(hex) => setTextColor(hex)}
+              onClose={() => setTextColorOpen(false)}
+              data-icod-id="src_pages_designsystempage_tsx_418b" />
+          )}
+        </div>
+        <div className="relative" data-icod-id="ds_fillcolor_wrap">
+          <button
+            ref={fillColorBtnRef}
+            type="button"
+            className="inline-flex h-6 flex-col items-center justify-center rounded-[var(--radius-sm)] px-1 transition-colors hover:bg-muted"
+            onClick={() => setFillColorOpen(!fillColorOpen)}
+            onMouseDown={(e) => e.preventDefault()}
+            aria-label="Fill color"
+            title="Fill color"
+            data-icod-id="ds_fillcolor_btn"
+          >
+            <span className="relative" data-icod-id="src_pages_designsystempage_tsx_459c">
+              <PaintBucket
+                className="h-3.5 w-3.5"
+                data-icod-id="src_pages_designsystempage_tsx_9edf" />
+              <span
+                className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full"
+                style={{ backgroundColor: fillColor || '#CBD5E1' }}
+                data-icod-id="ds_fillcolor_bar"
+              />
+            </span>
+          </button>
+          {fillColorOpen && (
+            <ColorSwatchPicker
+              anchorRef={fillColorBtnRef}
+              value={fillColor}
+              onChange={(hex) => setFillColor(hex)}
+              onClose={() => setFillColorOpen(false)}
+              data-icod-id="src_pages_designsystempage_tsx_c97f" />
+          )}
+        </div>
+      </ToolbarGroup>
+      {/* Group B: Horizontal alignment */}
+      <ToolbarGroup data-icod-id="ds_toolbar_halign">
+        <ToggleButton
+          pressed={textAlign === 'left'}
+          onToggle={() => setTextAlign(textAlign === 'left' ? null : 'left')}
+          tooltip="Align Left"
+          icon={<AlignLeft
+            className="h-3.5 w-3.5"
+            data-icod-id="src_pages_designsystempage_tsx_8847" />}
+          size="sm"
+          data-icod-id="ds_align_left" />
+        <ToggleButton
+          pressed={textAlign === 'center'}
+          onToggle={() => setTextAlign(textAlign === 'center' ? null : 'center')}
+          tooltip="Align Center"
+          icon={<AlignCenter
+            className="h-3.5 w-3.5"
+            data-icod-id="src_pages_designsystempage_tsx_b286" />}
+          size="sm"
+          data-icod-id="ds_align_center" />
+        <ToggleButton
+          pressed={textAlign === 'right'}
+          onToggle={() => setTextAlign(textAlign === 'right' ? null : 'right')}
+          tooltip="Align Right"
+          icon={<AlignRight
+            className="h-3.5 w-3.5"
+            data-icod-id="src_pages_designsystempage_tsx_8d7f" />}
+          size="sm"
+          data-icod-id="ds_align_right" />
+      </ToolbarGroup>
+      {/* Group C: Vertical alignment */}
+      <ToolbarGroup data-icod-id="ds_toolbar_valign">
+        <div className="relative" data-icod-id="ds_valign_wrap">
+          <button
+            ref={vertAlignBtnRef}
+            type="button"
+            className="inline-flex h-6 items-center gap-0.5 rounded-[var(--radius-sm)] px-1 transition-colors hover:bg-muted"
+            onClick={() => setVertAlignOpen(!vertAlignOpen)}
+            onMouseDown={(e) => e.preventDefault()}
+            aria-label="Vertical alignment"
+            title="Vertical alignment"
+            data-icod-id="ds_valign_btn"
+          >
+            <AlignCenter
+              className="h-3.5 w-3.5"
+              data-icod-id="src_pages_designsystempage_tsx_2705" />
+            <ChevronDown
+              className="h-2.5 w-2.5 text-muted-foreground"
+              data-icod-id="src_pages_designsystempage_tsx_098e" />
+          </button>
+          {vertAlignOpen && (
+            <div
+              className="absolute left-0 top-full z-[200] mt-1 w-36 rounded-md border border-border bg-card py-1 shadow-lg"
+              data-icod-id="ds_valign_menu"
+            >
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+                onClick={() => { setVerticalAlign(verticalAlign === 'top' ? null : 'top'); setVertAlignOpen(false); }}
+                data-icod-id="ds_valign_top"
+              >
+                <AlignTopIcon
+                  className="h-3.5 w-3.5"
+                  data-icod-id="src_pages_designsystempage_tsx_0fd2" />
+                <span data-icod-id="src_pages_designsystempage_tsx_4088">Top</span>
+                {verticalAlign === 'top' && <Check
+                  className="ml-auto h-3 w-3 text-primary"
+                  data-icod-id="src_pages_designsystempage_tsx_1ac0" />}
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+                onClick={() => { setVerticalAlign(verticalAlign === 'middle' ? null : 'middle'); setVertAlignOpen(false); }}
+                data-icod-id="ds_valign_middle"
+              >
+                <AlignCenter
+                  className="h-3.5 w-3.5"
+                  data-icod-id="src_pages_designsystempage_tsx_883c" />
+                <span data-icod-id="src_pages_designsystempage_tsx_b00f">Middle</span>
+                {(verticalAlign === 'middle' || verticalAlign == null) && <Check
+                  className="ml-auto h-3 w-3 text-primary"
+                  data-icod-id="src_pages_designsystempage_tsx_cd2a" />}
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
+                onClick={() => { setVerticalAlign(verticalAlign === 'bottom' ? null : 'bottom'); setVertAlignOpen(false); }}
+                data-icod-id="ds_valign_bottom"
+              >
+                <AlignBottomIcon
+                  className="h-3.5 w-3.5"
+                  data-icod-id="src_pages_designsystempage_tsx_fe6c" />
+                <span data-icod-id="src_pages_designsystempage_tsx_3995">Bottom</span>
+                {verticalAlign === 'bottom' && <Check
+                  className="ml-auto h-3 w-3 text-primary"
+                  data-icod-id="src_pages_designsystempage_tsx_40cf" />}
+              </button>
+            </div>
+          )}
+        </div>
+      </ToolbarGroup>
       <ToolbarGroup data-icod-id="src_pages_designsystempage_tsx_96d0">
         <IconButton
           size="sm"
           tooltip="Clear formatting"
+          onClick={() => { setBold(false); setItalic(false); setUnderline(false); setStrikethrough(false); setFontFamily('default'); setFontSize(''); setTextColor(null); setFillColor(null); setTextAlign(null); setVerticalAlign(null); }}
           data-icod-id="src_pages_designsystempage_tsx_63be"><Eraser
           className="h-3.5 w-3.5"
           data-icod-id="src_pages_designsystempage_tsx_8803" /></IconButton>
@@ -1561,6 +1744,122 @@ function CalendarDatePickerDemo() {
       <span
         className="text-xs text-muted-foreground"
         data-icod-id="src_pages_designsystempage_tsx_9310">Selected: {date ?? 'none'}</span>
+    </div>
+  );
+}
+
+/* ─── Inline icons for vertical alignment (not in lucide-react) ─────────── */
+function AlignTopIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      data-icod-id="src_pages_designsystempage_tsx_7e4b">
+      <rect
+        width="16"
+        height="12"
+        x="4"
+        y="6"
+        rx="2"
+        data-icod-id="src_pages_designsystempage_tsx_a5b2" />
+      <path d="M4 2v4" data-icod-id="src_pages_designsystempage_tsx_6a05" /><path d="M20 2v4" data-icod-id="src_pages_designsystempage_tsx_24c6" />
+    </svg>
+  );
+}
+
+function AlignBottomIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      data-icod-id="src_pages_designsystempage_tsx_0831">
+      <rect
+        width="16"
+        height="12"
+        x="4"
+        y="6"
+        rx="2"
+        data-icod-id="src_pages_designsystempage_tsx_c7fa" />
+      <path d="M4 22v-4" data-icod-id="src_pages_designsystempage_tsx_c6f3" /><path d="M20 22v-4" data-icod-id="src_pages_designsystempage_tsx_0f0d" />
+    </svg>
+  );
+}
+
+/* ─── ColorSwatchPicker interactive demo ──────────────────────────────── */
+function ColorSwatchPickerDemo() {
+  const [textColor, setTextColor] = useState<string | null>(null);
+  const [fillColor, setFillColor] = useState<string | null>('#FEFCE8');
+  const textBtnRef = useRef<HTMLButtonElement>(null);
+  const fillBtnRef = useRef<HTMLButtonElement>(null);
+  const [textOpen, setTextOpen] = useState(false);
+  const [fillOpen, setFillOpen] = useState(false);
+
+  return (
+    <div className="flex items-center gap-6" data-icod-id="ds_colorswatch_demo">
+      <div className="relative" data-icod-id="ds_csp_text_wrap">
+        <button
+          ref={textBtnRef}
+          type="button"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs hover:bg-muted"
+          onClick={() => setTextOpen(!textOpen)}
+          onMouseDown={(e) => e.preventDefault()}
+          data-icod-id="ds_csp_text_btn"
+        >
+          <Type
+            className="h-3.5 w-3.5"
+            data-icod-id="src_pages_designsystempage_tsx_f700" />
+          Text color
+        </button>
+        {textOpen && (
+          <ColorSwatchPicker
+            anchorRef={textBtnRef}
+            value={textColor}
+            onChange={(hex) => setTextColor(hex)}
+            onClose={() => setTextOpen(false)}
+            data-icod-id="src_pages_designsystempage_tsx_77a8" />
+        )}
+        <span className="mt-1 block text-[10px] text-muted-foreground" data-icod-id="ds_csp_text_val">
+          {textColor ?? 'null (default)'}
+        </span>
+      </div>
+      <div className="relative" data-icod-id="ds_csp_fill_wrap">
+        <button
+          ref={fillBtnRef}
+          type="button"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs hover:bg-muted"
+          onClick={() => setFillOpen(!fillOpen)}
+          onMouseDown={(e) => e.preventDefault()}
+          data-icod-id="ds_csp_fill_btn"
+        >
+          <PaintBucket
+            className="h-3.5 w-3.5"
+            data-icod-id="src_pages_designsystempage_tsx_75a6" />
+          Fill color
+        </button>
+        {fillOpen && (
+          <ColorSwatchPicker
+            anchorRef={fillBtnRef}
+            value={fillColor}
+            onChange={(hex) => setFillColor(hex)}
+            onClose={() => setFillOpen(false)}
+            data-icod-id="src_pages_designsystempage_tsx_26d8" />
+        )}
+        <span className="mt-1 block text-[10px] text-muted-foreground" data-icod-id="ds_csp_fill_val">
+          {fillColor ?? 'null (default)'}
+        </span>
+      </div>
     </div>
   );
 }

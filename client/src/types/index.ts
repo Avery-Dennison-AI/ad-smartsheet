@@ -143,6 +143,10 @@ export interface CellFormatting {
   italic?: boolean | null;
   underline?: boolean | null;
   strikethrough?: boolean | null;
+  textAlign?: 'left' | 'center' | 'right' | null;
+  verticalAlign?: 'top' | 'middle' | 'bottom' | null;
+  textColor?: string | null;
+  fillColor?: string | null;
 }
 
 export interface GridState {

@@ -564,6 +564,34 @@ export async function updateFormatting(
 ) {
   await getSheetWithAccess(sheetId, userId, 'editor');
 
+  // Validate formatting keys and values
+  const ALLOWED_FORMAT_KEYS = new Set([
+    'fontFamily', 'fontSize', 'bold', 'italic', 'underline', 'strikethrough',
+    'textAlign', 'verticalAlign', 'textColor', 'fillColor',
+  ]);
+  const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+  const TEXT_ALIGN_VALUES = new Set(['left', 'center', 'right']);
+  const VERTICAL_ALIGN_VALUES = new Set(['top', 'middle', 'bottom']);
+
+  for (const entry of cells) {
+    if (entry.formatting === null) continue;
+    for (const [key, value] of Object.entries(entry.formatting)) {
+      if (!ALLOWED_FORMAT_KEYS.has(key)) {
+        throw new AppError(`Unknown formatting key: ${key}`, 400);
+      }
+      if (value === null || value === undefined) continue;
+      if ((key === 'textColor' || key === 'fillColor') && !HEX_RE.test(String(value))) {
+        throw new AppError(`Invalid hex color for ${key}: ${value}`, 400);
+      }
+      if (key === 'textAlign' && !TEXT_ALIGN_VALUES.has(String(value))) {
+        throw new AppError(`Invalid textAlign value: ${value}`, 400);
+      }
+      if (key === 'verticalAlign' && !VERTICAL_ALIGN_VALUES.has(String(value))) {
+        throw new AppError(`Invalid verticalAlign value: ${value}`, 400);
+      }
+    }
+  }
+
   // Validate all row IDs belong to this sheet and build bulk ops
   const validRowIds = cells
     .map((e) => e.rowId)
@@ -643,6 +671,34 @@ export async function updateColumnFormatting(
   cascadePatch?: Record<string, unknown>,
 ) {
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
+
+  // Validate formatting keys and values
+  const ALLOWED_FORMAT_KEYS = new Set([
+    'fontFamily', 'fontSize', 'bold', 'italic', 'underline', 'strikethrough',
+    'textAlign', 'verticalAlign', 'textColor', 'fillColor',
+  ]);
+  const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+  const TEXT_ALIGN_VALUES = new Set(['left', 'center', 'right']);
+  const VERTICAL_ALIGN_VALUES = new Set(['top', 'middle', 'bottom']);
+
+  for (const entry of columns) {
+    if (entry.formatting === null) continue;
+    for (const [key, value] of Object.entries(entry.formatting)) {
+      if (!ALLOWED_FORMAT_KEYS.has(key)) {
+        throw new AppError(`Unknown formatting key: ${key}`, 400);
+      }
+      if (value === null || value === undefined) continue;
+      if ((key === 'textColor' || key === 'fillColor') && !HEX_RE.test(String(value))) {
+        throw new AppError(`Invalid hex color for ${key}: ${value}`, 400);
+      }
+      if (key === 'textAlign' && !TEXT_ALIGN_VALUES.has(String(value))) {
+        throw new AppError(`Invalid textAlign value: ${value}`, 400);
+      }
+      if (key === 'verticalAlign' && !VERTICAL_ALIGN_VALUES.has(String(value))) {
+        throw new AppError(`Invalid verticalAlign value: ${value}`, 400);
+      }
+    }
+  }
 
   const sheetColumns = [...(sheet.columns || [])];
   let updatedCount = 0;

@@ -87,12 +87,17 @@ export default function GridCell({
   }, [colFmt, cellFmt]);
 
   // Build inline styles from formatting
+  const effectiveTextAlign = fmt.textAlign ?? (column.type === 'number' ? 'right' : undefined);
   const formattingStyle: React.CSSProperties = {
     fontFamily: fmt.fontFamily && fmt.fontFamily !== 'default' ? fmt.fontFamily : undefined,
     fontSize: fmt.fontSize ? `${fmt.fontSize}px` : undefined,
     fontWeight: fmt.bold ? 'bold' : undefined,
     fontStyle: fmt.italic ? 'italic' : undefined,
     textDecoration: [fmt.underline && 'underline', fmt.strikethrough && 'line-through'].filter(Boolean).join(' ') || undefined,
+    color: fmt.textColor ?? undefined,
+    justifyContent: effectiveTextAlign === 'right' ? 'flex-end' : effectiveTextAlign === 'center' ? 'center' : 'flex-start',
+    alignItems: fmt.verticalAlign === 'top' ? 'flex-start' : fmt.verticalAlign === 'bottom' ? 'flex-end' : 'center',
+    textAlign: effectiveTextAlign ?? undefined,
   };
 
   // Reset committed flag when entering edit mode
@@ -530,7 +535,7 @@ export default function GridCell({
           <input
             ref={inputRef}
             className="h-full w-full bg-transparent px-1 text-sm outline-none"
-            style={formattingStyle}
+            style={{ ...formattingStyle, color: fmt.textColor ?? undefined, backgroundColor: fmt.fillColor ? 'transparent' : undefined }}
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -543,7 +548,7 @@ export default function GridCell({
             ref={inputRef}
             type="number"
             className="h-full w-full bg-transparent px-1 text-right text-sm outline-none"
-            style={formattingStyle}
+            style={{ ...formattingStyle, color: fmt.textColor ?? undefined, backgroundColor: fmt.fillColor ? 'transparent' : undefined }}
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -605,25 +610,47 @@ export default function GridCell({
     if (isActive) return 'var(--grid-selection-bg)';
     if (isSelected || isRowSelected || isColSelected) return 'var(--grid-range-bg)';
     if (isRowHovered) return 'var(--grid-row-hover-bg)';
-    return 'var(--grid-bg)';
+    return fmt.fillColor ? undefined : 'var(--grid-bg)';
   };
 
   const cellBg = getCellBg();
+
+  // Build composite background: fillColor base + state overlay via gradient
+  const getCompositeBackground = (): string | undefined => {
+    const fill = fmt.fillColor;
+    if (!fill) return cellBg;
+
+    // When there's a fill color, layer interaction states on top via semi-transparent gradient
+    if (isActive) {
+      return `linear-gradient(var(--grid-selection-bg), var(--grid-selection-bg)), ${fill}`;
+    }
+    if (isSelected || isRowSelected || isColSelected) {
+      return `linear-gradient(var(--grid-range-bg), var(--grid-range-bg)), ${fill}`;
+    }
+    if (isRowHovered && !isPrimary) {
+      return `linear-gradient(var(--grid-row-hover), var(--grid-row-hover)), ${fill}`;
+    }
+    return fill;
+  };
+
+  const compositeBg = getCompositeBackground();
 
   return (
     <div
       ref={cellRef}
       className={cn(
-        'group relative flex items-center border-b border-r overflow-hidden',
+        'group relative flex overflow-hidden',
         'h-[var(--grid-row-height)] px-[var(--grid-cell-padding-x)]',
         'text-sm text-foreground cursor-cell',
         isActive && 'ring-2 ring-inset ring-[var(--grid-selected-border)] z-10',
-        (isSelected || isRowSelected || isColSelected) && !isActive && !isPrimary && 'bg-[var(--grid-range-bg)]',
-        !isSelected && !isActive && !isPrimary && !isRowSelected && !isColSelected && 'hover:bg-[var(--grid-row-hover)]',
+        // Only use Tailwind bg classes when no fill color; otherwise compositeBg handles it
+        !fmt.fillColor && (isSelected || isRowSelected || isColSelected) && !isActive && !isPrimary && 'bg-[var(--grid-range-bg)]',
+        !fmt.fillColor && !isSelected && !isActive && !isPrimary && !isRowSelected && !isColSelected && 'hover:bg-[var(--grid-row-hover)]',
+        'border-b border-r items-center',
       )}
       style={{
         borderColor: 'var(--grid-line-color)',
-        backgroundColor: cellBg,
+        backgroundColor: compositeBg,
         boxShadow: isPrimary && isScrolled ? '2px 0 6px -1px rgba(0,0,0,0.12)' : undefined,
       }}
       onMouseDown={(e) => {
@@ -645,7 +672,7 @@ export default function GridCell({
         renderEditMode()
       ) : (
         <div
-          className="flex w-full items-center overflow-hidden"
+          className="flex w-full h-full overflow-hidden"
           style={formattingStyle}
           data-icod-id="src_features_sheets_grid_gridcell_tsx_288d">
           {renderDisplayValue()}

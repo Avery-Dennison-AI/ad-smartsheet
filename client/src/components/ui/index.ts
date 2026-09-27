@@ -51,3 +51,4 @@ export { default as Pill, type PillProps } from './Pill';
 export { default as SaveIndicator, type SaveIndicatorProps } from './SaveIndicator';
 export { default as ToggleButton, type ToggleButtonProps } from './ToggleButton';
 export { Toolbar, ToolbarGroup, type ToolbarProps, type ToolbarGroupProps } from './Toolbar';
+export { default as ColorSwatchPicker, type ColorSwatchPickerProps } from './ColorSwatchPicker';
