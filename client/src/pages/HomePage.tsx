@@ -81,21 +81,21 @@ export default function HomePage() {
               data-icod-id="src_pages_homepage_tsx_2ef0">
               {workspaces.map((ws) => (
                 <Link
-                  key={ws._id}
-                  to={`/workspaces/${ws._id}`}
+                  key={ws.id}
+                  to={`/workspaces/${ws.id}`}
                   className="group block rounded-[var(--radius-lg)] border border-border bg-card p-4 transition-colors hover:border-muted-foreground/30 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
-                  data-icod-id={`src_pages_homepage_tsx_7bb9_${ws._id}`}>
+                  data-icod-id={`src_pages_homepage_tsx_7bb9_${ws.id}`}>
                   <div
                     className="flex items-center gap-3"
-                    data-icod-id={`src_pages_homepage_tsx_ba6c_${ws._id}`}>
+                    data-icod-id={`src_pages_homepage_tsx_ba6c_${ws.id}`}>
                     <WorkspaceIcon
                       name={ws.name}
                       color={ws.color}
                       size="sm"
-                      data-icod-id={`src_pages_homepage_tsx_0568_${ws._id}`} />
+                      data-icod-id={`src_pages_homepage_tsx_0568_${ws.id}`} />
                     <span
                       className="truncate text-sm font-medium text-foreground"
-                      data-icod-id={`src_pages_homepage_tsx_a7b6_${ws._id}`}>{ws.name}</span>
+                      data-icod-id={`src_pages_homepage_tsx_a7b6_${ws.id}`}>{ws.name}</span>
                   </div>
                 </Link>
               ))}

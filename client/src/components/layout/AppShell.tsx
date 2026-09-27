@@ -226,17 +226,17 @@ export default function AppShell({ children }: AppShellProps) {
             )}
             {workspaces.map((ws) => (
               <SidebarNavItem
-                key={ws._id}
+                key={ws.id}
                 iconNode={<WorkspaceIcon
                   name={ws.name}
                   color={ws.color}
                   size="sm"
-                  data-icod-id={`src_components_layout_appshell_tsx_0203_${ws._id}`} />}
+                  data-icod-id={`src_components_layout_appshell_tsx_0203_${ws.id}`} />}
                 label={ws.name}
                 collapsed={collapsed}
-                active={location.pathname === `/workspaces/${ws._id}`}
-                to={`/workspaces/${ws._id}`}
-                data-icod-id={`src_components_layout_appshell_tsx_d3ca_${ws._id}`} />
+                active={location.pathname === `/workspaces/${ws.id}`}
+                to={`/workspaces/${ws.id}`}
+                data-icod-id={`src_components_layout_appshell_tsx_d3ca_${ws.id}`} />
             ))}
           </div>
         </nav>

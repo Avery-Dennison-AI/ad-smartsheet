@@ -6,10 +6,19 @@ import { escapeRegex } from '../utils/escapeRegex';
 
 const MEMBER_POPULATE = '_id fullName email';
 
+/** Extracts the string ID from a member's user field, whether it is a raw ObjectId or a populated document. */
+function getMemberId(user: unknown): string {
+  if (typeof user === 'string') return user;
+  if (user && typeof user === 'object' && '_id' in user) {
+    return String((user as { _id: unknown })._id);
+  }
+  return String(user);
+}
+
 /** Extracts the calling user's role from the members array. */
 export function getMemberRole(workspace: IWorkspace, userId: string): WorkspaceRole | null {
   const member = workspace.members.find(
-    (m) => m.user.toString() === userId,
+    (m) => getMemberId(m.user) === userId,
   );
   return member ? member.role : null;
 }
@@ -137,7 +146,7 @@ export async function addMember(
 
   // Check not already a member
   const alreadyMember = workspace.members.some(
-    (m) => m.user.toString() === data.userId,
+    (m) => getMemberId(m.user) === data.userId,
   );
   if (alreadyMember) {
     throw new AppError('User is already a member of this workspace', 409);
@@ -185,7 +194,7 @@ export async function removeMember(
 
   // Verify target is actually a member
   const targetIsMember = workspace.members.some(
-    (m) => m.user.toString() === targetUserId,
+    (m) => getMemberId(m.user) === targetUserId,
   );
   if (!targetIsMember) {
     throw new AppError('User is not a member of this workspace', 404);
@@ -226,7 +235,7 @@ export async function updateMemberRole(
 
   // Find the target member
   const memberIndex = workspace.members.findIndex(
-    (m) => m.user.toString() === targetUserId,
+    (m) => getMemberId(m.user) === targetUserId,
   );
   if (memberIndex === -1) {
     throw new AppError('User is not a member of this workspace', 404);
@@ -262,7 +271,7 @@ export async function searchUsersToAdd(
     throw new AppError('You do not have permission to search members for this workspace', 403);
   }
 
-  const memberIds = workspace.members.map((m) => m.user);
+  const memberIds = workspace.members.map((m) => getMemberId(m.user));
   const regex = new RegExp(escapeRegex(query), 'i');
 
   const users = await User.find({

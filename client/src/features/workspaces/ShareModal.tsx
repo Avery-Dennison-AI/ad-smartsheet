@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Modal, Input, Button, Select, useToast } from '@/components/ui';
 import Avatar from '@/components/ui/Avatar';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
-import { addMember, removeMember, updateMemberRole, fetchWorkspaces } from '@/store/slices/workspaceSlice';
+import { addMember, removeMember, updateMemberRole } from '@/store/slices/workspaceSlice';
 import { searchUsers as searchUsersApi } from '@/services/workspaceService';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 import WorkspaceMemberRow from './WorkspaceMemberRow';
 import type { Workspace, WorkspaceRole } from '@/types';
 
@@ -24,9 +24,9 @@ interface SearchResult {
 
 export default function ShareModal({ open, onClose, workspace }: ShareModalProps) {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const user = useAppSelector(selectCurrentUser);
   const { addToast } = useToast();
+  const { handleActionError } = useWorkspaceAccessLost();
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,7 +37,7 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
   const [addingUserId, setAddingUserId] = useState<string | null>(null);
 
   // Determine current user's role in this workspace
-  const currentMember = workspace.members.find((m) => m.user._id === user?.id);
+  const currentMember = workspace.members.find((m) => m.id === user?.id);
   const currentUserRole = currentMember?.role ?? null;
 
   // Search effect — only fire when query is at least 2 characters
@@ -50,7 +50,7 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
     let cancelled = false;
     setSearching(true);
 
-    searchUsersApi(workspace._id, debouncedQuery)
+    searchUsersApi(workspace.id, debouncedQuery)
       .then((res) => {
         if (!cancelled) setSearchResults(res.data.data as SearchResult[]);
       })
@@ -62,36 +62,17 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
       });
 
     return () => { cancelled = true; };
-  }, [debouncedQuery, workspace._id, open]);
-
-  /** Handle access-loss errors (403/404): redirect to home */
-  function handleAccessLoss(message: string) {
-    addToast('error', message);
-    onClose();
-    dispatch(fetchWorkspaces());
-    navigate('/home', { replace: true });
-  }
-
-  /** Check if a rejected thunk payload indicates access loss */
-  function isAccessError(err: unknown): boolean {
-    const e = err as { status?: number; statusCode?: number; message?: string };
-    const status = e?.status || e?.statusCode;
-    return status === 403 || status === 404;
-  }
+  }, [debouncedQuery, workspace.id, open]);
 
   async function handleAddMember(userId: string) {
     setAddingUserId(userId);
     try {
-      await dispatch(addMember({ workspaceId: workspace._id, data: { userId, role: selectedRole } })).unwrap();
+      await dispatch(addMember({ workspaceId: workspace.id, data: { userId, role: selectedRole } })).unwrap();
       addToast('success', 'Member added');
       setSearchQuery('');
       setSearchResults([]);
     } catch (err) {
-      if (isAccessError(err)) {
-        handleAccessLoss('You no longer have access to this workspace');
-      } else {
-        addToast('error', 'Failed to add member');
-      }
+      handleActionError(err);
     } finally {
       setAddingUserId(null);
     }
@@ -99,27 +80,19 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
 
   async function handleRoleChange(memberId: string, role: WorkspaceRole) {
     try {
-      await dispatch(updateMemberRole({ workspaceId: workspace._id, memberId, role })).unwrap();
+      await dispatch(updateMemberRole({ workspaceId: workspace.id, memberId, role })).unwrap();
       addToast('success', 'Role updated');
     } catch (err) {
-      if (isAccessError(err)) {
-        handleAccessLoss('You no longer have access to this workspace');
-      } else {
-        addToast('error', 'Failed to update role');
-      }
+      handleActionError(err);
     }
   }
 
   async function handleRemoveMember(memberId: string) {
     try {
-      await dispatch(removeMember({ workspaceId: workspace._id, memberId })).unwrap();
+      await dispatch(removeMember({ workspaceId: workspace.id, memberId })).unwrap();
       addToast('success', 'Member removed');
     } catch (err) {
-      if (isAccessError(err)) {
-        handleAccessLoss('You no longer have access to this workspace');
-      } else {
-        addToast('error', 'Failed to remove member');
-      }
+      handleActionError(err);
     }
   }
 
@@ -219,14 +192,14 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
             data-icod-id="src_features_workspaces_sharemodal_tsx_7ecf">
             {workspace.members.map((member) => (
               <WorkspaceMemberRow
-                key={member.user._id}
+                key={member.id}
                 member={member}
                 currentUserId={user?.id || ''}
                 currentUserRole={currentUserRole}
                 workspaceOwnerId={workspace.owner}
                 onRoleChange={handleRoleChange}
                 onRemove={handleRemoveMember}
-                data-icod-id={`src_features_workspaces_sharemodal_tsx_19af_${member.user._id}`} />
+                data-icod-id={`src_features_workspaces_sharemodal_tsx_19af_${member.id}`} />
             ))}
           </div>
         </div>

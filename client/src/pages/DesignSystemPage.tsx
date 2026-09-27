@@ -217,6 +217,16 @@ export default function DesignSystemPage() {
                 hex="#2563EB"
                 data-icod-id="src_pages_designsystempage_tsx_9b62" />
               <Swatch
+                color="#7C3AED"
+                name="status-purple"
+                hex="#7C3AED"
+                data-icod-id="src_pages_designsystempage_tsx_purple_solid" />
+              <Swatch
+                color="#EDE9FE"
+                name="status-purple-bg"
+                hex="#EDE9FE"
+                data-icod-id="src_pages_designsystempage_tsx_purple_light" />
+              <Swatch
                 color="#6B7280"
                 name="status-gray"
                 hex="#6B7280"

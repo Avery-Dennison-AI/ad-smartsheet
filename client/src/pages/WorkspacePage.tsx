@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Settings, Users, LayoutGrid, AlertTriangle } from 'lucide-react';
-import { PageContainer, EmptyState, Button, AvatarGroup, Skeleton, DropdownMenu, WorkspaceIcon, useToast } from '@/components/ui';
+import { PageContainer, EmptyState, Button, AvatarGroup, Skeleton, DropdownMenu, WorkspaceIcon } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
-import { fetchWorkspace, fetchWorkspaces, selectCurrentWorkspace, selectCurrentWorkspaceStatus, clearCurrentWorkspace } from '@/store/slices/workspaceSlice';
+import { fetchWorkspace, selectCurrentWorkspace, selectCurrentWorkspaceStatus, clearCurrentWorkspace } from '@/store/slices/workspaceSlice';
 import { ShareModal, WorkspaceSettingsModal } from '@/features/workspaces';
+import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 
 export default function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
@@ -14,31 +15,33 @@ export default function WorkspacePage() {
   const user = useAppSelector(selectCurrentUser);
   const workspace = useAppSelector(selectCurrentWorkspace);
   const status = useAppSelector(selectCurrentWorkspaceStatus);
-  const { addToast } = useToast();
+  const { handleAccessLost } = useWorkspaceAccessLost();
 
   const [shareOpen, setShareOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  /** Load or reload the workspace — handles both initial load and retry. */
+  const loadWorkspace = useCallback(() => {
+    if (!id) return;
+    setFetchError(null);
+    dispatch(fetchWorkspace(id))
+      .unwrap()
+      .catch((err: unknown) => {
+        const e = err as { status?: number; statusCode?: number };
+        const statusCode = e?.status || e?.statusCode;
+        if (statusCode === 403 || statusCode === 404) {
+          handleAccessLost(err);
+        } else {
+          setFetchError('Failed to load workspace. Please try again.');
+        }
+      });
+  }, [id, dispatch, handleAccessLost]);
+
   useEffect(() => {
-    if (id) {
-      setFetchError(null);
-      dispatch(fetchWorkspace(id))
-        .unwrap()
-        .catch((err: unknown) => {
-          const e = err as { status?: number; statusCode?: number };
-          const statusCode = e?.status || e?.statusCode;
-          if (statusCode === 403 || statusCode === 404) {
-            addToast('error', 'You no longer have access to this workspace.');
-            dispatch(fetchWorkspaces());
-            navigate('/home', { replace: true });
-          } else {
-            setFetchError('Failed to load workspace. Please try again.');
-          }
-        });
-    }
+    loadWorkspace();
     return () => { dispatch(clearCurrentWorkspace()); };
-  }, [id, dispatch, navigate, addToast]);
+  }, [loadWorkspace, dispatch]);
 
   if (fetchError) {
     return (
@@ -50,10 +53,7 @@ export default function WorkspacePage() {
           action={
             <Button
               size="sm"
-              onClick={() => {
-                setFetchError(null);
-                if (id) dispatch(fetchWorkspace(id));
-              }}
+              onClick={loadWorkspace}
               data-icod-id="src_pages_workspacepage_tsx_retry">
               Try again
             </Button>
@@ -82,7 +82,7 @@ export default function WorkspacePage() {
   }
 
   // Determine current user's role
-  const currentMember = workspace.members.find((m) => m.user._id === user?.id);
+  const currentMember = workspace.members.find((m) => m.id === user?.id);
   const currentUserRole = currentMember?.role ?? null;
   const canManage = currentUserRole === 'owner' || currentUserRole === 'admin';
   const isOwner = currentUserRole === 'owner';
@@ -108,7 +108,7 @@ export default function WorkspacePage() {
 
   // Prepare avatar group items
   const avatarItems = workspace.members.slice(0, 5).map((m) => ({
-    name: m.user.fullName,
+    name: m.fullName,
   }));
 
   return (

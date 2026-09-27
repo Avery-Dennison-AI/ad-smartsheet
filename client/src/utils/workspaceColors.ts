@@ -7,7 +7,7 @@ export const WORKSPACE_COLOR_VALUES: Record<WorkspaceColor, string> = {
   green: 'var(--color-success)',
   yellow: 'var(--color-warning)',
   red: 'var(--color-danger)',
-  purple: '#a855f7',
+  purple: 'var(--status-purple)',
   gray: 'var(--color-gray-400)',
 };
 

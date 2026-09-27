@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, Field, Input, Textarea, Button, ColorPicker, ConfirmDialog, Alert, WORKSPACE_COLORS } from '@/components/ui';
 import { useAppDispatch } from '@/store/hooks';
-import { updateWorkspace as updateWorkspaceThunk, deleteWorkspace as deleteWorkspaceThunk, fetchWorkspaces } from '@/store/slices/workspaceSlice';
+import { updateWorkspace as updateWorkspaceThunk, deleteWorkspace as deleteWorkspaceThunk } from '@/store/slices/workspaceSlice';
 import { useToast } from '@/components/ui';
+import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 import type { Workspace, WorkspaceColor } from '@/types';
 
 interface WorkspaceSettingsModalProps {
@@ -12,17 +13,11 @@ interface WorkspaceSettingsModalProps {
   workspace: Workspace;
 }
 
-/** Check if a rejected thunk payload indicates access loss */
-function isAccessError(err: unknown): boolean {
-  const e = err as { status?: number; statusCode?: number };
-  const status = e?.status || e?.statusCode;
-  return status === 403 || status === 404;
-}
-
 export default function WorkspaceSettingsModal({ open, onClose, workspace }: WorkspaceSettingsModalProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { handleActionError } = useWorkspaceAccessLost();
 
   const [name, setName] = useState(workspace.name);
   const [description, setDescription] = useState(workspace.description || '');
@@ -30,13 +25,6 @@ export default function WorkspaceSettingsModal({ open, onClose, workspace }: Wor
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteNameInput, setDeleteNameInput] = useState('');
-
-  function handleAccessLoss(message: string) {
-    addToast('error', message);
-    onClose();
-    dispatch(fetchWorkspaces());
-    navigate('/home', { replace: true });
-  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -46,18 +34,14 @@ export default function WorkspaceSettingsModal({ open, onClose, workspace }: Wor
     try {
       await dispatch(
         updateWorkspaceThunk({
-          id: workspace._id,
+          id: workspace.id,
           data: { name: name.trim(), description: description.trim() || undefined, color },
         }),
       ).unwrap();
       addToast('success', 'Workspace settings updated');
       onClose();
     } catch (err) {
-      if (isAccessError(err)) {
-        handleAccessLoss('You no longer have access to this workspace');
-      } else {
-        addToast('error', 'Failed to update workspace');
-      }
+      handleActionError(err);
     } finally {
       setSubmitting(false);
     }
@@ -65,17 +49,13 @@ export default function WorkspaceSettingsModal({ open, onClose, workspace }: Wor
 
   async function handleDelete() {
     try {
-      await dispatch(deleteWorkspaceThunk(workspace._id)).unwrap();
+      await dispatch(deleteWorkspaceThunk(workspace.id)).unwrap();
       addToast('success', 'Workspace deleted');
       setDeleteConfirmOpen(false);
       onClose();
       navigate('/home');
     } catch (err) {
-      if (isAccessError(err)) {
-        handleAccessLoss('You no longer have access to this workspace');
-      } else {
-        addToast('error', 'Failed to delete workspace');
-      }
+      handleActionError(err);
     }
   }
 

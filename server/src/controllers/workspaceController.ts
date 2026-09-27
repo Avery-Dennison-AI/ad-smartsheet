@@ -6,12 +6,19 @@ import type { IWorkspace } from '../models/Workspace';
 
 /** Normalises a populated workspace so every member has { id, fullName, email, role }. */
 function formatWorkspace(ws: IWorkspace) {
+  const obj = ws.toObject();
   return {
-    ...ws.toObject(),
+    ...obj,
+    id: ws._id.toString(),
+    _id: undefined,
+    __v: undefined,
     members: ws.members.map((m) => {
-      const u = m.user as unknown as { _id: string; fullName: string; email: string };
+      const u = m.user as unknown as { _id?: string; id?: string; fullName: string; email: string };
+      const userId = (u._id || u.id || '').toString();
       return {
-        user: { _id: u._id, fullName: u.fullName, email: u.email },
+        id: userId,
+        fullName: u.fullName,
+        email: u.email,
         role: m.role,
       };
     }),

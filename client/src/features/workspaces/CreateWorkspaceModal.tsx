@@ -30,7 +30,7 @@ export default function CreateWorkspaceModal({ open, onClose }: CreateWorkspaceM
       ).unwrap();
       onClose();
       resetForm();
-      navigate(`/workspaces/${result._id}`);
+      navigate(`/workspaces/${result.id}`);
     } catch {
       // Error handled by slice
     } finally {

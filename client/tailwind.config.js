@@ -41,6 +41,10 @@ export default {
         },
         success: 'rgb(var(--success, 22 163 74) / <alpha-value>)',
         warning: 'rgb(var(--warning, 217 119 6) / <alpha-value>)',
+        purple: {
+          DEFAULT: 'rgb(var(--color-purple-600, 124 58 237) / <alpha-value>)',
+          light: 'rgb(var(--color-purple-100, 237 233 254) / <alpha-value>)',
+        },
         border: 'rgb(var(--border, 226 232 240) / <alpha-value>)',
         input: 'rgb(var(--input, 203 213 225) / <alpha-value>)',
         ring: 'rgb(var(--ring, 79 70 229) / <alpha-value>)',

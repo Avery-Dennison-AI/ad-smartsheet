@@ -137,46 +137,46 @@ const workspaceSlice = createSlice({
       })
       // updateWorkspace
       .addCase(updateWorkspace.fulfilled, (state, action) => {
-        const idx = state.list.findIndex((w) => w._id === action.payload._id);
+        const idx = state.list.findIndex((w) => w.id === action.payload.id);
         if (idx !== -1) state.list[idx] = action.payload;
-        if (state.current?._id === action.payload._id) state.current = action.payload;
+        if (state.current?.id === action.payload.id) state.current = action.payload;
       })
       // deleteWorkspace
       .addCase(deleteWorkspace.fulfilled, (state, action) => {
-        state.list = state.list.filter((w) => w._id !== action.payload);
-        if (state.current?._id === action.payload) state.current = null;
+        state.list = state.list.filter((w) => w.id !== action.payload);
+        if (state.current?.id === action.payload) state.current = null;
       })
       // addMember
       .addCase(addMember.fulfilled, (state, action) => {
-        const idx = state.list.findIndex((w) => w._id === action.payload._id);
+        const idx = state.list.findIndex((w) => w.id === action.payload.id);
         if (idx !== -1) state.list[idx] = action.payload;
-        if (state.current?._id === action.payload._id) state.current = action.payload;
+        if (state.current?.id === action.payload.id) state.current = action.payload;
       })
       // removeMember
       .addCase(removeMember.fulfilled, (state, action) => {
-        if (state.current && state.current._id === action.payload.workspaceId) {
+        if (state.current && state.current.id === action.payload.workspaceId) {
           state.current = {
             ...state.current,
             members: state.current.members.filter(
-              (m) => m.user._id !== action.payload.memberId,
+              (m) => m.id !== action.payload.memberId,
             ),
           };
         }
-        const listIdx = state.list.findIndex((w) => w._id === action.payload.workspaceId);
+        const listIdx = state.list.findIndex((w) => w.id === action.payload.workspaceId);
         if (listIdx !== -1) {
           state.list[listIdx] = {
             ...state.list[listIdx],
             members: state.list[listIdx].members.filter(
-              (m) => m.user._id !== action.payload.memberId,
+              (m) => m.id !== action.payload.memberId,
             ),
           };
         }
       })
       // updateMemberRole
       .addCase(updateMemberRole.fulfilled, (state, action) => {
-        const idx = state.list.findIndex((w) => w._id === action.payload._id);
+        const idx = state.list.findIndex((w) => w.id === action.payload.id);
         if (idx !== -1) state.list[idx] = action.payload;
-        if (state.current?._id === action.payload._id) state.current = action.payload;
+        if (state.current?.id === action.payload.id) state.current = action.payload;
       });
   },
 });

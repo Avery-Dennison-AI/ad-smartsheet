@@ -72,8 +72,14 @@
   --status-green-bg: #DCFCE7;
   --status-blue: #2563EB;
   --status-blue-bg: #DBEAFE;
+  --status-purple: #7C3AED;
+  --status-purple-bg: #EDE9FE;
   --status-gray: #6B7280;
   --status-gray-bg: #F3F4F6;
+
+  /* ─── Purple channel triplets (for Tailwind opacity mods) ─────────── */
+  --color-purple-600: 124 58 237;
+  --color-purple-100: 237 233 254;
 
   /* ─── Selection ───────────────────────────────────────────────────── */
   --color-selection-bg: #CCFBF1;
