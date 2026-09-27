@@ -38,3 +38,4 @@ export { default as CopyField, type CopyFieldProps } from './CopyField';
 export { default as PasswordRequirements, type PasswordRequirementsProps } from './PasswordRequirements';
 export { default as PageContainer } from './PageContainer';
 export { default as WorkspaceIcon } from './WorkspaceIcon';
+export { default as ColorPicker, WORKSPACE_COLORS, type ColorPickerProps } from './ColorPicker';

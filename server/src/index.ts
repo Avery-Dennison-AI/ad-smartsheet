@@ -11,6 +11,7 @@ import { UPLOADS_DIR } from './paths';
 import authRouter from './routes/auth';
 import invitationsRouter from './routes/invitations';
 import adminUsersRouter from './routes/adminUsers';
+import workspacesRouter from './routes/workspaces';
 import { seedAdmin } from './config/seedAdmin';
 import { sendSuccess } from './utils/response';
 
@@ -62,6 +63,7 @@ app.use('/api/auth', authRouter);
 // ─── Invitation & Admin User Routes ───────────────────────────────────────────
 app.use('/api', invitationsRouter);
 app.use('/api/admin', adminUsersRouter);
+app.use('/api/workspaces', workspacesRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use(errorHandler);

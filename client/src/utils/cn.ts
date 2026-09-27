@@ -1,5 +1,19 @@
 import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { twMerge, extendTailwindMerge } from 'tailwind-merge';
+
+/**
+ * Extended merge config that registers custom font-size classes (text-md, text-2xs)
+ * so overrides merge correctly instead of stacking.
+ */
+const customTwMerge = extendTailwindMerge({
+  override: {
+    classGroups: {
+      'font-size': [
+        { text: ['xs', 'sm', 'base', 'md', 'lg', 'xl', '2xs'] },
+      ],
+    },
+  },
+});
 
 /**
  * Merge Tailwind class strings, resolving conflicts in favour of the LAST one:
@@ -11,5 +25,5 @@ import { twMerge } from 'tailwind-merge';
  * one wins depends on CSS source order rather than on the caller.
  */
 export function cn(...inputs: ClassValue[]): string {
-  return twMerge(clsx(inputs));
+  return customTwMerge(clsx(inputs));
 }

@@ -1,5 +1,6 @@
 import { useLocation, useParams } from 'react-router-dom';
-import { PLACEHOLDER_WORKSPACES } from '@/utils/workspaces';
+import { useAppSelector } from '@/store/hooks';
+import { selectCurrentWorkspace } from '@/store/slices/workspaceSlice';
 
 export interface BreadcrumbItem {
   label: string;
@@ -11,6 +12,7 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
   const location = useLocation();
   const params = useParams();
   const pathname = location.pathname;
+  const workspace = useAppSelector(selectCurrentWorkspace);
 
   if (pathname === '/home') {
     return [{ label: 'Home' }];
@@ -25,9 +27,7 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
   }
 
   if (pathname.startsWith('/workspaces/')) {
-    const slug = params.id || '';
-    const workspace = PLACEHOLDER_WORKSPACES.find((ws) => ws.slug === slug);
-    const label = workspace?.name || slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const label = workspace?.name || params.id || 'Workspace';
     return [
       { label: 'Workspaces', to: '/home' },
       { label },

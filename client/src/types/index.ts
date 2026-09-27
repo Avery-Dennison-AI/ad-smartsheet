@@ -49,3 +49,23 @@ export interface InvitationPreview {
   role: UserRole;
 }
 
+// ─── Workspace Types ────────────────────────────────────────────────────────
+
+export type WorkspaceRole = 'owner' | 'admin' | 'editor' | 'viewer';
+
+export interface WorkspaceMember {
+  user: { _id: string; name: string; email: string };
+  role: WorkspaceRole;
+}
+
+export interface Workspace {
+  _id: string;
+  name: string;
+  description?: string;
+  color: string;
+  owner: string; // user id
+  members: WorkspaceMember[];
+  createdAt: string;
+  updatedAt: string;
+}
+

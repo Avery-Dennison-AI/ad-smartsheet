@@ -37,7 +37,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
               data-icod-id="src_components_layout_authlayout_tsx_logo_icon" />
           </div>
           <h1
-            className="text-2xl font-semibold text-primary-foreground leading-tight"
+            className="text-xl font-semibold text-primary-foreground leading-tight"
             data-icod-id="src_components_layout_authlayout_tsx_headline">
             Plan, track, and deliver work in one place
           </h1>

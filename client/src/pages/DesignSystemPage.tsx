@@ -31,6 +31,7 @@ import {
   PasswordRequirements,
   PageContainer,
   WorkspaceIcon,
+  ColorPicker,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn } from '@/components/ui';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
@@ -1070,6 +1071,33 @@ export default function DesignSystemPage() {
           </div>
         </div>
       </Section>
+      {/* ─── ColorPicker ──────────────────────────────────────────────────── */}
+      <Section title="ColorPicker" data-icod-id="ds_colorpicker_section">
+        <div className="space-y-4" data-icod-id="ds_colorpicker_wrap">
+          <ColorPickerDemo data-icod-id="src_pages_designsystempage_tsx_a864" />
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/* ─── ColorPicker interactive demo ──────────────────────────────────────── */
+function ColorPickerDemo() {
+  const [color, setColor] = useState('#0ea5e9');
+  return (
+    <div
+      className="flex flex-col gap-3"
+      data-icod-id="src_pages_designsystempage_tsx_340e">
+      <span
+        className="text-xs text-muted-foreground"
+        data-icod-id="src_pages_designsystempage_tsx_3b4d">Interactive color picker for workspace branding</span>
+      <ColorPicker
+        value={color}
+        onChange={setColor}
+        data-icod-id="src_pages_designsystempage_tsx_a132" />
+      <span
+        className="text-xs text-muted-foreground"
+        data-icod-id="src_pages_designsystempage_tsx_bfa2">Selected: {color}</span>
     </div>
   );
 }

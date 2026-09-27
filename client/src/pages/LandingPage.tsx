@@ -88,8 +88,7 @@ export default function LandingPage() {
           <Card className="overflow-hidden shadow-[var(--shadow-md)]" data-icod-id="landing_hero_mockup">
             {/* Header row */}
             <div
-              className="flex items-center border-b border-border bg-muted/50"
-              style={{ height: '32px' }}
+              className="flex items-center border-b border-border bg-muted/50 h-8"
               data-icod-id="landing_mockup_header">
               <div
                 className="w-[40%] px-3 text-xs font-medium text-muted-foreground"
@@ -108,8 +107,7 @@ export default function LandingPage() {
             {mockTasks.map((row) => (
               <div
                 key={row.task}
-                className="flex items-center border-b border-border last:border-b-0"
-                style={{ height: '40px' }}
+                className="flex items-center border-b border-border last:border-b-0 h-10"
                 data-icod-id={`landing_mockup_row_${row.initials}`}>
                 <div
                   className="w-[40%] truncate px-3 text-sm text-foreground"
@@ -142,7 +140,7 @@ export default function LandingPage() {
       <section className="bg-muted/30 py-20" data-icod-id="landing_features">
         <div className="mx-auto max-w-6xl px-6" data-icod-id="landing_features_inner">
           <h2
-            className="mb-12 text-center text-2xl font-semibold text-foreground"
+            className="mb-12 text-center text-xl font-semibold text-foreground"
             data-icod-id="landing_features_heading">
             Everything your team needs
           </h2>
@@ -167,7 +165,7 @@ export default function LandingPage() {
       <section className="bg-card py-20" data-icod-id="landing_how_it_works">
         <div className="mx-auto max-w-6xl px-6" data-icod-id="landing_steps_inner">
           <h2
-            className="mb-12 text-center text-2xl font-semibold text-foreground"
+            className="mb-12 text-center text-xl font-semibold text-foreground"
             data-icod-id="landing_steps_heading">
             Get started in minutes
           </h2>
@@ -194,11 +192,10 @@ export default function LandingPage() {
       </section>
       {/* ─── CTA Band ────────────────────────────────────────────────── */}
       <section
-        className="py-16 text-center"
-        style={{ backgroundColor: 'var(--color-primary-bg)' }}
+        className="bg-primary/10 py-16 text-center"
         data-icod-id="landing_cta_band">
         <div className="mx-auto max-w-6xl px-6" data-icod-id="landing_cta_inner">
-          <h2 className="text-2xl font-semibold text-foreground" data-icod-id="landing_cta_heading">
+          <h2 className="text-xl font-semibold text-foreground" data-icod-id="landing_cta_heading">
             Ready to get organized?
           </h2>
           <p className="mt-2 text-sm text-muted-foreground" data-icod-id="landing_cta_subtext">
