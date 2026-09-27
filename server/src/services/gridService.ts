@@ -158,7 +158,7 @@ export async function initDefaultColumns(sheetId: string, userId: string): Promi
 
 /** Gets the full grid (columns + rows) for a sheet. Requires viewer+. */
 export async function getGrid(sheetId: string, userId: string) {
-  const { sheet } = await getSheetWithAccess(sheetId, userId, 'viewer');
+  const { sheet, workspace } = await getSheetWithAccess(sheetId, userId, 'viewer');
 
   // Auto-initialize default columns if empty
   let columns = sheet.columns;
@@ -170,9 +170,21 @@ export async function getGrid(sheetId: string, userId: string) {
   const rows = await Row.find({ sheetId: new mongoose.Types.ObjectId(sheetId) })
     .sort({ order: 1 });
 
+  // Populate workspace members for contact column
+  const populatedWorkspace = workspace.members[0]?.user && typeof workspace.members[0].user !== 'string'
+    ? workspace
+    : await Workspace.findById(workspace._id).populate('members.user', 'fullName email');
+
+  const members = (populatedWorkspace?.members ?? []).map((m: any) => ({
+    id: typeof m.user === 'string' ? m.user : m.user._id.toString(),
+    fullName: typeof m.user === 'string' ? '' : m.user.fullName,
+    email: typeof m.user === 'string' ? '' : m.user.email,
+  }));
+
   return {
     columns: columns.map(serializeColumn),
     rows: rows.map(formatRow),
+    members,
   };
 }
 
@@ -184,12 +196,21 @@ export async function addColumn(
 ) {
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
 
+  // Prevent inserting before the primary column
+  if (data.position !== undefined && data.position <= 0) {
+    throw new AppError('Cannot insert a column before the primary column', 400);
+  }
+
   const existingColumns = [...(sheet.columns || [])];
+  const requestedPosition = data.position ?? existingColumns.length;
+  // Clamp position to minimum of 1 (after primary column)
+  const insertPosition = Math.max(1, requestedPosition);
+
   const newCol: ColumnDef = {
     id: crypto.randomUUID(),
     name: data.name.trim(),
     type: data.type,
-    order: data.position ?? existingColumns.length,
+    order: insertPosition,
     isPrimary: false,
     options: data.type === 'dropdown' ? (data.options || []) : undefined,
   };
@@ -309,6 +330,15 @@ export async function reorderColumns(
 
   const columns = [...(sheet.columns || [])];
   const colMap = new Map(columns.map((c) => [c.id, c]));
+
+  // Verify primary column is first in the new order
+  if (orderedIds.length > 0) {
+    const firstCol = colMap.get(orderedIds[0]);
+    if (!firstCol) throw new AppError(`Column ${orderedIds[0]} not found`, 400);
+    if (!firstCol.isPrimary) {
+      throw new AppError('Primary column must remain first', 400);
+    }
+  }
 
   const reordered: ColumnDef[] = [];
   for (let i = 0; i < orderedIds.length; i++) {

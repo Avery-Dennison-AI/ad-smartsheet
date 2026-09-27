@@ -17,7 +17,7 @@ import sheetsRouter from './routes/sheets';
 import userSheetsRouter from './routes/userSheets';
 import gridRouter from './routes/grid';
 import { seedAdmin } from './config/seedAdmin';
-import { migrateWorkspaceColors, repairBrokenColumns } from './config/migrations';
+import { migrateWorkspaceColors, repairBrokenColumns, repairPrimaryColumnOrder } from './config/migrations';
 import { sendSuccess } from './utils/response';
 
 // ─── Process-Level Error Handlers ──────────────────────────────────────────────
@@ -91,6 +91,7 @@ async function start(): Promise<void> {
 
     await migrateWorkspaceColors();
     await repairBrokenColumns();
+    await repairPrimaryColumnOrder();
 
     app.listen(env.PORT, () => {
       console.log(`[startup] Server listening on port ${env.PORT}`);

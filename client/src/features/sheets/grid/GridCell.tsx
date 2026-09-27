@@ -1,8 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Check } from 'lucide-react';
+import ReactDOM from 'react-dom';
+import { Check, X } from 'lucide-react';
 import { Pill, Avatar } from '@/components/ui';
 import { cn } from '@/utils/cn';
-import type { Column, WorkspaceRole, WorkspaceMember } from '@/types';
+import type { Column } from '@/types';
+
+interface GridMember {
+  id: string;
+  fullName: string;
+  email: string;
+}
 
 interface GridCellProps {
   column: Column;
@@ -11,7 +18,7 @@ interface GridCellProps {
   isSelected: boolean;
   isEditing: boolean;
   readOnly: boolean;
-  workspaceMembers?: WorkspaceMember[];
+  workspaceMembers?: GridMember[];
   onCommit: (value: unknown) => void;
   onStartEdit: () => void;
   onStopEdit: () => void;
@@ -307,7 +314,27 @@ export default function GridCell({
       case 'checkbox':
         // Checkbox doesn't have a separate edit mode
         return null;
-      case 'contact':
+      case 'contact': {
+        const filteredMembers = workspaceMembers?.filter(
+          (m) =>
+            !contactQuery ||
+            m.fullName.toLowerCase().includes(contactQuery.toLowerCase()) ||
+            m.email.toLowerCase().includes(contactQuery.toLowerCase()),
+        ) ?? [];
+
+        // Compute portal position based on cell rect
+        const cellRect = cellRef.current?.getBoundingClientRect();
+        const gap = 4;
+        const listHeight = Math.min(filteredMembers.length * 40 + 48, 220);
+        let portalTop = cellRect ? cellRect.bottom + gap : 0;
+        let portalLeft = cellRect ? cellRect.left : 0;
+        const portalWidth = Math.max(cellRect?.width ?? 180, 220);
+
+        // Flip upward if near bottom of viewport
+        if (cellRect && portalTop + listHeight > window.innerHeight) {
+          portalTop = cellRect.top - gap - listHeight;
+        }
+
         return (
           <div
             className="relative h-full w-full"
@@ -323,6 +350,20 @@ export default function GridCell({
                 if (e.key === 'Escape') {
                   setContactOpen(false);
                   cancelEdit();
+                } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  // Keyboard navigation handled by portal list
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  // Select first filtered result
+                  if (filteredMembers.length > 0) {
+                    if (!committedRef.current) {
+                      committedRef.current = true;
+                      onCommit(filteredMembers[0].id);
+                      setContactOpen(false);
+                      onStopEdit();
+                    }
+                  }
                 }
               }}
               onBlur={() => {
@@ -335,18 +376,39 @@ export default function GridCell({
                 }, 200);
               }}
               data-icod-id="src_features_sheets_grid_gridcell_tsx_0847" />
-            {contactOpen && workspaceMembers && workspaceMembers.length > 0 && (
+            {contactOpen && ReactDOM.createPortal(
               <div
-                className="absolute left-0 top-full z-50 mt-1 max-h-48 min-w-[180px] overflow-y-auto rounded-md border border-border bg-card py-1 shadow-md"
-                data-icod-id="src_features_sheets_grid_gridcell_tsx_0b1a">
-                {workspaceMembers
-                  .filter(
-                    (m) =>
-                      !contactQuery ||
-                      m.fullName.toLowerCase().includes(contactQuery.toLowerCase()) ||
-                      m.email.toLowerCase().includes(contactQuery.toLowerCase()),
-                  )
-                  .map((member) => (
+                className="fixed z-[9999] overflow-hidden rounded-md border border-border bg-card shadow-md"
+                style={{ top: portalTop, left: portalLeft, width: portalWidth }}
+                onMouseDown={(e) => e.preventDefault()}
+                data-icod-id="src_features_sheets_grid_gridcell_tsx_portal">
+                {/* Clear option */}
+                {value != null && value !== '' && (
+                  <button
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      if (!committedRef.current) {
+                        committedRef.current = true;
+                        onCommit(null);
+                        setContactOpen(false);
+                        onStopEdit();
+                      }
+                    }}
+                    data-icod-id="src_features_sheets_grid_gridcell_tsx_clear">
+                    <X
+                      className="h-3 w-3 text-muted-foreground"
+                      data-icod-id="src_features_sheets_grid_gridcell_tsx_fd3f" />
+                    <span
+                      className="text-muted-foreground"
+                      data-icod-id="src_features_sheets_grid_gridcell_tsx_33d5">Clear</span>
+                  </button>
+                )}
+                {/* Filtered member list */}
+                <div
+                  className="max-h-48 overflow-y-auto"
+                  data-icod-id="src_features_sheets_grid_gridcell_tsx_5efc">
+                  {filteredMembers.map((member) => (
                     <button
                       key={member.id}
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
@@ -377,10 +439,18 @@ export default function GridCell({
                       </div>
                     </button>
                   ))}
-              </div>
+                  {filteredMembers.length === 0 && (
+                    <div
+                      className="px-3 py-2 text-xs text-muted-foreground"
+                      data-icod-id="src_features_sheets_grid_gridcell_tsx_no_match">No matching people</div>
+                  )}
+                </div>
+              </div>,
+              document.body,
             )}
           </div>
         );
+      }
       default:
         return null;
     }

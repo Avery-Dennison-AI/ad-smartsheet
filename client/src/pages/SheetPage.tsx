@@ -5,7 +5,6 @@ import { PageContainer, Button, EmptyState, Spinner } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSheet, selectCurrentSheet, selectSheetsLoading, selectSheetsError, selectSheetsErrorStatus, clearCurrentSheet } from '@/store/slices/sheetsSlice';
 import { setFavoriteMeta, selectRecents, selectFavorites } from '@/store/slices/userMetaSlice';
-import { fetchWorkspace, selectCurrentWorkspace } from '@/store/slices/workspaceSlice';
 import { selectGridSaving, selectGridSaveError, clearGrid } from '@/store/slices/gridSlice';
 import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 import SheetGrid from '@/features/sheets/grid/SheetGrid';
@@ -21,7 +20,6 @@ export default function SheetPage() {
   const errorStatus = useAppSelector(selectSheetsErrorStatus);
   const recents = useAppSelector(selectRecents);
   const favorites = useAppSelector(selectFavorites);
-  const workspace = useAppSelector(selectCurrentWorkspace);
   const saving = useAppSelector(selectGridSaving);
   const saveError = useAppSelector(selectGridSaveError);
   const { handleSheetAccessLost, isAccessError } = useWorkspaceAccessLost();
@@ -40,13 +38,6 @@ export default function SheetPage() {
       dispatch(clearGrid());
     };
   }, [sheetId, dispatch]);
-
-  // Fetch workspace when we have the sheet (for workspace members)
-  useEffect(() => {
-    if (sheet?.workspaceId && (!workspace || workspace.id !== sheet.workspaceId)) {
-      dispatch(fetchWorkspace(sheet.workspaceId));
-    }
-  }, [sheet?.workspaceId, workspace, dispatch]);
 
   // Access lost handling — redirect on 403/404 using status code
   useEffect(() => {
@@ -130,7 +121,6 @@ export default function SheetPage() {
         <SheetGrid
           sheetId={sheet.id}
           userRole={sheet.userRole || 'viewer'}
-          workspaceMembers={workspace?.members}
           data-icod-id="src_pages_sheetpage_tsx_d329" />
       </div>
     </div>

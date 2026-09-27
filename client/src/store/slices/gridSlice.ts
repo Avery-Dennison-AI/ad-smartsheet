@@ -4,9 +4,16 @@ import { parseApiError } from '../../utils/parseApiError';
 import type { Column, GridRow } from '../../types';
 import type { RootState } from '../store';
 
+interface GridMember {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
 interface GridSliceState {
   columns: Column[];
   rows: GridRow[];
+  members: GridMember[];
   loading: boolean;
   saving: boolean;
   error: string | null;
@@ -17,6 +24,7 @@ interface GridSliceState {
 const initialState: GridSliceState = {
   columns: [],
   rows: [],
+  members: [],
   loading: false,
   saving: false,
   error: null,
@@ -31,7 +39,8 @@ export const fetchGrid = createAsyncThunk(
   async (sheetId: string, { rejectWithValue }) => {
     try {
       const { data } = await gridService.getGrid(sheetId);
-      return data.data as { columns: Column[]; rows: GridRow[] };
+      const payload = data.data as { columns: Column[]; rows: GridRow[]; members?: GridMember[] };
+      return { columns: payload.columns, rows: payload.rows, members: payload.members ?? [] };
     } catch (err: unknown) {
       const parsed = parseApiError(err);
       return rejectWithValue({ status: parsed.status, message: parsed.message });
@@ -157,6 +166,7 @@ const gridSlice = createSlice({
     clearGrid(state) {
       state.columns = [];
       state.rows = [];
+      state.members = [];
       state.error = null;
       state.saveError = null;
       state.errorStatus = undefined;
@@ -195,6 +205,7 @@ const gridSlice = createSlice({
         state.loading = false;
         state.columns = action.payload.columns;
         state.rows = action.payload.rows;
+        state.members = action.payload.members;
       })
       .addCase(fetchGrid.rejected, (state, action) => {
         state.loading = false;
@@ -298,6 +309,7 @@ export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError } =
 
 export const selectGridColumns = (state: RootState) => state.grid.columns;
 export const selectGridRows = (state: RootState) => state.grid.rows;
+export const selectGridMembers = (state: RootState) => state.grid.members;
 export const selectGridLoading = (state: RootState) => state.grid.loading;
 export const selectGridSaving = (state: RootState) => state.grid.saving;
 export const selectGridError = (state: RootState) => state.grid.error;

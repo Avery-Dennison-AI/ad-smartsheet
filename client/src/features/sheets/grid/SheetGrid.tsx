@@ -17,6 +17,7 @@ import {
   selectGridColumns,
   selectGridRows,
   selectGridLoading,
+  selectGridMembers,
 } from '@/store/slices/gridSlice';
 import { cn } from '@/utils/cn';
 import { useGridSelection } from './useGridSelection';
@@ -25,7 +26,7 @@ import GridRowNumCell from './GridRowNumCell';
 import GridCell from './GridCell';
 import ColumnTypeModal from './ColumnTypeModal';
 import DropdownOptionsModal from './DropdownOptionsModal';
-import type { Column, ColumnType, WorkspaceRole, WorkspaceMember } from '@/types';
+import type { Column, ColumnType, WorkspaceRole } from '@/types';
 
 const ROW_HEIGHT = 34; // matches --grid-row-height
 const HEADER_HEIGHT = 36; // matches --grid-header-height
@@ -37,18 +38,19 @@ const PRIMARY_COL_WIDTH = 260;
 interface SheetGridProps {
   sheetId: string;
   userRole: WorkspaceRole;
-  workspaceMembers?: WorkspaceMember[];
 }
 
-export default function SheetGrid({ sheetId, userRole, workspaceMembers }: SheetGridProps) {
+export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   const dispatch = useAppDispatch();
   const columns = useAppSelector(selectGridColumns);
   const rows = useAppSelector(selectGridRows);
   const loading = useAppSelector(selectGridLoading);
+  const workspaceMembers = useAppSelector(selectGridMembers);
 
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(600);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const scrollNodeRef = useRef<HTMLDivElement | null>(null);
 
   // Modals state
   const [typeModalOpen, setTypeModalOpen] = useState(false);
@@ -67,24 +69,63 @@ export default function SheetGrid({ sheetId, userRole, workspaceMembers }: Sheet
     dispatch(fetchGrid(sheetId));
   }, [sheetId, dispatch]);
 
-  // Track viewport size
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
+  // Callback ref: attaches ResizeObserver + window resize listener when the
+  // scroll container mounts (after loading finishes). Replaces the old
+  // useEffect([]) that failed because the container didn't exist during the
+  // initial render while the spinner was showing.
+  const scrollContainerRef = useCallback((node: HTMLDivElement | null) => {
+    // Cleanup previous observer / listener
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    scrollNodeRef.current = node;
 
-    const observer = new ResizeObserver((entries) => {
+    if (!node) return;
+
+    // Measure immediately
+    setViewportHeight(node.clientHeight);
+
+    // ResizeObserver for container resizes
+    const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setViewportHeight(entry.contentRect.height);
       }
     });
-    observer.observe(el);
-    return () => observer.disconnect();
+    ro.observe(node);
+    observerRef.current = ro;
+
+    // Window resize listener for sidebar-collapse scenarios
+    const handleWindowResize = () => {
+      setViewportHeight(node.clientHeight);
+    };
+    window.addEventListener('resize', handleWindowResize);
+
+    // Store cleanup on the node so we can tear down when it changes
+    (node as any).__cleanupResize = () => {
+      ro.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+      const node = scrollNodeRef.current;
+      if (node && (node as any).__cleanupResize) {
+        (node as any).__cleanupResize();
+      }
+    };
   }, []);
 
   // Scroll handler
   const handleScroll = useCallback(() => {
-    if (scrollContainerRef.current) {
-      setScrollTop(scrollContainerRef.current.scrollTop);
+    if (scrollNodeRef.current) {
+      setScrollTop(scrollNodeRef.current.scrollTop);
     }
   }, []);
 
@@ -267,16 +308,21 @@ export default function SheetGrid({ sheetId, userRole, workspaceMembers }: Sheet
 
   // Column drag-and-drop
   const handleColDragStart = useCallback((colId: string) => {
+    // Prevent dragging the primary column
+    const col = columns.find((c) => c.id === colId);
+    if (col?.isPrimary) return;
     setDragColId(colId);
-  }, []);
+  }, [columns]);
 
   const handleColDrop = useCallback(
     (targetColId: string) => {
       if (dragColId && dragColId !== targetColId) {
         const ids = columns.map((c) => c.id);
         const fromIdx = ids.indexOf(dragColId);
-        const toIdx = ids.indexOf(targetColId);
+        let toIdx = ids.indexOf(targetColId);
         if (fromIdx !== -1 && toIdx !== -1) {
+          // Clamp: non-primary columns cannot be dropped before the primary column (index 0)
+          if (toIdx < 1) toIdx = 1;
           ids.splice(fromIdx, 1);
           ids.splice(toIdx, 0, dragColId);
           dispatch(reorderColumns({ sheetId, orderedIds: ids }));

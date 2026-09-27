@@ -79,9 +79,12 @@ export default function GridHeaderCell({
 
     menuItems.push(
       { type: 'divider' },
-      { label: 'Insert column left', onClick: () => onInsertLeft(column.id) },
-      { label: 'Insert column right', onClick: () => onInsertRight(column.id) },
     );
+
+    if (!column.isPrimary) {
+      menuItems.push({ label: 'Insert column left', onClick: () => onInsertLeft(column.id) });
+    }
+    menuItems.push({ label: 'Insert column right', onClick: () => onInsertRight(column.id) });
   }
 
   if (canDelete && !column.isPrimary) {
@@ -97,7 +100,7 @@ export default function GridHeaderCell({
         'group relative flex items-center border-b border-r select-none',
         'h-[var(--grid-header-height)] px-[var(--grid-cell-padding-x)]',
         'bg-[var(--grid-header-bg)] text-[var(--grid-header-text)]',
-        'text-[var(--grid-header-font-size)] font-[var(--grid-header-font-weight)]',
+        'text-xs font-medium',
       )}
       style={{ borderColor: 'var(--grid-line-color)' }}
       draggable={canEdit}
@@ -120,7 +123,7 @@ export default function GridHeaderCell({
       ) : (
         <>
           <Icon
-            className="mr-1.5 h-3 w-3 shrink-0 opacity-60"
+            className="mr-1.5 h-3 w-3 shrink-0 text-muted-foreground"
             data-icod-id="src_features_sheets_grid_gridheadercell_tsx_570e" />
           <span
             className="truncate cursor-pointer"
