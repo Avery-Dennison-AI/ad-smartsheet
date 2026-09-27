@@ -103,6 +103,18 @@ export const reorderColumns = createAsyncThunk(
   },
 );
 
+export const setPrimaryColumn = createAsyncThunk(
+  'grid/setPrimaryColumn',
+  async ({ sheetId, columnId }: { sheetId: string; columnId: string }, { rejectWithValue }) => {
+    try {
+      const res = await gridService.setPrimaryColumn(sheetId, columnId);
+      return res.data.data as Column[];
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
+
 export const addRow = createAsyncThunk(
   'grid/addRow',
   async (
@@ -254,6 +266,16 @@ const gridSlice = createSlice({
       .addCase(reorderColumns.rejected, (state, action) => {
         state.saving = false;
         state.saveError = (action.payload as string) || 'Failed to reorder columns';
+      })
+      // setPrimaryColumn
+      .addCase(setPrimaryColumn.pending, (state) => { state.saving = true; state.saveError = null; })
+      .addCase(setPrimaryColumn.fulfilled, (state, action) => {
+        state.saving = false;
+        state.columns = action.payload;
+      })
+      .addCase(setPrimaryColumn.rejected, (state, action) => {
+        state.saving = false;
+        state.saveError = (action.payload as string) || 'Failed to set primary column';
       })
       // addRow
       .addCase(addRow.pending, (state) => { state.saving = true; state.saveError = null; })

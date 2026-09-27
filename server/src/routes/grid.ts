@@ -49,6 +49,17 @@ router.patch(
   gridController.reorderColumns,
 );
 
+// PATCH /api/sheets/:sheetId/grid/columns/:columnId/set-primary — set primary column
+// MUST be registered BEFORE /columns/:columnId to avoid "set-primary" being swallowed
+router.patch(
+  '/columns/:columnId/set-primary',
+  validate([
+    mongoId('sheetId'),
+    param('columnId').notEmpty().withMessage('Column ID is required'),
+  ]),
+  gridController.setPrimaryColumn,
+);
+
 // PATCH /api/sheets/:sheetId/grid/columns/:columnId — update column
 router.patch(
   '/columns/:columnId',

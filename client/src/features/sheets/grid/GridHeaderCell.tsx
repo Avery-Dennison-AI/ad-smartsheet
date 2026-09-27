@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { ChevronDown, Type, Hash, Calendar, List, CheckSquare, Users, GripVertical } from 'lucide-react';
-import { DropdownMenu } from '@/components/ui';
+import { DropdownMenu, Tooltip } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
 import type { Column, ColumnType, WorkspaceRole } from '@/types';
@@ -26,6 +26,7 @@ interface GridHeaderCellProps {
   onDragStart?: (columnId: string) => void;
   onDragOver?: (columnId: string) => void;
   onDrop?: (columnId: string) => void;
+  onSetPrimary?: (columnId: string) => void;
 }
 
 export default function GridHeaderCell({
@@ -40,6 +41,7 @@ export default function GridHeaderCell({
   onDragStart,
   onDragOver,
   onDrop,
+  onSetPrimary,
 }: GridHeaderCellProps) {
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(column.name);
@@ -77,6 +79,11 @@ export default function GridHeaderCell({
       menuItems.push({ label: 'Edit options', onClick: () => onEditOptions(column.id) });
     }
 
+    // "Set as primary column" — only for non-primary text columns
+    if (!column.isPrimary && column.type === 'text' && onSetPrimary) {
+      menuItems.push({ label: 'Set as primary column', onClick: () => onSetPrimary(column.id) });
+    }
+
     menuItems.push(
       { type: 'divider' },
     );
@@ -87,7 +94,23 @@ export default function GridHeaderCell({
     menuItems.push({ label: 'Insert column right', onClick: () => onInsertRight(column.id) });
   }
 
-  if (canDelete && !column.isPrimary) {
+  if (column.isPrimary) {
+    // Primary column: show disabled delete with tooltip
+    menuItems.push(
+      { type: 'divider' },
+      {
+        label: (
+          <Tooltip
+            content="Set another column as primary to delete this column."
+            data-icod-id="src_features_sheets_grid_gridheadercell_tsx_9895">
+            <span
+              className="opacity-40 cursor-not-allowed"
+              data-icod-id="src_features_sheets_grid_gridheadercell_tsx_6df4">Delete column</span>
+          </Tooltip>
+        ),
+      },
+    );
+  } else if (canDelete) {
     menuItems.push(
       { type: 'divider' },
       { label: 'Delete column', danger: true, onClick: () => onDelete(column.id) },

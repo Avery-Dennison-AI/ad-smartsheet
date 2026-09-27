@@ -8,7 +8,7 @@ import { deleteSheetsByWorkspace } from './sheetService';
 const MEMBER_POPULATE = '_id fullName email';
 
 /** Extracts the string ID from a member's user field, whether it is a raw ObjectId or a populated document. */
-function getMemberId(user: unknown): string {
+export function getMemberId(user: unknown): string {
   if (typeof user === 'string') return user;
   if (user && typeof user === 'object' && '_id' in user) {
     return String((user as { _id: unknown })._id);

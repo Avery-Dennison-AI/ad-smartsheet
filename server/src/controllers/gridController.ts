@@ -36,6 +36,12 @@ export const reorderColumns = asyncHandler(async (req: Request, res: Response) =
   sendSuccess(res, columns);
 });
 
+/** PATCH /api/sheets/:sheetId/grid/columns/:columnId/set-primary */
+export const setPrimaryColumn = asyncHandler(async (req: Request, res: Response) => {
+  const columns = await gridService.setPrimaryColumn(req.params.sheetId, req.user!.id, req.params.columnId);
+  sendSuccess(res, columns);
+});
+
 /** POST /api/sheets/:sheetId/grid/rows */
 export const addRow = asyncHandler(async (req: Request, res: Response) => {
   const { afterRowId, cells } = req.body;

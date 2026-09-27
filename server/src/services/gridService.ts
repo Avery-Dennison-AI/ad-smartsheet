@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import Sheet, { type ISheet, type ColumnDef, type ColumnType } from '../models/Sheet';
 import Row, { type IRow } from '../models/Row';
 import Workspace from '../models/Workspace';
-import { getMemberRole } from './workspaceService';
+import { getMemberRole, getMemberId } from './workspaceService';
 import { AppError } from '../utils/AppError';
 
 // ─── Role hierarchy ────────────────────────────────────────────────────────
@@ -171,15 +171,15 @@ export async function getGrid(sheetId: string, userId: string) {
     .sort({ order: 1 });
 
   // Populate workspace members for contact column
-  const populatedWorkspace = workspace.members[0]?.user && typeof workspace.members[0].user !== 'string'
-    ? workspace
-    : await Workspace.findById(workspace._id).populate('members.user', 'fullName email');
+  const populatedWorkspace = await Workspace.findById(workspace._id).populate('members.user', 'fullName email');
 
-  const members = (populatedWorkspace?.members ?? []).map((m: any) => ({
-    id: typeof m.user === 'string' ? m.user : m.user._id.toString(),
-    fullName: typeof m.user === 'string' ? '' : m.user.fullName,
-    email: typeof m.user === 'string' ? '' : m.user.email,
-  }));
+  const members = (populatedWorkspace?.members ?? [])
+    .filter((m: any) => m.isActive !== false)
+    .map((m: any) => ({
+      id: getMemberId(m.user),
+      fullName: typeof m.user === 'string' ? '' : m.user.fullName,
+      email: typeof m.user === 'string' ? '' : m.user.email,
+    }));
 
   return {
     columns: columns.map(serializeColumn),
@@ -287,6 +287,49 @@ export async function updateColumn(
   return col;
 }
 
+/** Sets a text column as the primary column. Requires editor+. */
+export async function setPrimaryColumn(
+  sheetId: string,
+  userId: string,
+  columnId: string,
+): Promise<ColumnDef[]> {
+  const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
+
+  const columns = [...(sheet.columns || [])];
+  const targetIndex = columns.findIndex((c) => c.id === columnId);
+  if (targetIndex === -1) throw new AppError('Column not found', 404);
+
+  const targetCol = serializeColumn(columns[targetIndex]);
+  if (targetCol.type !== 'text') {
+    throw new AppError('Only text columns can be set as primary', 400);
+  }
+
+  // Find the current primary column
+  const oldPrimaryIndex = columns.findIndex((c) => c.isPrimary);
+
+  // Mark old primary as non-primary and move to order 1
+  if (oldPrimaryIndex !== -1 && oldPrimaryIndex !== targetIndex) {
+    const oldPrimary = serializeColumn(columns[oldPrimaryIndex]);
+    oldPrimary.isPrimary = false;
+    oldPrimary.order = 1;
+    columns[oldPrimaryIndex] = oldPrimary;
+  }
+
+  // Mark target as primary and move to order 0
+  targetCol.isPrimary = true;
+  targetCol.order = 0;
+  columns[targetIndex] = targetCol;
+
+  // Shift all other columns' orders so they are sequential starting from 0
+  // First sort by current order, then re-number
+  const serialized = columns.map(serializeColumn);
+  serialized.sort((a, b) => a.order - b.order);
+  serialized.forEach((c, i) => { c.order = i; });
+
+  await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: serialized } });
+  return serialized;
+}
+
 /** Deletes a column. Primary column cannot be deleted. Requires admin/owner. */
 export async function deleteColumn(
   sheetId: string,
@@ -300,7 +343,7 @@ export async function deleteColumn(
   if (colIndex === -1) throw new AppError('Column not found', 404);
 
   if (columns[colIndex].isPrimary) {
-    throw new AppError('Cannot delete the primary column', 400);
+    throw new AppError('Set another column as primary before deleting this one.', 400);
   }
 
   // Remove the column

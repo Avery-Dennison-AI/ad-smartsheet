@@ -8,6 +8,7 @@ import {
   updateColumn,
   deleteColumn,
   reorderColumns,
+  setPrimaryColumn,
   addRow,
   updateCell,
   deleteRows,
@@ -57,6 +58,10 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   const [typeModalColumnId, setTypeModalColumnId] = useState<string | null>(null);
   const [optionsModalOpen, setOptionsModalOpen] = useState(false);
   const [optionsModalColumnId, setOptionsModalColumnId] = useState<string | null>(null);
+  // When true, the options modal is being shown as part of a type-change flow
+  // (the column hasn't been saved as dropdown yet). On save we dispatch both
+  // type + options in a single updateColumn call.
+  const [pendingDropdownTypeChange, setPendingDropdownTypeChange] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pendingDeleteColId, setPendingDeleteColId] = useState<string | null>(null);
 
@@ -188,7 +193,14 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
 
   const handleTypeSelect = useCallback(
     (type: ColumnType) => {
-      if (typeModalColumnId) {
+      if (!typeModalColumnId) return;
+
+      if (type === 'dropdown') {
+        // Chain: open options editor before saving the type change
+        setPendingDropdownTypeChange(true);
+        setOptionsModalColumnId(typeModalColumnId);
+        setOptionsModalOpen(true);
+      } else {
         dispatch(updateColumn({ sheetId, columnId: typeModalColumnId, patch: { type } }));
       }
     },
@@ -206,10 +218,17 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   const handleOptionsSave = useCallback(
     (options: { label: string; color: string }[]) => {
       if (optionsModalColumnId) {
-        dispatch(updateColumn({ sheetId, columnId: optionsModalColumnId, patch: { options } }));
+        if (pendingDropdownTypeChange) {
+          // Type-change flow: save type + options together
+          dispatch(updateColumn({ sheetId, columnId: optionsModalColumnId, patch: { type: 'dropdown', options } }));
+          setPendingDropdownTypeChange(false);
+        } else {
+          // Normal edit-options flow
+          dispatch(updateColumn({ sheetId, columnId: optionsModalColumnId, patch: { options } }));
+        }
       }
     },
-    [sheetId, optionsModalColumnId, dispatch],
+    [sheetId, optionsModalColumnId, pendingDropdownTypeChange, dispatch],
   );
 
   const handleDeleteColumn = useCallback(
@@ -235,6 +254,13 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
       dispatch(addColumn({ sheetId, data: { name: 'New Column', type: 'text', position } }));
     },
     [sheetId, columns, dispatch],
+  );
+
+  const handleSetPrimaryColumn = useCallback(
+    (columnId: string) => {
+      dispatch(setPrimaryColumn({ sheetId, columnId }));
+    },
+    [sheetId, dispatch],
   );
 
   // Row operations
@@ -292,6 +318,19 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         });
     },
     [sheetId, rows, dispatch],
+  );
+
+  // Add a new dropdown option to a column definition
+  const handleAddDropdownOption = useCallback(
+    (columnId: string, label: string) => {
+      const col = columns.find((c) => c.id === columnId);
+      if (!col || col.type !== 'dropdown') return;
+      const existingOptions = col.options ?? [];
+      const defaultColor = existingOptions[0]?.color ?? 'gray';
+      const newOptions = [...existingOptions, { label, color: defaultColor }];
+      dispatch(updateColumn({ sheetId, columnId, patch: { options: newOptions } }));
+    },
+    [sheetId, columns, dispatch],
   );
 
   // Handle committing a value from a blank row — creates a new row with first cell value
@@ -425,6 +464,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                   onDragStart={handleColDragStart}
                   onDragOver={() => {}}
                   onDrop={handleColDrop}
+                  onSetPrimary={canEdit && !col.isPrimary && col.type === 'text' ? handleSetPrimaryColumn : undefined}
                   data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_aa0f_${col.id}`} />
               </div>
             ))}
@@ -524,6 +564,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                           selection.startEditing({ rowIdx, colIdx });
                         }}
                         onStopEdit={selection.stopEditing}
+                        onAddDropdownOption={handleAddDropdownOption}
                         data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_5e20_${rowIdx}_${col.id}`} />
                     </div>
                   );

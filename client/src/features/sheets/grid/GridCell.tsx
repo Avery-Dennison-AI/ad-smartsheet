@@ -22,6 +22,7 @@ interface GridCellProps {
   onCommit: (value: unknown) => void;
   onStartEdit: () => void;
   onStopEdit: () => void;
+  onAddDropdownOption?: (columnId: string, label: string) => void;
 }
 
 export default function GridCell({
@@ -35,10 +36,12 @@ export default function GridCell({
   onCommit,
   onStartEdit,
   onStopEdit,
+  onAddDropdownOption,
 }: GridCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownSearch, setDropdownSearch] = useState('');
   const [contactQuery, setContactQuery] = useState('');
   const [contactOpen, setContactOpen] = useState(false);
   const cellRef = useRef<HTMLDivElement>(null);
@@ -67,7 +70,10 @@ export default function GridCell({
     if (isEditing) {
       if (column.type === 'checkbox') return;
       setEditValue(value != null ? String(value) : '');
-      if (column.type === 'dropdown') setDropdownOpen(true);
+      if (column.type === 'dropdown') {
+        setDropdownSearch('');
+        setDropdownOpen(true);
+      }
       if (column.type === 'contact') setContactOpen(true);
     }
   }, [isEditing, value, column.type]);
@@ -266,28 +272,69 @@ export default function GridCell({
               data-icod-id="src_features_sheets_grid_gridcell_tsx_42f1" />
           </div>
         );
-      case 'dropdown':
+      case 'dropdown': {
+        const filteredOptions = column.options?.filter(
+          (opt) => !dropdownSearch || opt.label.toLowerCase().includes(dropdownSearch.toLowerCase()),
+        ) ?? [];
+        const searchHasExactMatch = filteredOptions.some(
+          (opt) => opt.label.toLowerCase() === dropdownSearch.trim().toLowerCase(),
+        );
+        const showAddOption = !readOnly && dropdownSearch.trim() !== '' && !searchHasExactMatch && onAddDropdownOption;
+
         return (
           <div
             className="relative h-full w-full"
             data-icod-id="src_features_sheets_grid_gridcell_tsx_32ee">
-            <button
-              className="flex h-full w-full items-center px-1 text-left text-sm outline-none"
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_5735">
-              {editValue || <span
-                className="text-muted-foreground"
-                data-icod-id="src_features_sheets_grid_gridcell_tsx_acdc">Select...</span>}
-            </button>
+            <input
+              ref={inputRef}
+              className="h-full w-full bg-transparent px-1 text-sm outline-none"
+              value={dropdownSearch}
+              placeholder="Select..."
+              onChange={(e) => setDropdownSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  cancelEdit();
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (filteredOptions.length > 0) {
+                    if (!committedRef.current) {
+                      committedRef.current = true;
+                      onCommit(filteredOptions[0].label);
+                      setDropdownOpen(false);
+                      onStopEdit();
+                    }
+                  } else if (showAddOption) {
+                    if (!committedRef.current) {
+                      committedRef.current = true;
+                      onAddDropdownOption(column.id, dropdownSearch.trim());
+                      onCommit(dropdownSearch.trim());
+                      setDropdownOpen(false);
+                      onStopEdit();
+                    }
+                  }
+                }
+              }}
+              onFocus={() => setDropdownOpen(true)}
+              onBlur={() => {
+                setTimeout(() => {
+                  if (!committedRef.current) {
+                    committedRef.current = true;
+                    setDropdownOpen(false);
+                    onStopEdit();
+                  }
+                }, 200);
+              }}
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_5735" />
             {dropdownOpen && (
               <div
                 className="absolute left-0 top-full z-50 mt-1 max-h-48 min-w-[120px] overflow-y-auto rounded-md border border-border bg-card py-1 shadow-md"
                 data-icod-id="src_features_sheets_grid_gridcell_tsx_3c74">
-                {column.options?.map((opt) => (
+                {filteredOptions.map((opt) => (
                   <button
                     key={opt.label}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
-                    onClick={() => {
+                    onMouseDown={(e) => {
+                      e.preventDefault();
                       if (!committedRef.current) {
                         committedRef.current = true;
                         onCommit(opt.label);
@@ -302,7 +349,24 @@ export default function GridCell({
                       data-icod-id="src_features_sheets_grid_gridcell_tsx_9b1a" />
                   </button>
                 ))}
-                {(column.options?.length ?? 0) === 0 && (
+                {showAddOption && (
+                  <button
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium text-primary hover:bg-muted"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      if (!committedRef.current) {
+                        committedRef.current = true;
+                        onAddDropdownOption(column.id, dropdownSearch.trim());
+                        onCommit(dropdownSearch.trim());
+                        setDropdownOpen(false);
+                        onStopEdit();
+                      }
+                    }}
+                    data-icod-id="src_features_sheets_grid_gridcell_tsx_add_option">
+                    Add "{dropdownSearch.trim()}" as option
+                  </button>
+                )}
+                {filteredOptions.length === 0 && !showAddOption && (
                   <div
                     className="px-3 py-2 text-xs text-muted-foreground"
                     data-icod-id="src_features_sheets_grid_gridcell_tsx_f4e7">No options</div>
@@ -311,6 +375,7 @@ export default function GridCell({
             )}
           </div>
         );
+      }
       case 'checkbox':
         // Checkbox doesn't have a separate edit mode
         return null;
