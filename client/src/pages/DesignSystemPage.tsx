@@ -33,8 +33,10 @@ import {
   WorkspaceIcon,
   ColorPicker,
   UserPicker,
+  RoleMenu,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
+import type { RoleValue } from '@/components/ui/RoleMenu';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
 
 /* ─── Section wrapper ─────────────────────────────────────────────────────── */
@@ -562,6 +564,23 @@ export default function DesignSystemPage() {
             { label: 'Delete', icon: <Trash2 className="h-4 w-4" data-icod-id="src_pages_designsystempage_tsx_95d6" />, danger: true, shortcut: 'Del' },
           ]}
           data-icod-id="src_pages_designsystempage_tsx_4c1a" />
+      </Section>
+      {/* ─── 9b. Role Menu ────────────────────────────────────────────────── */}
+      <Section title="Role Menu" data-icod-id="ds_rolemenu_section">
+        <div className="flex items-start gap-6" data-icod-id="ds_rolemenu_row">
+          <div className="flex flex-col gap-2" data-icod-id="ds_rolemenu_admin_wrap">
+            <span className="text-xs text-muted-foreground" data-icod-id="ds_rolemenu_admin_label">Admin (with onRemove)</span>
+            <RoleMenuDemoAdmin data-icod-id="ds_rolemenu_admin" />
+          </div>
+          <div className="flex flex-col gap-2" data-icod-id="ds_rolemenu_editor_wrap">
+            <span className="text-xs text-muted-foreground" data-icod-id="ds_rolemenu_editor_label">Editor</span>
+            <RoleMenuDemoEditor data-icod-id="ds_rolemenu_editor" />
+          </div>
+          <div className="flex flex-col gap-2" data-icod-id="ds_rolemenu_viewer_wrap">
+            <span className="text-xs text-muted-foreground" data-icod-id="ds_rolemenu_viewer_label">Viewer (with onLeave)</span>
+            <RoleMenuDemoViewer data-icod-id="ds_rolemenu_viewer" />
+          </div>
+        </div>
       </Section>
       {/* ─── 10. Modal & ConfirmDialog ───────────────────────────────────── */}
       <Section
@@ -1177,5 +1196,38 @@ function UserPickerDemoPopulated() {
       onSearch={mockSearch}
       containerClassName="max-w-sm"
       data-icod-id="src_pages_designsystempage_tsx_f168" />
+  );
+}
+
+/* ─── RoleMenu demos ───────────────────────────────────────────────────── */
+function RoleMenuDemoAdmin() {
+  const [role, setRole] = useState<RoleValue>('admin');
+  return (
+    <RoleMenu
+      value={role}
+      onChange={setRole}
+      onRemove={() => {}}
+      data-icod-id="src_pages_designsystempage_tsx_5140" />
+  );
+}
+
+function RoleMenuDemoEditor() {
+  const [role, setRole] = useState<RoleValue>('editor');
+  return (
+    <RoleMenu
+      value={role}
+      onChange={setRole}
+      data-icod-id="src_pages_designsystempage_tsx_c047" />
+  );
+}
+
+function RoleMenuDemoViewer() {
+  const [role, setRole] = useState<RoleValue>('viewer');
+  return (
+    <RoleMenu
+      value={role}
+      onChange={setRole}
+      onLeave={() => {}}
+      data-icod-id="src_pages_designsystempage_tsx_269c" />
   );
 }

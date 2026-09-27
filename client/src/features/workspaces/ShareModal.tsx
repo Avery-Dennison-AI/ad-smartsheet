@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Modal, Button, Select, useToast, ConfirmDialog, Avatar, WorkspaceIcon } from '@/components/ui';
+import RoleMenu from '@/components/ui/RoleMenu';
+import type { RoleValue } from '@/components/ui/RoleMenu';
 import UserPicker from '@/components/ui/UserPicker';
 import type { UserOption } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -179,6 +181,42 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
             const isOwner = member.id === workspace.owner;
             const isSelf = member.id === user?.id;
 
+            // Determine right-hand control
+            let roleControl: React.ReactNode;
+            if (isOwner) {
+              // Owner row — plain muted text
+              roleControl = (
+                <span
+                  className="text-sm text-muted-foreground"
+                  data-icod-id={`src_features_workspaces_sharemodal_tsx_7b1d_${member.id}`}>Owner</span>
+              );
+            } else if (isSelf) {
+              // Current user's own row (non-owner) — RoleMenu with onLeave only
+              roleControl = (
+                <RoleMenu
+                  value={member.role as RoleValue}
+                  onChange={() => {/* no-op — can't change own role */}}
+                  onLeave={() => setConfirmRemove({ memberId: member.id, memberName: member.fullName, isSelf: true })}
+                  data-icod-id={`src_features_workspaces_sharemodal_tsx_e1e9_${member.id}`} />
+              );
+            } else if (canManage) {
+              // Another member, viewed by owner/admin — full RoleMenu with onChange + onRemove
+              roleControl = (
+                <RoleMenu
+                  value={member.role as RoleValue}
+                  onChange={(role) => handleRoleChange(member.id, role as WorkspaceRole)}
+                  onRemove={() => setConfirmRemove({ memberId: member.id, memberName: member.fullName, isSelf: false })}
+                  data-icod-id={`src_features_workspaces_sharemodal_tsx_a7be_${member.id}`} />
+              );
+            } else {
+              // Another member, viewed by editor/viewer — read-only text
+              roleControl = (
+                <span
+                  className="text-sm capitalize text-muted-foreground"
+                  data-icod-id={`src_features_workspaces_sharemodal_tsx_403f_${member.id}`}>{member.role}</span>
+              );
+            }
+
             return (
               <div
                 key={member.id}
@@ -203,64 +241,7 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
                     className="truncate text-xs text-muted-foreground"
                     data-icod-id={`src_features_workspaces_sharemodal_tsx_cf72_${member.id}`}>{member.email}</div>
                 </div>
-                {/* Right side — role/action */}
-                {isOwner ? (
-                  <span
-                    className="text-sm text-muted-foreground"
-                    data-icod-id={`src_features_workspaces_sharemodal_tsx_d5c7_${member.id}`}>Owner</span>
-                ) : canManage ? (
-                  /* Owner/admin actor — non-owner members get a role selector with remove */
-                  (<select
-                    className={[
-                      'h-8 w-36 shrink-0 rounded-[var(--radius-sm)] border border-border bg-card text-sm leading-tight text-foreground',
-                      'focus:border-primary focus:outline-none focus:shadow-[var(--focus-ring)]',
-                      'appearance-none cursor-pointer',
-                    ].join(' ')}
-                    value={member.role}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === '__remove__') {
-                        setConfirmRemove({ memberId: member.id, memberName: member.fullName, isSelf: false });
-                        // Reset to current role so the select doesn't visually show "remove"
-                        e.target.value = member.role;
-                      } else if (val === '__leave__') {
-                        setConfirmRemove({ memberId: member.id, memberName: member.fullName, isSelf: true });
-                        e.target.value = member.role;
-                      } else {
-                        handleRoleChange(member.id, val as WorkspaceRole);
-                      }
-                    }}
-                    data-icod-id={`src_features_workspaces_sharemodal_tsx_4755_${member.id}`}>
-                    <option
-                      value="admin"
-                      data-icod-id={`src_features_workspaces_sharemodal_tsx_418c_${member.id}`}>Admin</option>
-                    <option
-                      value="editor"
-                      data-icod-id={`src_features_workspaces_sharemodal_tsx_714c_${member.id}`}>Editor</option>
-                    <option
-                      value="viewer"
-                      data-icod-id={`src_features_workspaces_sharemodal_tsx_0548_${member.id}`}>Viewer</option>
-                    <option
-                      disabled
-                      data-icod-id={`src_features_workspaces_sharemodal_tsx_2f79_${member.id}`}>──────────</option>
-                    {isSelf ? (
-                      <option
-                        value="__leave__"
-                        className="text-destructive"
-                        data-icod-id={`src_features_workspaces_sharemodal_tsx_a9c3_${member.id}`}>Leave</option>
-                    ) : (
-                      <option
-                        value="__remove__"
-                        className="text-destructive"
-                        data-icod-id={`src_features_workspaces_sharemodal_tsx_d972_${member.id}`}>Remove</option>
-                    )}
-                  </select>)
-                ) : (
-                  /* Viewer/editor actor — plain text role */
-                  (<span
-                    className="text-sm capitalize text-muted-foreground"
-                    data-icod-id={`src_features_workspaces_sharemodal_tsx_b9e7_${member.id}`}>{member.role}</span>)
-                )}
+                {roleControl}
               </div>
             );
           })}

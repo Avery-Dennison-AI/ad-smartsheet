@@ -50,13 +50,13 @@ export default {
         ring: 'rgb(var(--ring, 79 70 229) / <alpha-value>)',
       },
       fontSize: {
-        '2xs': 'var(--text-2xs)',
-        xs: 'var(--text-xs)',
-        sm: 'var(--text-sm)',
-        base: 'var(--text-base)',
-        md: 'var(--text-md)',
-        lg: 'var(--text-lg)',
-        xl: 'var(--text-xl)',
+        '2xs': ['var(--text-2xs)', { lineHeight: 'var(--leading-2xs)' }],
+        xs: ['var(--text-xs)', { lineHeight: 'var(--leading-xs)' }],
+        sm: ['var(--text-sm)', { lineHeight: 'var(--leading-sm)' }],
+        base: ['var(--text-base)', { lineHeight: 'var(--leading-base)' }],
+        md: ['var(--text-md)', { lineHeight: 'var(--leading-md)' }],
+        lg: ['var(--text-lg)', { lineHeight: 'var(--leading-lg)' }],
+        xl: ['var(--text-xl)', { lineHeight: 'var(--leading-xl)' }],
       },
       borderRadius: {
         sm: 'var(--radius-sm)',   // 4px

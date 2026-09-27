@@ -40,4 +40,5 @@ export { default as PageContainer } from './PageContainer';
 export { default as WorkspaceIcon } from './WorkspaceIcon';
 export { default as ColorPicker, WORKSPACE_COLORS, type ColorPickerProps } from './ColorPicker';
 export { default as UserPicker, type UserPickerProps, type UserOption } from './UserPicker';
+export { default as RoleMenu, type RoleMenuProps, type RoleValue } from './RoleMenu';
 export { type ModalSize } from './Modal';
