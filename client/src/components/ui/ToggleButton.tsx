@@ -37,6 +37,7 @@ export default function ToggleButton({
         role="button"
         aria-pressed={pressed}
         disabled={disabled}
+        onMouseDown={(e) => e.preventDefault()}
         onClick={onToggle}
         className={cn(
           'inline-flex items-center justify-center rounded-[var(--radius-sm)] transition-colors duration-150 ease-in-out',

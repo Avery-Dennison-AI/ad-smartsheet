@@ -225,11 +225,12 @@ export function useGridSelection({
     [activeCell, clearRowColumnSelection],
   );
 
-  // Start editing a cell
+  // Start editing a cell — also sets the active cell so selection is visible
   const startEditing = useCallback(
     (pos?: CellPosition) => {
       const target = pos || activeCell;
       if (target) {
+        setActiveCell(target);
         setEditingCell(target);
         onEditCell?.(target);
       }
@@ -326,17 +327,7 @@ export function useGridSelection({
           break;
         }
         case 'Tab': {
-          e.preventDefault();
-          if (e.shiftKey) {
-            const newCol = colIdx > 0 ? colIdx - 1 : colCount - 1;
-            const newRow = colIdx > 0 ? rowIdx : Math.max(0, rowIdx - 1);
-            setActiveCell({ rowIdx: newRow, colIdx: newCol });
-          } else {
-            const newCol = colIdx < colCount - 1 ? colIdx + 1 : 0;
-            const newRow = colIdx < colCount - 1 ? rowIdx : Math.min(rowCount - 1, rowIdx + 1);
-            setActiveCell({ rowIdx: newRow, colIdx: newCol });
-          }
-          setSelectionRange(null);
+          // Do not preventDefault on Tab — let focus move normally outside the grid
           break;
         }
         case 'Enter': {

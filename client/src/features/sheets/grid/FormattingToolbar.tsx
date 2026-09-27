@@ -14,6 +14,8 @@ interface FormattingToolbarProps {
   selectedColumns: Set<number>;
   columns: Column[];
   rows: GridRow[];
+  /** Called after a formatting action to return focus to the grid container. */
+  onReturnFocus?: () => void;
 }
 
 const FONT_FAMILIES = [
@@ -34,6 +36,7 @@ export default function FormattingToolbar({
   selectedColumns,
   columns,
   rows,
+  onReturnFocus,
 }: FormattingToolbarProps) {
   const dispatch = useAppDispatch();
 
@@ -106,6 +109,7 @@ export default function FormattingToolbar({
         }))
           .unwrap()
           .catch(() => {});
+        onReturnFocus?.();
         return;
       }
 
@@ -116,8 +120,9 @@ export default function FormattingToolbar({
         .catch(() => {
           // Error handled by slice saveError
         });
+      onReturnFocus?.();
     },
-    [dispatch, sheetId, getTargetCells, isColumnOnlySelection, singleSelectedColId],
+    [dispatch, sheetId, getTargetCells, isColumnOnlySelection, singleSelectedColId, onReturnFocus],
   );
 
   // Toggle a boolean formatting property
@@ -187,6 +192,7 @@ export default function FormattingToolbar({
   return (
     <Toolbar
       disabled={isViewer}
+      className="select-none"
       data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_890b">
       {/* Group 1: Font family + Font size */}
       <ToolbarGroup data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_2159">
@@ -194,6 +200,7 @@ export default function FormattingToolbar({
           className={inputClass('w-28 h-6 text-xs py-0')}
           value={activeFmt.fontFamily || 'default'}
           onChange={handleFontFamily}
+          onMouseDown={(e) => e.stopPropagation()}
           aria-label="Font family"
           data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_cedf">
           {FONT_FAMILIES.map((f) => (
@@ -207,6 +214,7 @@ export default function FormattingToolbar({
           className={inputClass('w-14 h-6 text-xs py-0')}
           value={activeFmt.fontSize ?? ''}
           onChange={handleFontSize}
+          onMouseDown={(e) => e.stopPropagation()}
           aria-label="Font size"
           data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_096d">
           <option
@@ -264,6 +272,7 @@ export default function FormattingToolbar({
         <IconButton
           size="sm"
           tooltip="Clear formatting"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={handleClearFormatting}
           data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_a91b">
           <Eraser

@@ -26,6 +26,8 @@ interface GridCellProps {
   onStartEdit: () => void;
   onStopEdit: () => void;
   onAddDropdownOption?: (columnId: string, label: string) => void;
+  /** Called on mouseDown to handle cell selection (before focus changes). */
+  onCellClick?: (e: React.MouseEvent) => void;
   /** Whether this cell belongs to the primary (frozen) column. */
   isPrimary?: boolean;
   /** Whether the grid container has been scrolled horizontally. */
@@ -51,6 +53,7 @@ export default function GridCell({
   onStartEdit,
   onStopEdit,
   onAddDropdownOption,
+  onCellClick,
   isPrimary,
   isScrolled,
   isRowHovered,
@@ -610,6 +613,10 @@ export default function GridCell({
         borderColor: 'var(--grid-line-color)',
         backgroundColor: cellBg,
         boxShadow: isPrimary && isScrolled ? '2px 0 6px -1px rgba(0,0,0,0.12)' : undefined,
+      }}
+      onMouseDown={(e) => {
+        // Let parent handle cell selection on mouse down
+        if (onCellClick) onCellClick(e);
       }}
       onClick={() => {
         if (column.type === 'checkbox' && !readOnly) {

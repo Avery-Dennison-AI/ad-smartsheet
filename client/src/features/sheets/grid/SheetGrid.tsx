@@ -186,6 +186,11 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     },
   });
 
+  // Connect selection hook's containerRef to the scroll container so keyboard navigation works
+  useEffect(() => {
+    (selection.containerRef as React.MutableRefObject<HTMLDivElement | null>).current = scrollNodeRef.current;
+  }, [selection.containerRef, loading]);
+
   // Derive activeCell and selectedCells for FormattingToolbar
   const fmtActiveCell = useMemo(() => {
     if (!selection.activeCell) return null;
@@ -470,6 +475,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         selectedColumns={selection.selectedColIndices}
         columns={columns}
         rows={rows}
+        onReturnFocus={() => scrollNodeRef.current?.focus()}
         data-icod-id="src_features_sheets_grid_sheetgrid_tsx_1675" />
       {/* Scrollable grid container */}
       <div
@@ -639,6 +645,11 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                           selection.startEditing({ rowIdx, colIdx });
                         }}
                         onStopEdit={selection.stopEditing}
+                        onCellClick={(e) => {
+                          selection.handleCellClick(rowIdx, colIdx, e.shiftKey);
+                          // Focus the scroll container so keyboard shortcuts work immediately
+                          scrollNodeRef.current?.focus();
+                        }}
                         onAddDropdownOption={handleAddDropdownOption}
                         isPrimary={!!col.isPrimary}
                         isScrolled={col.isPrimary ? isScrolled : false}
