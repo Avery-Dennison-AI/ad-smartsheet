@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Star } from 'lucide-react';
-import { PageContainer, Card, EmptyState, Button, Skeleton, WorkspaceIcon } from '@/components/ui';
+import { PageContainer, Card, EmptyState, Button, Skeleton, WorkspaceIcon, RelativeTime } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 import { fetchWorkspaces, selectWorkspaceList, selectWorkspaceStatus } from '@/store/slices/workspaceSlice';
+import { fetchRecents, fetchFavorites, selectRecents, selectFavorites } from '@/store/slices/userMetaSlice';
 import { CreateWorkspaceModal } from '@/features/workspaces';
 
 function getGreeting(): string {
@@ -19,6 +20,8 @@ export default function HomePage() {
   const user = useAppSelector(selectCurrentUser);
   const workspaces = useAppSelector(selectWorkspaceList);
   const status = useAppSelector(selectWorkspaceStatus);
+  const recents = useAppSelector(selectRecents);
+  const favorites = useAppSelector(selectFavorites);
   const firstName = user?.fullName?.split(' ')[0] || 'there';
   const greeting = getGreeting();
   const [createOpen, setCreateOpen] = useState(false);
@@ -26,6 +29,11 @@ export default function HomePage() {
   useEffect(() => {
     if (status === 'idle') dispatch(fetchWorkspaces());
   }, [status, dispatch]);
+
+  useEffect(() => {
+    dispatch(fetchRecents());
+    dispatch(fetchFavorites());
+  }, [dispatch]);
 
   return (
     <PageContainer data-icod-id="src_pages_homepage_tsx_a7df">
@@ -46,18 +54,80 @@ export default function HomePage() {
           className="grid grid-cols-1 gap-6 md:grid-cols-2"
           data-icod-id="src_pages_homepage_tsx_49b3">
           <Card header="Recent sheets" data-icod-id="src_pages_homepage_tsx_1980">
-            <EmptyState
-              compact
-              icon={Clock}
-              title="Sheets you open will appear here."
-              data-icod-id="src_pages_homepage_tsx_023a" />
+            {recents.length > 0 ? (
+              <ul
+                className="flex flex-col gap-1"
+                data-icod-id="src_pages_homepage_tsx_5452">
+                {recents.slice(0, 5).map((item) => (
+                  <li
+                    key={item.sheet.id}
+                    className="flex items-center justify-between gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 hover:bg-muted"
+                    data-icod-id={`src_pages_homepage_tsx_5453_${item.sheet.id}`}>
+                    <div
+                      className="min-w-0 flex-1"
+                      data-icod-id={`src_pages_homepage_tsx_410b_${item.sheet.id}`}>
+                      <Link
+                        to={`/sheets/${item.sheet.id}`}
+                        className="truncate text-sm font-medium text-foreground hover:underline"
+                        data-icod-id={`src_pages_homepage_tsx_d2c6_${item.sheet.id}`}>
+                        {item.sheet.name}
+                      </Link>
+                      <span
+                        className="ml-2 text-xs text-muted-foreground"
+                        data-icod-id={`src_pages_homepage_tsx_9987_${item.sheet.id}`}>{item.workspace.name}</span>
+                    </div>
+                    {item.lastOpenedAt && (
+                      <RelativeTime
+                        date={item.lastOpenedAt}
+                        data-icod-id={`src_pages_homepage_tsx_d9e7_${item.sheet.id}`} />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState
+                compact
+                icon={Clock}
+                title="Sheets you open will appear here."
+                data-icod-id="src_pages_homepage_tsx_023a" />
+            )}
           </Card>
           <Card header="Favorites" data-icod-id="src_pages_homepage_tsx_13c8">
-            <EmptyState
-              compact
-              icon={Star}
-              title="Star sheets to find them quickly."
-              data-icod-id="src_pages_homepage_tsx_dfd0" />
+            {favorites.length > 0 ? (
+              <ul
+                className="flex flex-col gap-1"
+                data-icod-id="src_pages_homepage_tsx_71da">
+                {favorites.slice(0, 5).map((item) => (
+                  <li
+                    key={item.sheet.id}
+                    className="flex items-center justify-between gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 hover:bg-muted"
+                    data-icod-id={`src_pages_homepage_tsx_fd2d_${item.sheet.id}`}>
+                    <div
+                      className="min-w-0 flex-1"
+                      data-icod-id={`src_pages_homepage_tsx_5a09_${item.sheet.id}`}>
+                      <Link
+                        to={`/sheets/${item.sheet.id}`}
+                        className="truncate text-sm font-medium text-foreground hover:underline"
+                        data-icod-id={`src_pages_homepage_tsx_cbe6_${item.sheet.id}`}>
+                        {item.sheet.name}
+                      </Link>
+                      <span
+                        className="ml-2 text-xs text-muted-foreground"
+                        data-icod-id={`src_pages_homepage_tsx_323c_${item.sheet.id}`}>{item.workspace.name}</span>
+                    </div>
+                    <RelativeTime
+                      date={item.sheet.updatedAt}
+                      data-icod-id={`src_pages_homepage_tsx_8ad3_${item.sheet.id}`} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyState
+                compact
+                icon={Star}
+                title="Star sheets to find them quickly."
+                data-icod-id="src_pages_homepage_tsx_dfd0" />
+            )}
           </Card>
         </div>
 

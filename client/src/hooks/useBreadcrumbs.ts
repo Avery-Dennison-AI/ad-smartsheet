@@ -1,6 +1,7 @@
 import { useLocation, useParams } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentWorkspace } from '@/store/slices/workspaceSlice';
+import { selectCurrentSheet } from '@/store/slices/sheetsSlice';
 
 export interface BreadcrumbItem {
   label: string;
@@ -13,6 +14,7 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
   const params = useParams();
   const pathname = location.pathname;
   const workspace = useAppSelector(selectCurrentWorkspace);
+  const sheet = useAppSelector(selectCurrentSheet);
 
   if (pathname === '/home') {
     return [{ label: 'Home' }];
@@ -24,6 +26,18 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
 
   if (pathname === '/favorites') {
     return [{ label: 'Favorites' }];
+  }
+
+  if (pathname.startsWith('/sheets/')) {
+    const sheetName = sheet?.name || params.sheetId || 'Sheet';
+    const workspaceId = sheet?.workspaceId;
+    const workspaceName = workspace?.name || 'Workspace';
+    const items: BreadcrumbItem[] = [];
+    if (workspaceId) {
+      items.push({ label: workspaceName, to: `/workspaces/${workspaceId}` });
+    }
+    items.push({ label: sheetName });
+    return items;
   }
 
   if (pathname.startsWith('/workspaces/')) {

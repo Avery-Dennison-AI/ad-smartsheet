@@ -36,10 +36,10 @@ export const fetchFavorites = createAsyncThunk(
   },
 );
 
-export const toggleFavoriteMeta = createAsyncThunk(
-  'userMeta/toggleFavorite',
-  async (sheetId: string) => {
-    const res = await sheetService.toggleFavorite(sheetId);
+export const setFavoriteMeta = createAsyncThunk(
+  'userMeta/setFavorite',
+  async ({ sheetId, starred }: { sheetId: string; starred: boolean }) => {
+    const res = await sheetService.setFavorite(sheetId, starred);
     return res.data.data as { sheetId: string; isFavorite: boolean };
   },
 );
@@ -72,8 +72,8 @@ const userMetaSlice = createSlice({
         state.loading = false;
         state.error = 'Failed to load favorites';
       })
-      // toggleFavoriteMeta
-      .addCase(toggleFavoriteMeta.fulfilled, (state, action) => {
+      // setFavoriteMeta
+      .addCase(setFavoriteMeta.fulfilled, (state, action) => {
         const { sheetId, isFavorite } = action.payload;
         // Update in recents
         const recentIdx = state.recents.findIndex((r) => r.sheet.id === sheetId);

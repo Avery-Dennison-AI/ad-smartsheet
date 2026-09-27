@@ -11,9 +11,10 @@ interface SheetActionsMenuProps {
   sheetId: string;
   sheetName: string;
   userRole: WorkspaceRole;
+  hideOpen?: boolean;
 }
 
-export default function SheetActionsMenu({ sheetId, sheetName, userRole }: SheetActionsMenuProps) {
+export default function SheetActionsMenu({ sheetId, sheetName, userRole, hideOpen = false }: SheetActionsMenuProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [renameOpen, setRenameOpen] = useState(false);
@@ -41,14 +42,16 @@ export default function SheetActionsMenu({ sheetId, sheetName, userRole }: Sheet
 
   const items = [];
 
-  // viewer+ can open
-  items.push({
-    label: 'Open',
-    icon: <ExternalLink
-      className="h-4 w-4"
-      data-icod-id="src_features_sheets_components_sheetactionsmenu_tsx_244a" />,
-    onClick: () => navigate(`/sheets/${sheetId}`),
-  });
+  // viewer+ can open (unless already on the sheet page)
+  if (!hideOpen) {
+    items.push({
+      label: 'Open',
+      icon: <ExternalLink
+        className="h-4 w-4"
+        data-icod-id="src_features_sheets_components_sheetactionsmenu_tsx_244a" />,
+      onClick: () => navigate(`/sheets/${sheetId}`),
+    });
+  }
 
   if (canEdit) {
     items.push({

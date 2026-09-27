@@ -78,10 +78,10 @@ export const deleteSheet = createAsyncThunk(
   },
 );
 
-export const toggleFavorite = createAsyncThunk(
-  'sheets/toggleFavorite',
-  async (sheetId: string) => {
-    const res = await sheetService.toggleFavorite(sheetId);
+export const setFavorite = createAsyncThunk(
+  'sheets/setFavorite',
+  async ({ sheetId, starred }: { sheetId: string; starred: boolean }) => {
+    const res = await sheetService.setFavorite(sheetId, starred);
     return res.data.data as { sheetId: string; isFavorite: boolean };
   },
 );

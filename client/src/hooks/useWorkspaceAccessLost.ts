@@ -6,9 +6,10 @@ import { useToast } from '@/components/ui';
 
 /**
  * Shared hook for handling workspace access-loss errors (403/404).
- * Returns two stable callbacks:
+ * Returns stable callbacks:
  * - handleAccessLost: always redirects to /home after showing a toast.
  * - handleActionError: only redirects for 403/404; shows generic error otherwise.
+ * - handleSheetAccessLost: redirects to the workspace if still a member, else /home.
  */
 export function useWorkspaceAccessLost() {
   const dispatch = useAppDispatch();
@@ -35,5 +36,15 @@ export function useWorkspaceAccessLost() {
     }
   }, [isAccessError, handleAccessLost, addToast]);
 
-  return { handleAccessLost, handleActionError, isAccessError };
+  const handleSheetAccessLost = useCallback((workspaceId?: string) => {
+    addToast('error', 'You no longer have access to this sheet.');
+    dispatch(fetchWorkspaces());
+    if (workspaceId) {
+      navigate(`/workspaces/${workspaceId}`, { replace: true });
+    } else {
+      navigate('/home', { replace: true });
+    }
+  }, [addToast, dispatch, navigate]);
+
+  return { handleAccessLost, handleActionError, handleSheetAccessLost, isAccessError };
 }

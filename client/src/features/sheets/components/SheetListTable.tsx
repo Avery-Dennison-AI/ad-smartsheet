@@ -1,11 +1,8 @@
-import { DataTable } from '@/components/ui';
+import { DataTable, SheetIcon, RelativeTime, FavoritesStar } from '@/components/ui';
 import type { DataTableColumn } from '@/components/ui';
 import type { Sheet, WorkspaceRole } from '@/types';
 import { useAppDispatch } from '@/store/hooks';
-import { toggleFavoriteMeta } from '@/store/slices/userMetaSlice';
-import SheetIcon from '@/components/shared/SheetIcon';
-import RelativeTime from '@/components/shared/RelativeTime';
-import FavoritesStar from '@/components/shared/FavoritesStar';
+import { setFavoriteMeta } from '@/store/slices/userMetaSlice';
 import SheetActionsMenu from './SheetActionsMenu';
 import SheetEmptyState from './SheetEmptyState';
 
@@ -90,7 +87,7 @@ export default function SheetListTable({
           data-icod-id="src_features_sheets_components_sheetlisttable_tsx_d81a">
           <FavoritesStar
             isFavorite={favoritesMap[row.id] ?? false}
-            onToggle={() => dispatch(toggleFavoriteMeta(row.id))}
+            onToggle={() => dispatch(setFavoriteMeta({ sheetId: row.id, starred: !(favoritesMap[row.id] ?? false) }))}
             size="sm"
             data-icod-id="src_features_sheets_components_sheetlisttable_tsx_3168" />
           {userRole && (

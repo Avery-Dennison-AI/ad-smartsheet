@@ -34,6 +34,9 @@ import {
   ColorPicker,
   UserPicker,
   RoleMenu,
+  FavoritesStar,
+  RelativeTime,
+  SheetIcon,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { RoleValue } from '@/components/ui/RoleMenu';
@@ -1133,6 +1136,40 @@ export default function DesignSystemPage() {
       <Section title="ColorPicker" data-icod-id="ds_colorpicker_section">
         <div className="space-y-4" data-icod-id="ds_colorpicker_wrap">
           <ColorPickerDemo data-icod-id="src_pages_designsystempage_tsx_a864" />
+        </div>
+      </Section>
+      {/* ─── Shared Components ────────────────────────────────────────────── */}
+      <Section title="Shared Components" data-icod-id="ds_shared_section">
+        <div className="space-y-6" data-icod-id="ds_shared_wrap">
+          {/* FavoritesStar */}
+          <div data-icod-id="ds_shared_favorites">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_favorites_label">FavoritesStar — starred and unstarred states</span>
+            <div className="flex items-center gap-4" data-icod-id="ds_shared_favorites_row">
+              <FavoritesStar isFavorite={false} onToggle={() => {}} data-icod-id="ds_shared_fav_unstarred" />
+              <FavoritesStar isFavorite={true} onToggle={() => {}} data-icod-id="ds_shared_fav_starred" />
+              <FavoritesStar isFavorite={false} onToggle={() => {}} size="sm" data-icod-id="ds_shared_fav_sm_unstarred" />
+              <FavoritesStar isFavorite={true} onToggle={() => {}} size="sm" data-icod-id="ds_shared_fav_sm_starred" />
+            </div>
+          </div>
+          {/* RelativeTime */}
+          <div data-icod-id="ds_shared_reltime">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_reltime_label">RelativeTime — sample past timestamp</span>
+            <div className="flex items-center gap-4" data-icod-id="ds_shared_reltime_row">
+              <RelativeTime date={new Date(Date.now() - 60_000).toISOString()} data-icod-id="ds_shared_reltime_1m" />
+              <RelativeTime date={new Date(Date.now() - 3_600_000).toISOString()} data-icod-id="ds_shared_reltime_1h" />
+              <RelativeTime date={new Date(Date.now() - 86_400_000).toISOString()} data-icod-id="ds_shared_reltime_1d" />
+              <RelativeTime date={new Date(Date.now() - 604_800_000).toISOString()} data-icod-id="ds_shared_reltime_7d" />
+            </div>
+          </div>
+          {/* SheetIcon */}
+          <div data-icod-id="ds_shared_sheeticon">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_sheeticon_label">SheetIcon — default and custom sizes</span>
+            <div className="flex items-center gap-4" data-icod-id="ds_shared_sheeticon_row">
+              <SheetIcon data-icod-id="ds_shared_sheeticon_default" />
+              <SheetIcon className="h-6 w-6" data-icod-id="ds_shared_sheeticon_lg" />
+              <SheetIcon className="h-8 w-8" data-icod-id="ds_shared_sheeticon_xl" />
+            </div>
+          </div>
         </div>
       </Section>
     </div>

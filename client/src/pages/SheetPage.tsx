@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AlertTriangle, LayoutGrid } from 'lucide-react';
-import { PageContainer, PageHeader, Button, EmptyState, Spinner, Breadcrumbs } from '@/components/ui';
+import { AlertTriangle } from 'lucide-react';
+import { PageContainer, PageHeader, Button, EmptyState, Spinner, SheetIcon, FavoritesStar } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSheet, selectCurrentSheet, selectSheetsLoading, selectSheetsError, clearCurrentSheet } from '@/store/slices/sheetsSlice';
-import SheetIcon from '@/components/shared/SheetIcon';
+import { setFavoriteMeta, selectRecents, selectFavorites } from '@/store/slices/userMetaSlice';
+import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
+import SheetActionsMenu from '@/features/sheets/components/SheetActionsMenu';
 
 export default function SheetPage() {
   const { sheetId } = useParams<{ sheetId: string }>();
@@ -13,6 +15,14 @@ export default function SheetPage() {
   const sheet = useAppSelector(selectCurrentSheet);
   const loading = useAppSelector(selectSheetsLoading);
   const error = useAppSelector(selectSheetsError);
+  const recents = useAppSelector(selectRecents);
+  const favorites = useAppSelector(selectFavorites);
+  const { handleSheetAccessLost } = useWorkspaceAccessLost();
+
+  // Derive favorite state from userMeta
+  const isFavorite = sheetId
+    ? [...recents, ...favorites].some((item) => item.sheet.id === sheetId && item.isFavorite)
+    : false;
 
   useEffect(() => {
     if (sheetId) {
@@ -21,12 +31,12 @@ export default function SheetPage() {
     return () => { dispatch(clearCurrentSheet()); };
   }, [sheetId, dispatch]);
 
-  // Access lost handling
+  // Access lost handling — redirect on 403/404
   useEffect(() => {
     if (error && (error.includes('not found') || error.includes('Access denied'))) {
-      // Show error state - user can navigate back
+      handleSheetAccessLost(sheet?.workspaceId);
     }
-  }, [error]);
+  }, [error, handleSheetAccessLost, sheet?.workspaceId]);
 
   if (loading) {
     return (
@@ -64,7 +74,7 @@ export default function SheetPage() {
     return (
       <PageContainer fullWidth data-icod-id="src_pages_sheetpage_tsx_bae1">
         <EmptyState
-          icon={LayoutGrid}
+          icon={AlertTriangle}
           title="Sheet not found"
           description="This sheet may have been deleted or you don't have access to it."
           action={
@@ -80,29 +90,40 @@ export default function SheetPage() {
     );
   }
 
-  const breadcrumbItems = [
-    { label: 'Home', to: '/home' },
-    {
-      label: 'Workspace',
-      to: `/workspaces/${sheet.workspaceId}`,
-    },
-    { label: sheet.name },
-  ];
+  const headerActions = (
+    <div
+      className="flex items-center gap-1"
+      data-icod-id="src_pages_sheetpage_tsx_40ba">
+      <FavoritesStar
+        isFavorite={isFavorite}
+        onToggle={() => dispatch(setFavoriteMeta({ sheetId: sheet.id, starred: !isFavorite }))}
+        data-icod-id="src_pages_sheetpage_tsx_e1c1" />
+      {sheet.userRole && (
+        <SheetActionsMenu
+          sheetId={sheet.id}
+          sheetName={sheet.name}
+          userRole={sheet.userRole}
+          hideOpen
+          data-icod-id="src_pages_sheetpage_tsx_29a1" />
+      )}
+    </div>
+  );
 
   return (
     <PageContainer fullWidth data-icod-id="src_pages_sheetpage_tsx_ffe8">
-      <Breadcrumbs items={breadcrumbItems} data-icod-id="src_pages_sheetpage_tsx_86ae" />
       <PageHeader
         icon={<SheetIcon className="h-6 w-6" data-icod-id="src_pages_sheetpage_tsx_c2ef" />}
         title={sheet.name}
-        description={`Created by ${typeof sheet.createdBy === 'string' ? sheet.createdBy : sheet.createdBy.fullName}`}
+        description={sheet.workspaceName || 'Workspace'}
+        actions={headerActions}
         data-icod-id="src_pages_sheetpage_tsx_272d" />
-      {/* Sheet content placeholder — grid feature comes in next step */}
-      <EmptyState
-        icon={LayoutGrid}
-        title="Sheet is ready"
-        description="The spreadsheet grid will be rendered here in the next iteration."
-        data-icod-id="src_pages_sheetpage_tsx_c025" />
+      <div
+        className="flex h-64 items-center justify-center"
+        data-icod-id="src_pages_sheetpage_tsx_cb9e">
+        <p
+          className="text-sm text-muted-foreground"
+          data-icod-id="src_pages_sheetpage_tsx_09c2">This sheet is empty.</p>
+      </div>
     </PageContainer>
   );
 }

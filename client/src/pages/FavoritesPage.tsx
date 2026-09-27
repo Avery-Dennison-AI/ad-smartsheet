@@ -1,12 +1,11 @@
 import { useEffect } from 'react';
 import { Star, Table2 } from 'lucide-react';
-import { EmptyState, PageHeader, PageContainer, Card, DataTable, Spinner } from '@/components/ui';
+import { EmptyState, PageHeader, PageContainer, Card, DataTable, Spinner, FavoritesStar, RelativeTime } from '@/components/ui';
 import type { DataTableColumn } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchFavorites, selectFavorites, selectUserMetaLoading, toggleFavoriteMeta } from '@/store/slices/userMetaSlice';
+import { fetchFavorites, selectFavorites, selectUserMetaLoading, setFavoriteMeta } from '@/store/slices/userMetaSlice';
 import type { SheetMetaItem } from '@/types';
-import FavoritesStar from '@/components/shared/FavoritesStar';
-import RelativeTime from '@/components/shared/RelativeTime';
+
 
 export default function FavoritesPage() {
   const dispatch = useAppDispatch();
@@ -61,7 +60,7 @@ export default function FavoritesPage() {
           data-icod-id="src_pages_favoritespage_tsx_140c">
           <FavoritesStar
             isFavorite={row.isFavorite}
-            onToggle={() => dispatch(toggleFavoriteMeta(row.sheet.id))}
+            onToggle={() => dispatch(setFavoriteMeta({ sheetId: row.sheet.id, starred: !row.isFavorite }))}
             size="sm"
             data-icod-id="src_pages_favoritespage_tsx_358b" />
         </div>

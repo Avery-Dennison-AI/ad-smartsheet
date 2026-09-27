@@ -41,4 +41,7 @@ export { default as WorkspaceIcon } from './WorkspaceIcon';
 export { default as ColorPicker, WORKSPACE_COLORS, type ColorPickerProps } from './ColorPicker';
 export { default as UserPicker, type UserPickerProps, type UserOption } from './UserPicker';
 export { default as RoleMenu, type RoleMenuProps, type RoleValue } from './RoleMenu';
+export { default as FavoritesStar } from './FavoritesStar';
+export { default as RelativeTime, formatRelative } from './RelativeTime';
+export { default as SheetIcon } from './SheetIcon';
 export { type ModalSize } from './Modal';

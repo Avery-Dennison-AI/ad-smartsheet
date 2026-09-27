@@ -55,7 +55,8 @@ export const getFavorites = asyncHandler(async (req: Request, res: Response) => 
 });
 
 /** POST /api/sheets/:sheetId/favorite */
-export const toggleFavorite = asyncHandler(async (req: Request, res: Response) => {
-  const result = await sheetService.toggleFavorite(req.params.sheetId, req.user!.id);
+export const setFavorite = asyncHandler(async (req: Request, res: Response) => {
+  const { starred } = req.body;
+  const result = await sheetService.setFavorite(req.params.sheetId, req.user!.id, starred);
   sendSuccess(res, result);
 });

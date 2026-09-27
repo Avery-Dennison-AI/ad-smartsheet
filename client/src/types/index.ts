@@ -88,6 +88,8 @@ export interface Sheet {
   createdBy: SheetCreatedBy;
   createdAt: string;
   updatedAt: string;
+  workspaceName?: string;
+  userRole?: WorkspaceRole;
 }
 
 export interface SheetMetaItem {

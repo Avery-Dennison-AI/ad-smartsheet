@@ -48,11 +48,14 @@ router.delete(
   sheetController.deleteSheet,
 );
 
-// POST /api/sheets/:sheetId/favorite — toggle favorite
+// POST /api/sheets/:sheetId/favorite — set favorite status
 router.post(
   '/:sheetId/favorite',
-  validate([mongoId('sheetId')]),
-  sheetController.toggleFavorite,
+  validate([
+    mongoId('sheetId'),
+    body('starred').isBoolean().withMessage('starred must be a boolean'),
+  ]),
+  sheetController.setFavorite,
 );
 
 export default router;

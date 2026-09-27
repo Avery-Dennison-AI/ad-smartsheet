@@ -25,8 +25,8 @@ export function deleteSheet(sheetId: string) {
   return apiClient.delete(`/api/sheets/${sheetId}`);
 }
 
-export function toggleFavorite(sheetId: string) {
-  return apiClient.post(`/api/sheets/${sheetId}/favorite`);
+export function setFavorite(sheetId: string, starred: boolean) {
+  return apiClient.post(`/api/sheets/${sheetId}/favorite`, { starred });
 }
 
 export function getRecents(limit = 20) {
