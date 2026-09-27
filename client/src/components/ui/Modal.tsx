@@ -3,6 +3,14 @@ import { X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import Button from './Button';
 
+export type ModalSize = 'sm' | 'md' | 'lg';
+
+const modalSizeClass: Record<ModalSize, string> = {
+  sm: 'max-w-sm',
+  md: 'max-w-lg',
+  lg: 'max-w-[560px]',
+};
+
 export interface ModalProps {
   open: boolean;
   onClose: () => void;
@@ -10,6 +18,8 @@ export interface ModalProps {
   footer?: ReactNode;
   className?: string;
   children: ReactNode;
+  /** Width preset. Default 'md'. */
+  size?: ModalSize;
 }
 
 const FORM_FIELD_SELECTOR =
@@ -29,6 +39,7 @@ export default function Modal({
   footer,
   className,
   children,
+  size = 'md',
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   // Stable ref to onClose so the keydown effect never re-runs when the
@@ -107,9 +118,10 @@ export default function Modal({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative flex w-full max-w-lg flex-col gap-4 rounded-[var(--radius-lg)] border border-border',
+          'relative flex w-full flex-col gap-4 rounded-[var(--radius-lg)] border border-border',
           'bg-card p-6 text-card-foreground shadow-[var(--shadow-md)]',
           'animate-in fade-in zoom-in-95 duration-200',
+          modalSizeClass[size],
           className,
         )}
         data-icod-id="src_components_ui_modal_tsx_77d7">

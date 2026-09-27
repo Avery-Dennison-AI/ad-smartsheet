@@ -32,8 +32,9 @@ import {
   PageContainer,
   WorkspaceIcon,
   ColorPicker,
+  UserPicker,
 } from '@/components/ui';
-import type { BadgeVariant, DataTableColumn } from '@/components/ui';
+import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
 
 /* ─── Section wrapper ─────────────────────────────────────────────────────── */
@@ -534,6 +535,17 @@ export default function DesignSystemPage() {
             checked={toggleOn}
             onChange={(e) => setToggleOn(e.target.checked)}
             data-icod-id="src_pages_designsystempage_tsx_fd1e" />
+          {/* UserPicker demo */}
+          <div className="space-y-3 pt-2" data-icod-id="ds_userpicker_demo">
+            <span className="text-sm font-medium text-foreground" data-icod-id="ds_userpicker_label">UserPicker</span>
+            <UserPickerDemoIdle data-icod-id="ds_userpicker_idle" />
+            <UserPickerDemoPopulated data-icod-id="ds_userpicker_populated" />
+            <p className="text-xs text-muted-foreground" data-icod-id="ds_userpicker_note">
+              The picker accepts an async <code
+              className="rounded bg-muted px-1 text-2xs"
+              data-icod-id="src_pages_designsystempage_tsx_763f">onSearch</code> prop. Results are fetched with a 300ms debounce when the query reaches 2+ characters.
+            </p>
+          </div>
         </div>
       </Section>
       {/* ─── 9. DropdownMenu ─────────────────────────────────────────────── */}
@@ -1126,5 +1138,44 @@ function ColorPickerDemo() {
         className="text-xs text-muted-foreground"
         data-icod-id="src_pages_designsystempage_tsx_bfa2">Selected: {color}</span>
     </div>
+  );
+}
+
+/* ─── UserPicker demo — idle state ────────────────────────────────────── */
+function UserPickerDemoIdle() {
+  const [value, setValue] = useState<UserOption | null>(null);
+  const mockSearch = async (_q: string): Promise<UserOption[]> => [];
+  return (
+    <UserPicker
+      value={value}
+      onChange={setValue}
+      onSearch={mockSearch}
+      containerClassName="max-w-sm"
+      data-icod-id="src_pages_designsystempage_tsx_7ef8" />
+  );
+}
+
+/* ─── UserPicker demo — populated state ───────────────────────────────── */
+const DEMO_USERS: UserOption[] = [
+  { id: '1', fullName: 'Alice Johnson', email: 'alice@example.com' },
+  { id: '2', fullName: 'Bob Smith', email: 'bob@example.com' },
+  { id: '3', fullName: 'Charlie Brown', email: 'charlie@example.com' },
+];
+
+function UserPickerDemoPopulated() {
+  const [value, setValue] = useState<UserOption | null>(DEMO_USERS[0]);
+  const mockSearch = async (q: string): Promise<UserOption[]> =>
+    DEMO_USERS.filter(
+      (u) =>
+        u.fullName.toLowerCase().includes(q.toLowerCase()) ||
+        u.email.toLowerCase().includes(q.toLowerCase()),
+    );
+  return (
+    <UserPicker
+      value={value}
+      onChange={setValue}
+      onSearch={mockSearch}
+      containerClassName="max-w-sm"
+      data-icod-id="src_pages_designsystempage_tsx_f168" />
   );
 }

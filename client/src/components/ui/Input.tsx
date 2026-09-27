@@ -4,8 +4,8 @@ import { cn } from '@/utils/cn';
 export type InputSize = 'sm' | 'md';
 
 const sizeStyles: Record<InputSize, string> = {
-  sm: 'h-7 py-1.5 text-xs px-2',
-  md: 'h-8 py-2 text-sm px-3',
+  sm: 'h-7 text-xs px-2',
+  md: 'h-8 text-sm px-3',
 };
 
 const iconPaddingClass: Record<InputSize, string> = {
@@ -24,7 +24,7 @@ const rightIconPaddingClass: Record<InputSize, string> = {
  */
 export function inputClass(className?: string, size: InputSize = 'md'): string {
   return cn(
-    'w-full rounded-[var(--radius-sm)] border border-border bg-card py-2 text-foreground',
+    'w-full rounded-[var(--radius-sm)] border border-border bg-card text-foreground leading-tight',
     'placeholder:text-muted-foreground/70 transition-colors duration-150 ease-in-out',
     'focus:border-primary focus:outline-none focus:shadow-[var(--focus-ring)]',
     'disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground',
@@ -46,17 +46,19 @@ export interface InputProps extends Omit<ComponentPropsWithoutRef<'input'>, 'siz
   rightIcon?: ReactNode;
   /** Size variant. Default 'md'. */
   size?: InputSize;
+  /** Extra classes applied to the outermost wrapper div. */
+  containerClassName?: string;
 }
 
 /** Text input with optional label, helper text, and error state. */
 const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, helperText, error, className, id, leftIcon, rightIcon, size = 'md', ...rest },
+  { label, helperText, error, className, id, leftIcon, rightIcon, size = 'md', containerClassName, ...rest },
   ref,
 ) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
   return (
     <div
-      className="flex flex-col gap-1.5"
+      className={cn('flex flex-col gap-1.5', containerClassName)}
       data-icod-id="src_components_ui_input_tsx_3df0">
       {label && (
         <label

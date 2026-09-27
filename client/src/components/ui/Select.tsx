@@ -9,17 +9,19 @@ export interface SelectProps extends Omit<ComponentPropsWithoutRef<'select'>, 's
   error?: string;
   /** Size variant. Default 'md'. */
   size?: InputSize;
+  /** Extra classes applied to the outermost wrapper div. */
+  containerClassName?: string;
 }
 
 /** Native select styled to match Input. */
 const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, helperText, error, className, id, children, size = 'md', ...rest },
+  { label, helperText, error, className, id, children, size = 'md', containerClassName, ...rest },
   ref,
 ) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
   return (
     <div
-      className="flex flex-col gap-1.5"
+      className={cn('flex flex-col gap-1.5', containerClassName)}
       data-icod-id="src_components_ui_select_tsx_c0ee">
       {label && (
         <label
