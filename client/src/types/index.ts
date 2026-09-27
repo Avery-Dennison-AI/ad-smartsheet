@@ -53,8 +53,10 @@ export interface InvitationPreview {
 
 export type WorkspaceRole = 'owner' | 'admin' | 'editor' | 'viewer';
 
+export type WorkspaceColor = 'teal' | 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'gray';
+
 export interface WorkspaceMember {
-  user: { _id: string; name: string; email: string };
+  user: { _id: string; fullName: string; email: string };
   role: WorkspaceRole;
 }
 
@@ -62,7 +64,7 @@ export interface Workspace {
   _id: string;
   name: string;
   description?: string;
-  color: string;
+  color: WorkspaceColor;
   owner: string; // user id
   members: WorkspaceMember[];
   createdAt: string;

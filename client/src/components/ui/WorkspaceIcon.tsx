@@ -1,4 +1,5 @@
 import { cn } from '@/utils/cn';
+import { workspaceColorValue } from '@/utils/workspaceColors';
 
 interface WorkspaceIconProps {
   name: string;
@@ -10,6 +11,7 @@ interface WorkspaceIconProps {
 /** A small rounded square showing a workspace's first letter in its brand color. */
 export default function WorkspaceIcon({ name, color, size = 'sm', className }: WorkspaceIconProps) {
   const letter = name.charAt(0).toUpperCase();
+  const resolvedColor = workspaceColorValue(color);
 
   const sizeClasses = size === 'sm' ? 'h-5 w-5 text-2xs' : 'h-8 w-8 text-sm';
 
@@ -21,8 +23,8 @@ export default function WorkspaceIcon({ name, color, size = 'sm', className }: W
         className,
       )}
       style={{
-        backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`,
-        color,
+        backgroundColor: `color-mix(in srgb, ${resolvedColor} 15%, transparent)`,
+        color: resolvedColor,
       }}
       data-icod-id="src_components_ui_workspaceicon_tsx_1188">
       {letter}

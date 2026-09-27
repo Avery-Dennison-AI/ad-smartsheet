@@ -3,14 +3,16 @@ import mongoose, { Schema, Document } from 'mongoose';
 export type WorkspaceRole = 'owner' | 'admin' | 'editor' | 'viewer';
 
 export const WORKSPACE_COLORS = [
-  '#0ea5e9',
-  '#8b5cf6',
-  '#f59e0b',
-  '#10b981',
-  '#ef4444',
-  '#f97316',
-  '#ec4899',
+  'teal',
+  'blue',
+  'green',
+  'yellow',
+  'red',
+  'purple',
+  'gray',
 ] as const;
+
+export type WorkspaceColorName = (typeof WORKSPACE_COLORS)[number];
 
 export interface WorkspaceMemberEntry {
   user: mongoose.Types.ObjectId;
@@ -20,7 +22,7 @@ export interface WorkspaceMemberEntry {
 export interface IWorkspace extends Document {
   name: string;
   description?: string;
-  color: string;
+  color: WorkspaceColorName;
   owner: mongoose.Types.ObjectId;
   members: WorkspaceMemberEntry[];
   createdAt: Date;
@@ -47,6 +49,7 @@ const workspaceSchema = new Schema<IWorkspace>(
       type: String,
       required: true,
       enum: WORKSPACE_COLORS,
+      default: 'teal',
     },
     owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     members: { type: [workspaceMemberSchema], default: [] },

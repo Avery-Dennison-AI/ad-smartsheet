@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Modal, Input, Button, Select, useToast } from '@/components/ui';
+import Avatar from '@/components/ui/Avatar';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
-import { addMember, removeMember, updateMemberRole } from '@/store/slices/workspaceSlice';
+import { addMember, removeMember, updateMemberRole, fetchWorkspaces } from '@/store/slices/workspaceSlice';
 import { searchUsers as searchUsersApi } from '@/services/workspaceService';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import WorkspaceMemberRow from './WorkspaceMemberRow';
@@ -16,12 +18,13 @@ interface ShareModalProps {
 
 interface SearchResult {
   _id: string;
-  name: string;
+  fullName: string;
   email: string;
 }
 
 export default function ShareModal({ open, onClose, workspace }: ShareModalProps) {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const user = useAppSelector(selectCurrentUser);
   const { addToast } = useToast();
 
@@ -37,9 +40,9 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
   const currentMember = workspace.members.find((m) => m.user._id === user?.id);
   const currentUserRole = currentMember?.role ?? null;
 
-  // Search effect
+  // Search effect — only fire when query is at least 2 characters
   useEffect(() => {
-    if (!open || !debouncedQuery.trim()) {
+    if (!open || debouncedQuery.trim().length < 2) {
       setSearchResults([]);
       return;
     }
@@ -61,6 +64,21 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
     return () => { cancelled = true; };
   }, [debouncedQuery, workspace._id, open]);
 
+  /** Handle access-loss errors (403/404): redirect to home */
+  function handleAccessLoss(message: string) {
+    addToast('error', message);
+    onClose();
+    dispatch(fetchWorkspaces());
+    navigate('/home', { replace: true });
+  }
+
+  /** Check if a rejected thunk payload indicates access loss */
+  function isAccessError(err: unknown): boolean {
+    const e = err as { status?: number; statusCode?: number; message?: string };
+    const status = e?.status || e?.statusCode;
+    return status === 403 || status === 404;
+  }
+
   async function handleAddMember(userId: string) {
     setAddingUserId(userId);
     try {
@@ -68,8 +86,12 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
       addToast('success', 'Member added');
       setSearchQuery('');
       setSearchResults([]);
-    } catch {
-      addToast('error', 'Failed to add member');
+    } catch (err) {
+      if (isAccessError(err)) {
+        handleAccessLoss('You no longer have access to this workspace');
+      } else {
+        addToast('error', 'Failed to add member');
+      }
     } finally {
       setAddingUserId(null);
     }
@@ -79,8 +101,12 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
     try {
       await dispatch(updateMemberRole({ workspaceId: workspace._id, memberId, role })).unwrap();
       addToast('success', 'Role updated');
-    } catch {
-      addToast('error', 'Failed to update role');
+    } catch (err) {
+      if (isAccessError(err)) {
+        handleAccessLoss('You no longer have access to this workspace');
+      } else {
+        addToast('error', 'Failed to update role');
+      }
     }
   }
 
@@ -88,8 +114,12 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
     try {
       await dispatch(removeMember({ workspaceId: workspace._id, memberId })).unwrap();
       addToast('success', 'Member removed');
-    } catch {
-      addToast('error', 'Failed to remove member');
+    } catch (err) {
+      if (isAccessError(err)) {
+        handleAccessLoss('You no longer have access to this workspace');
+      } else {
+        addToast('error', 'Failed to remove member');
+      }
     }
   }
 
@@ -141,14 +171,22 @@ export default function ShareModal({ open, onClose, workspace }: ShareModalProps
                   className="flex items-center justify-between px-3 py-2 first:rounded-t-[var(--radius-md)] last:rounded-b-[var(--radius-md)] hover:bg-muted/50"
                   data-icod-id={`src_features_workspaces_sharemodal_tsx_06cc_${result._id}`}>
                   <div
-                    className="min-w-0"
+                    className="flex items-center gap-2 min-w-0"
                     data-icod-id={`src_features_workspaces_sharemodal_tsx_dd74_${result._id}`}>
+                    <Avatar
+                      name={result.fullName}
+                      size="sm"
+                      data-icod-id={`src_features_workspaces_sharemodal_tsx_avatar_${result._id}`} />
                     <div
-                      className="truncate text-sm font-medium text-foreground"
-                      data-icod-id={`src_features_workspaces_sharemodal_tsx_9ea2_${result._id}`}>{result.name}</div>
-                    <div
-                      className="truncate text-xs text-muted-foreground"
-                      data-icod-id={`src_features_workspaces_sharemodal_tsx_c435_${result._id}`}>{result.email}</div>
+                      className="min-w-0"
+                      data-icod-id={`src_features_workspaces_sharemodal_tsx_b838_${result._id}`}>
+                      <div
+                        className="truncate text-sm font-medium text-foreground"
+                        data-icod-id={`src_features_workspaces_sharemodal_tsx_9ea2_${result._id}`}>{result.fullName}</div>
+                      <div
+                        className="truncate text-xs text-muted-foreground"
+                        data-icod-id={`src_features_workspaces_sharemodal_tsx_c435_${result._id}`}>{result.email}</div>
+                    </div>
                   </div>
                   <Button
                     variant="ghost"

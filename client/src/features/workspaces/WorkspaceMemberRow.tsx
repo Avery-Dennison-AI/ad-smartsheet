@@ -67,7 +67,7 @@ export default function WorkspaceMemberRow({
         className="flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 transition-colors hover:bg-muted/50"
         data-icod-id="src_features_workspaces_workspacememberrow_tsx_5b80">
         <Avatar
-          name={member.user.name}
+          name={member.user.fullName}
           size="sm"
           data-icod-id="src_features_workspaces_workspacememberrow_tsx_f4dc" />
         <div
@@ -75,7 +75,7 @@ export default function WorkspaceMemberRow({
           data-icod-id="src_features_workspaces_workspacememberrow_tsx_be57">
           <div
             className="truncate text-sm font-medium text-foreground"
-            data-icod-id="src_features_workspaces_workspacememberrow_tsx_2a70">{member.user.name}</div>
+            data-icod-id="src_features_workspaces_workspacememberrow_tsx_2a70">{member.user.fullName}</div>
           <div
             className="truncate text-xs text-muted-foreground"
             data-icod-id="src_features_workspaces_workspacememberrow_tsx_6db1">{member.user.email}</div>
@@ -107,7 +107,7 @@ export default function WorkspaceMemberRow({
         description={
           isSelf
             ? 'You will lose access to this workspace and all its sheets.'
-            : `${member.user.name} will lose access to this workspace.`
+            : `${member.user.fullName} will lose access to this workspace.`
         }
         confirmLabel={isSelf ? 'Leave' : 'Remove'}
         onConfirm={() => onRemove(member.user._id)}

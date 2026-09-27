@@ -1,20 +1,22 @@
 import { Check } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { workspaceColorValue } from '@/utils/workspaceColors';
+import type { WorkspaceColor } from '@/types';
 
-export const WORKSPACE_COLORS = [
-  '#0ea5e9',
-  '#8b5cf6',
-  '#f59e0b',
-  '#10b981',
-  '#ef4444',
-  '#f97316',
-  '#ec4899',
+export const WORKSPACE_COLORS: readonly WorkspaceColor[] = [
+  'teal',
+  'blue',
+  'green',
+  'yellow',
+  'red',
+  'purple',
+  'gray',
 ] as const;
 
 export interface ColorPickerProps {
-  value: string;
-  onChange: (color: string) => void;
-  colors?: readonly string[];
+  value: WorkspaceColor | string;
+  onChange: (color: WorkspaceColor) => void;
+  colors?: readonly WorkspaceColor[];
   className?: string;
 }
 
@@ -33,6 +35,7 @@ export default function ColorPicker({
       data-icod-id="src_components_ui_colorpicker_tsx_4c77">
       {colors.map((color) => {
         const selected = value === color;
+        const resolvedColor = workspaceColorValue(color);
         return (
           <button
             key={color}
@@ -46,7 +49,7 @@ export default function ColorPicker({
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               selected && 'ring-2 ring-ring ring-offset-2',
             )}
-            style={{ backgroundColor: color }}
+            style={{ backgroundColor: resolvedColor }}
             data-icod-id={`src_components_ui_colorpicker_tsx_494e_${color}`}>
             {selected && <Check
               className="h-4 w-4 text-white drop-shadow-sm"

@@ -75,8 +75,8 @@ router.get(
   validate([
     mongoId('id'),
     query('query')
-      .optional()
       .trim()
+      .isLength({ min: 2 }).withMessage('Search query must be at least 2 characters')
       .isLength({ max: 100 }).withMessage('Search query must be at most 100 characters'),
   ]),
   workspaceController.searchUsers,

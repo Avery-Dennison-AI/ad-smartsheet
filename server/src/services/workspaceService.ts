@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Workspace, { type IWorkspace, type WorkspaceRole } from '../models/Workspace';
 import User from '../models/User';
 import { AppError } from '../utils/AppError';
+import { escapeRegex } from '../utils/escapeRegex';
 
 const MEMBER_POPULATE = '_id fullName email';
 
@@ -244,8 +245,9 @@ export async function updateMemberRole(
 /** Searches for active users not already members of the workspace. Returns max 10 results. */
 export async function searchUsersToAdd(
   workspaceId: string,
+  actorId: string,
   query: string,
-): Promise<{ _id: string; name: string; email: string }[]> {
+): Promise<{ _id: string; fullName: string; email: string }[]> {
   if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
     throw new AppError('Invalid workspace ID', 400);
   }
@@ -253,9 +255,15 @@ export async function searchUsersToAdd(
   const workspace = await Workspace.findById(workspaceId).select('members');
   if (!workspace) throw new AppError('Workspace not found', 404);
 
+  // Permission check: only owner or admin can search for members
+  const actorRole = getMemberRole(workspace, actorId);
+  if (!actorRole) throw new AppError('Workspace not found', 404);
+  if (actorRole !== 'owner' && actorRole !== 'admin') {
+    throw new AppError('You do not have permission to search members for this workspace', 403);
+  }
+
   const memberIds = workspace.members.map((m) => m.user);
-  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(escapedQuery, 'i');
+  const regex = new RegExp(escapeRegex(query), 'i');
 
   const users = await User.find({
     _id: { $nin: memberIds },
@@ -270,7 +278,7 @@ export async function searchUsersToAdd(
 
   return users.map((u) => ({
     _id: u._id.toString(),
-    name: u.fullName,
+    fullName: u.fullName,
     email: u.email,
   }));
 }

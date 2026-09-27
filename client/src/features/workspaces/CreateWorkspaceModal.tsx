@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Modal, Field, Input, Textarea, Button, ColorPicker, WORKSPACE_COLORS } from '@/components/ui';
 import { useAppDispatch } from '@/store/hooks';
 import { createWorkspace as createWorkspaceThunk } from '@/store/slices/workspaceSlice';
+import type { WorkspaceColor } from '@/types';
 
 interface CreateWorkspaceModalProps {
   open: boolean;
@@ -15,7 +16,7 @@ export default function CreateWorkspaceModal({ open, onClose }: CreateWorkspaceM
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [color, setColor] = useState<string>(WORKSPACE_COLORS[0]);
+  const [color, setColor] = useState<WorkspaceColor>('teal');
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -40,7 +41,7 @@ export default function CreateWorkspaceModal({ open, onClose }: CreateWorkspaceM
   function resetForm() {
     setName('');
     setDescription('');
-    setColor(WORKSPACE_COLORS[0]);
+    setColor('teal');
   }
 
   return (

@@ -14,6 +14,7 @@ import adminUsersRouter from './routes/adminUsers';
 import workspacesRouter from './routes/workspaces';
 import { seedAdmin } from './config/seedAdmin';
 import { sendSuccess } from './utils/response';
+import Workspace, { WORKSPACE_COLORS } from './models/Workspace';
 
 // ─── Process-Level Error Handlers ──────────────────────────────────────────────
 process.on('uncaughtException', (err) => {
@@ -69,6 +70,37 @@ app.use('/api/workspaces', workspacesRouter);
 app.use(errorHandler);
 
 // ─── DB + Server Bootstrap ────────────────────────────────────────────────────
+
+/** Hex-to-palette-name mapping for one-time colour migration. */
+const HEX_TO_PALETTE: Record<string, string> = {
+  '#0ea5e9': 'blue',
+  '#14b8a6': 'teal',
+  '#22c55e': 'green',
+  '#10b981': 'green',
+  '#eab308': 'yellow',
+  '#f59e0b': 'yellow',
+  '#ef4444': 'red',
+  '#dc2626': 'red',
+  '#a855f7': 'purple',
+  '#8b5cf6': 'purple',
+  '#ec4899': 'purple',
+  '#f97316': 'yellow',
+};
+
+async function migrateWorkspaceColors(): Promise<void> {
+  const docs = await Workspace.find({ color: { $nin: [...WORKSPACE_COLORS] } }).select('_id color');
+  if (docs.length === 0) return;
+
+  let migrated = 0;
+  for (const doc of docs) {
+    const hex = (doc as unknown as { color: string }).color?.toLowerCase();
+    const paletteName = HEX_TO_PALETTE[hex] || 'gray';
+    await Workspace.updateOne({ _id: doc._id }, { $set: { color: paletteName } });
+    migrated++;
+  }
+  console.log(`[startup] Migrated ${migrated} workspace(s) from hex colours to palette names`);
+}
+
 async function start(): Promise<void> {
   try {
     console.log('[startup] Config loaded');
@@ -78,6 +110,8 @@ async function start(): Promise<void> {
 
     const seedResult = await seedAdmin();
     console.log(`[startup] Admin seed: ${seedResult}`);
+
+    await migrateWorkspaceColors();
 
     app.listen(env.PORT, () => {
       console.log(`[startup] Server listening on port ${env.PORT}`);

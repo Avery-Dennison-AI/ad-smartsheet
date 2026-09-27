@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Settings, Users, LayoutGrid } from 'lucide-react';
+import { Settings, Users, LayoutGrid, AlertTriangle } from 'lucide-react';
 import { PageContainer, EmptyState, Button, AvatarGroup, Skeleton, DropdownMenu, WorkspaceIcon, useToast } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
-import { fetchWorkspace, selectCurrentWorkspace, selectCurrentWorkspaceStatus, clearCurrentWorkspace } from '@/store/slices/workspaceSlice';
+import { fetchWorkspace, fetchWorkspaces, selectCurrentWorkspace, selectCurrentWorkspaceStatus, clearCurrentWorkspace } from '@/store/slices/workspaceSlice';
 import { ShareModal, WorkspaceSettingsModal } from '@/features/workspaces';
 
 export default function WorkspacePage() {
@@ -18,19 +18,50 @@ export default function WorkspacePage() {
 
   const [shareOpen, setShareOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (id) dispatch(fetchWorkspace(id));
-    return () => { dispatch(clearCurrentWorkspace()); };
-  }, [id, dispatch]);
-
-  // Navigate away on failure (user lost access)
-  useEffect(() => {
-    if (status === 'failed') {
-      addToast('error', 'You no longer have access to this workspace.');
-      navigate('/home', { replace: true });
+    if (id) {
+      setFetchError(null);
+      dispatch(fetchWorkspace(id))
+        .unwrap()
+        .catch((err: unknown) => {
+          const e = err as { status?: number; statusCode?: number };
+          const statusCode = e?.status || e?.statusCode;
+          if (statusCode === 403 || statusCode === 404) {
+            addToast('error', 'You no longer have access to this workspace.');
+            dispatch(fetchWorkspaces());
+            navigate('/home', { replace: true });
+          } else {
+            setFetchError('Failed to load workspace. Please try again.');
+          }
+        });
     }
-  }, [status, navigate, addToast]);
+    return () => { dispatch(clearCurrentWorkspace()); };
+  }, [id, dispatch, navigate, addToast]);
+
+  if (fetchError) {
+    return (
+      <PageContainer fullWidth data-icod-id="src_pages_workspacepage_tsx_error">
+        <EmptyState
+          icon={AlertTriangle}
+          title="Something went wrong"
+          description={fetchError}
+          action={
+            <Button
+              size="sm"
+              onClick={() => {
+                setFetchError(null);
+                if (id) dispatch(fetchWorkspace(id));
+              }}
+              data-icod-id="src_pages_workspacepage_tsx_retry">
+              Try again
+            </Button>
+          }
+          data-icod-id="src_pages_workspacepage_tsx_errstate" />
+      </PageContainer>
+    );
+  }
 
   if (status === 'loading' || !workspace) {
     return (
@@ -77,7 +108,7 @@ export default function WorkspacePage() {
 
   // Prepare avatar group items
   const avatarItems = workspace.members.slice(0, 5).map((m) => ({
-    name: m.user.name,
+    name: m.user.fullName,
   }));
 
   return (

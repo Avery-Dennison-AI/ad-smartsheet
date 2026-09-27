@@ -9,6 +9,7 @@ interface WorkspaceState {
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   currentStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
+  currentError: { status?: number; message?: string } | null;
 }
 
 const initialState: WorkspaceState = {
@@ -17,6 +18,7 @@ const initialState: WorkspaceState = {
   status: 'idle',
   currentStatus: 'idle',
   error: null,
+  currentError: null,
 };
 
 // ─── Thunks ────────────────────────────────────────────────────────────────
@@ -26,10 +28,22 @@ export const fetchWorkspaces = createAsyncThunk('workspaces/fetchAll', async () 
   return data.data as Workspace[];
 });
 
-export const fetchWorkspace = createAsyncThunk('workspaces/fetchOne', async (id: string) => {
-  const { data } = await workspaceService.getWorkspace(id);
-  return data.data as Workspace;
-});
+export const fetchWorkspace = createAsyncThunk(
+  'workspaces/fetchOne',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const { data } = await workspaceService.getWorkspace(id);
+      return data.data as Workspace;
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number; data?: { error?: string; statusCode?: number } } };
+      const status = error.response?.status;
+      if (status === 403 || status === 404) {
+        return rejectWithValue({ status, message: error.response?.data?.error || 'Access denied' });
+      }
+      throw err;
+    }
+  },
+);
 
 export const createWorkspace = createAsyncThunk(
   'workspaces/create',
@@ -85,6 +99,7 @@ const workspaceSlice = createSlice({
     clearCurrentWorkspace(state) {
       state.current = null;
       state.currentStatus = 'idle';
+      state.currentError = null;
     },
   },
   extraReducers: (builder) => {
@@ -100,14 +115,20 @@ const workspaceSlice = createSlice({
         state.error = 'Failed to load workspaces';
       })
       // fetchWorkspace
-      .addCase(fetchWorkspace.pending, (state) => { state.currentStatus = 'loading'; })
+      .addCase(fetchWorkspace.pending, (state) => {
+        state.currentStatus = 'loading';
+        state.currentError = null;
+      })
       .addCase(fetchWorkspace.fulfilled, (state, action) => {
         state.currentStatus = 'succeeded';
         state.current = action.payload;
+        state.currentError = null;
       })
-      .addCase(fetchWorkspace.rejected, (state) => {
+      .addCase(fetchWorkspace.rejected, (state, action) => {
         state.currentStatus = 'failed';
         state.current = null;
+        const payload = action.payload as { status?: number; message?: string } | undefined;
+        state.currentError = payload || { message: 'Failed to load workspace' };
       })
       // createWorkspace
       .addCase(createWorkspace.fulfilled, (state, action) => {
@@ -168,5 +189,6 @@ export const selectWorkspaceList = (state: RootState) => state.workspaces.list;
 export const selectCurrentWorkspace = (state: RootState) => state.workspaces.current;
 export const selectWorkspaceStatus = (state: RootState) => state.workspaces.status;
 export const selectCurrentWorkspaceStatus = (state: RootState) => state.workspaces.currentStatus;
+export const selectCurrentWorkspaceError = (state: RootState) => state.workspaces.currentError;
 
 export default workspaceSlice.reducer;

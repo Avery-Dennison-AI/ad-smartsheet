@@ -19,6 +19,7 @@ export interface AvatarProps {
 
 /** Deterministic hue from a name string for the background colour. */
 function nameToHue(name: string): number {
+  if (!name) return 0;
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -27,6 +28,7 @@ function nameToHue(name: string): number {
 }
 
 function getInitials(name: string): string {
+  if (!name || !name.trim()) return '?';
   const parts = name.trim().split(/\s+/);
   if (parts.length === 0 || !parts[0]) return '?';
   if (parts.length === 1) return parts[0][0].toUpperCase();
@@ -35,22 +37,39 @@ function getInitials(name: string): string {
 
 /** Shows image if src provided, else initials with deterministic background. */
 export default function Avatar({ src, name, size = 'md', className }: AvatarProps) {
+  const safeName = name || '';
+
   if (src) {
     return (
       <img
         src={src}
-        alt={name}
+        alt={safeName}
         className={cn('rounded-full object-cover', sizeClass[size], className)}
         data-icod-id="src_components_ui_avatar_tsx_f2b0" />
     );
   }
 
-  const hue = nameToHue(name);
-  const initials = getInitials(name);
+  if (!safeName) {
+    return (
+      <div
+        aria-label="Unknown user"
+        className={cn(
+          'flex items-center justify-center rounded-full bg-muted font-medium text-muted-foreground select-none',
+          sizeClass[size],
+          className,
+        )}
+        data-icod-id="src_components_ui_avatar_tsx_9019">
+        ?
+      </div>
+    );
+  }
+
+  const hue = nameToHue(safeName);
+  const initials = getInitials(safeName);
 
   return (
     <div
-      aria-label={name}
+      aria-label={safeName}
       className={cn(
         'flex items-center justify-center rounded-full font-medium text-card select-none',
         sizeClass[size],

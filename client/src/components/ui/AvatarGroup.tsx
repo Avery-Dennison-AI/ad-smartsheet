@@ -34,7 +34,7 @@ export default function AvatarGroup({
           data-icod-id={`src_components_ui_avatargroup_tsx_1046_${i}`}>
           <Avatar
             src={item.src}
-            name={item.name}
+            name={item.name || ''}
             size={size}
             data-icod-id={`src_components_ui_avatargroup_tsx_7c54_${i}`} />
         </div>

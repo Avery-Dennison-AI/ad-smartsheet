@@ -2,14 +2,21 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, Field, Input, Textarea, Button, ColorPicker, ConfirmDialog, Alert, WORKSPACE_COLORS } from '@/components/ui';
 import { useAppDispatch } from '@/store/hooks';
-import { updateWorkspace as updateWorkspaceThunk, deleteWorkspace as deleteWorkspaceThunk } from '@/store/slices/workspaceSlice';
+import { updateWorkspace as updateWorkspaceThunk, deleteWorkspace as deleteWorkspaceThunk, fetchWorkspaces } from '@/store/slices/workspaceSlice';
 import { useToast } from '@/components/ui';
-import type { Workspace } from '@/types';
+import type { Workspace, WorkspaceColor } from '@/types';
 
 interface WorkspaceSettingsModalProps {
   open: boolean;
   onClose: () => void;
   workspace: Workspace;
+}
+
+/** Check if a rejected thunk payload indicates access loss */
+function isAccessError(err: unknown): boolean {
+  const e = err as { status?: number; statusCode?: number };
+  const status = e?.status || e?.statusCode;
+  return status === 403 || status === 404;
 }
 
 export default function WorkspaceSettingsModal({ open, onClose, workspace }: WorkspaceSettingsModalProps) {
@@ -19,10 +26,17 @@ export default function WorkspaceSettingsModal({ open, onClose, workspace }: Wor
 
   const [name, setName] = useState(workspace.name);
   const [description, setDescription] = useState(workspace.description || '');
-  const [color, setColor] = useState(workspace.color);
+  const [color, setColor] = useState<WorkspaceColor>(workspace.color);
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteNameInput, setDeleteNameInput] = useState('');
+
+  function handleAccessLoss(message: string) {
+    addToast('error', message);
+    onClose();
+    dispatch(fetchWorkspaces());
+    navigate('/home', { replace: true });
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -38,8 +52,12 @@ export default function WorkspaceSettingsModal({ open, onClose, workspace }: Wor
       ).unwrap();
       addToast('success', 'Workspace settings updated');
       onClose();
-    } catch {
-      addToast('error', 'Failed to update workspace');
+    } catch (err) {
+      if (isAccessError(err)) {
+        handleAccessLoss('You no longer have access to this workspace');
+      } else {
+        addToast('error', 'Failed to update workspace');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -52,8 +70,12 @@ export default function WorkspaceSettingsModal({ open, onClose, workspace }: Wor
       setDeleteConfirmOpen(false);
       onClose();
       navigate('/home');
-    } catch {
-      addToast('error', 'Failed to delete workspace');
+    } catch (err) {
+      if (isAccessError(err)) {
+        handleAccessLoss('You no longer have access to this workspace');
+      } else {
+        addToast('error', 'Failed to delete workspace');
+      }
     }
   }
 
