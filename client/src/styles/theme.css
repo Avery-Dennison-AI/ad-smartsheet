@@ -119,11 +119,20 @@
   --shadow-md: 0 4px 16px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06);
 
   /* ─── Grid tokens ─────────────────────────────────────────────────── */
+  --grid-row-height: 34px;
+  --grid-header-height: 36px;
+  --grid-row-num-width: 52px;
+  --grid-cell-padding-x: 8px;
+  --grid-border: rgb(var(--border));
+  --grid-header-bg: var(--color-gray-50);
+  --grid-header-text: var(--color-gray-600);
+  --grid-row-hover: var(--color-gray-50);
+  --grid-selected-border: rgb(var(--primary));
+  --grid-selected-bg: rgba(15, 118, 110, 0.06);
+  --grid-range-bg: rgba(15, 118, 110, 0.10);
   --grid-row-height-compact: 32px;
   --grid-row-height-comfortable: 40px;
   --grid-cell-padding: 0 8px;
-  --grid-header-bg: var(--color-gray-50);
-  --grid-header-text: var(--color-gray-600);
   --grid-header-font-size: 12px;
   --grid-header-font-weight: 500;
   --grid-row-number-width: 48px;

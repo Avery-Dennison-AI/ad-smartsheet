@@ -1,12 +1,15 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
-import { PageContainer, PageHeader, Button, EmptyState, Spinner, SheetIcon, FavoritesStar } from '@/components/ui';
+import { PageContainer, Button, EmptyState, Spinner, SheetIcon, FavoritesStar, SaveIndicator } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSheet, selectCurrentSheet, selectSheetsLoading, selectSheetsError, selectSheetsErrorStatus, clearCurrentSheet } from '@/store/slices/sheetsSlice';
 import { setFavoriteMeta, selectRecents, selectFavorites } from '@/store/slices/userMetaSlice';
+import { fetchWorkspace, selectCurrentWorkspace } from '@/store/slices/workspaceSlice';
+import { selectGridSaving, selectGridSaveError, clearGrid } from '@/store/slices/gridSlice';
 import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 import SheetActionsMenu from '@/features/sheets/components/SheetActionsMenu';
+import SheetGrid from '@/features/sheets/grid/SheetGrid';
 
 export default function SheetPage() {
   const { sheetId } = useParams<{ sheetId: string }>();
@@ -18,6 +21,9 @@ export default function SheetPage() {
   const errorStatus = useAppSelector(selectSheetsErrorStatus);
   const recents = useAppSelector(selectRecents);
   const favorites = useAppSelector(selectFavorites);
+  const workspace = useAppSelector(selectCurrentWorkspace);
+  const saving = useAppSelector(selectGridSaving);
+  const saveError = useAppSelector(selectGridSaveError);
   const { handleSheetAccessLost, isAccessError } = useWorkspaceAccessLost();
 
   // Derive favorite state from userMeta
@@ -29,8 +35,18 @@ export default function SheetPage() {
     if (sheetId) {
       dispatch(fetchSheet(sheetId));
     }
-    return () => { dispatch(clearCurrentSheet()); };
+    return () => {
+      dispatch(clearCurrentSheet());
+      dispatch(clearGrid());
+    };
   }, [sheetId, dispatch]);
+
+  // Fetch workspace when we have the sheet (for workspace members)
+  useEffect(() => {
+    if (sheet?.workspaceId && (!workspace || workspace.id !== sheet.workspaceId)) {
+      dispatch(fetchWorkspace(sheet.workspaceId));
+    }
+  }, [sheet?.workspaceId, workspace, dispatch]);
 
   // Access lost handling — redirect on 403/404 using status code
   useEffect(() => {
@@ -98,8 +114,12 @@ export default function SheetPage() {
 
   const headerActions = (
     <div
-      className="flex items-center gap-1"
+      className="flex items-center gap-2"
       data-icod-id="src_pages_sheetpage_tsx_40ba">
+      <SaveIndicator
+        saving={saving}
+        error={saveError}
+        data-icod-id="src_pages_sheetpage_tsx_712e" />
       <FavoritesStar
         isFavorite={isFavorite}
         onToggle={() => dispatch(setFavoriteMeta({ sheetId: sheet.id, starred: !isFavorite }))}
@@ -116,20 +136,38 @@ export default function SheetPage() {
   );
 
   return (
-    <PageContainer fullWidth data-icod-id="src_pages_sheetpage_tsx_ffe8">
-      <PageHeader
-        icon={<SheetIcon className="h-6 w-6" data-icod-id="src_pages_sheetpage_tsx_c2ef" />}
-        title={sheet.name}
-        description={sheet.workspaceName || 'Workspace'}
-        actions={headerActions}
-        data-icod-id="src_pages_sheetpage_tsx_272d" />
+    <div className="flex h-full flex-col overflow-hidden" data-icod-id="src_pages_sheetpage_tsx_ffe8">
       <div
-        className="flex h-64 items-center justify-center"
-        data-icod-id="src_pages_sheetpage_tsx_cb9e">
-        <p
-          className="text-sm text-muted-foreground"
-          data-icod-id="src_pages_sheetpage_tsx_09c2">This sheet is empty.</p>
+        className="shrink-0 px-6 pt-4 pb-2"
+        data-icod-id="src_pages_sheetpage_tsx_0556">
+        <div
+          className="flex items-start justify-between gap-4"
+          data-icod-id="src_pages_sheetpage_tsx_65dd">
+          <div
+            className="flex items-center gap-3 min-w-0"
+            data-icod-id="src_pages_sheetpage_tsx_2f46">
+            <SheetIcon className="h-6 w-6 shrink-0" data-icod-id="src_pages_sheetpage_tsx_c2ef" />
+            <div className="min-w-0" data-icod-id="src_pages_sheetpage_tsx_7366">
+              <h1
+                className="truncate text-lg font-semibold text-foreground"
+                data-icod-id="src_pages_sheetpage_tsx_1115">{sheet.name}</h1>
+              <p
+                className="truncate text-xs text-muted-foreground"
+                data-icod-id="src_pages_sheetpage_tsx_16df">{sheet.workspaceName || 'Workspace'}</p>
+            </div>
+          </div>
+          <div className="shrink-0" data-icod-id="src_pages_sheetpage_tsx_bf75">{headerActions}</div>
+        </div>
       </div>
-    </PageContainer>
+      <div
+        className="flex-1 overflow-hidden border-t border-border"
+        data-icod-id="src_pages_sheetpage_tsx_4a23">
+        <SheetGrid
+          sheetId={sheet.id}
+          userRole={sheet.userRole || 'viewer'}
+          workspaceMembers={workspace?.members}
+          data-icod-id="src_pages_sheetpage_tsx_d329" />
+      </div>
+    </div>
   );
 }

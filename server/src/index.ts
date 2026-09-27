@@ -15,6 +15,7 @@ import workspacesRouter from './routes/workspaces';
 import workspaceSheetsRouter from './routes/workspaceSheets';
 import sheetsRouter from './routes/sheets';
 import userSheetsRouter from './routes/userSheets';
+import gridRouter from './routes/grid';
 import { seedAdmin } from './config/seedAdmin';
 import { migrateWorkspaceColors } from './config/migrations';
 import { sendSuccess } from './utils/response';
@@ -47,7 +48,7 @@ if (apiOrigin) corsOrigins.push(apiOrigin);
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(helmet());
 app.use(cookieParser());
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '50kb' }));
 
 // ─── Static Uploads ───────────────────────────────────────────────────────────
 app.use('/api/uploads', express.static(UPLOADS_DIR));
@@ -70,6 +71,7 @@ app.use('/api/admin', adminUsersRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/workspaces', workspaceSheetsRouter);
 app.use('/api/sheets', sheetsRouter);
+app.use('/api/sheets/:sheetId/grid', gridRouter);
 app.use('/api/user', userSheetsRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────

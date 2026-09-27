@@ -107,3 +107,34 @@ export interface SheetMetaItem {
   isFavorite: boolean;
 }
 
+// ─── Grid Types ──────────────────────────────────────────────────────────────
+
+export type ColumnType = 'text' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'contact';
+
+export interface DropdownOption {
+  label: string;
+  color: string;
+}
+
+export interface Column {
+  id: string;
+  name: string;
+  type: ColumnType;
+  isPrimary: boolean;
+  order: number;
+  options?: DropdownOption[];
+}
+
+export interface GridRow {
+  id: string;
+  order: number;
+  cells: Record<string, string | number | boolean | null>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GridState {
+  columns: Column[];
+  rows: GridRow[];
+}
+

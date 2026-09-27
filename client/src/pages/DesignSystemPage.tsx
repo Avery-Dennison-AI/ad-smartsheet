@@ -37,6 +37,9 @@ import {
   FavoritesStar,
   RelativeTime,
   SheetIcon,
+  DatePicker,
+  Pill,
+  SaveIndicator,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { RoleValue } from '@/components/ui/RoleMenu';
@@ -1168,6 +1171,73 @@ export default function DesignSystemPage() {
               <SheetIcon data-icod-id="ds_shared_sheeticon_default" />
               <SheetIcon className="h-6 w-6" data-icod-id="ds_shared_sheeticon_lg" />
               <SheetIcon className="h-8 w-8" data-icod-id="ds_shared_sheeticon_xl" />
+            </div>
+          </div>
+          {/* DatePicker */}
+          <div data-icod-id="ds_shared_datepicker">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_datepicker_label">DatePicker — native date input styled with tokens</span>
+            <div className="flex items-center gap-4" data-icod-id="ds_shared_datepicker_row">
+              <DatePicker
+                value=""
+                onChange={() => {}}
+                data-icod-id="src_pages_designsystempage_tsx_2b9a" />
+              <DatePicker
+                value="2025-01-15"
+                onChange={() => {}}
+                data-icod-id="src_pages_designsystempage_tsx_30af" />
+              <DatePicker
+                value="2025-06-01"
+                onChange={() => {}}
+                disabled
+                data-icod-id="src_pages_designsystempage_tsx_3eca" />
+            </div>
+          </div>
+          {/* Pill */}
+          <div data-icod-id="ds_shared_pill">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_pill_label">Pill — colored status labels</span>
+            <div className="flex flex-wrap items-center gap-2" data-icod-id="ds_shared_pill_row">
+              <Pill
+                label="Not Started"
+                color="gray"
+                data-icod-id="src_pages_designsystempage_tsx_ef5e" />
+              <Pill
+                label="In Progress"
+                color="blue"
+                data-icod-id="src_pages_designsystempage_tsx_92e8" />
+              <Pill
+                label="Complete"
+                color="green"
+                data-icod-id="src_pages_designsystempage_tsx_0be2" />
+              <Pill
+                label="Blocked"
+                color="red"
+                data-icod-id="src_pages_designsystempage_tsx_e175" />
+              <Pill
+                label="Review"
+                color="yellow"
+                data-icod-id="src_pages_designsystempage_tsx_ac7d" />
+              <Pill
+                label="Feature"
+                color="purple"
+                data-icod-id="src_pages_designsystempage_tsx_aff5" />
+            </div>
+          </div>
+          {/* SaveIndicator */}
+          <div data-icod-id="ds_shared_saveindicator">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_si_label">SaveIndicator — saving, saved, and error states</span>
+            <div className="flex items-center gap-6" data-icod-id="ds_shared_si_row">
+              <SaveIndicator
+                saving={true}
+                error={null}
+                data-icod-id="src_pages_designsystempage_tsx_fb3d" />
+              <SaveIndicator
+                saving={false}
+                error={null}
+                data-icod-id="src_pages_designsystempage_tsx_0604" />
+              <SaveIndicator
+                saving={false}
+                error="Failed to save"
+                data-icod-id="src_pages_designsystempage_tsx_c9da" />
             </div>
           </div>
         </div>

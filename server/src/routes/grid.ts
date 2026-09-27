@@ -1,0 +1,111 @@
+import { Router } from 'express';
+import { body, param } from 'express-validator';
+import { requireAuth } from '../middleware/authMiddleware';
+import { validate } from '../utils/validate';
+import * as gridController from '../controllers/gridController';
+
+const router = Router({ mergeParams: true });
+
+// All routes require authentication
+router.use(requireAuth);
+
+const mongoId = (field: string) =>
+  param(field).isMongoId().withMessage(`Invalid ${field} ID`);
+
+// ─── Grid endpoints ──────────────────────────────────────────────────────
+
+// GET /api/sheets/:sheetId/grid — get columns + rows
+router.get(
+  '/',
+  validate([mongoId('sheetId')]),
+  gridController.getGrid,
+);
+
+// POST /api/sheets/:sheetId/grid/columns — add column
+router.post(
+  '/columns',
+  validate([
+    mongoId('sheetId'),
+    body('name')
+      .trim()
+      .notEmpty().withMessage('Column name is required')
+      .isLength({ min: 1, max: 100 }).withMessage('Name must be between 1 and 100 characters'),
+    body('type')
+      .isIn(['text', 'number', 'date', 'dropdown', 'checkbox', 'contact'])
+      .withMessage('Invalid column type'),
+    body('position').optional().isInt({ min: 0 }).withMessage('Position must be a non-negative integer'),
+  ]),
+  gridController.addColumn,
+);
+
+// PATCH /api/sheets/:sheetId/grid/columns/:columnId — update column
+router.patch(
+  '/columns/:columnId',
+  validate([
+    mongoId('sheetId'),
+    param('columnId').notEmpty().withMessage('Column ID is required'),
+    body('name').optional().trim().isLength({ min: 1, max: 100 }),
+    body('type').optional().isIn(['text', 'number', 'date', 'dropdown', 'checkbox', 'contact']),
+  ]),
+  gridController.updateColumn,
+);
+
+// DELETE /api/sheets/:sheetId/grid/columns/:columnId — delete column
+router.delete(
+  '/columns/:columnId',
+  validate([
+    mongoId('sheetId'),
+    param('columnId').notEmpty().withMessage('Column ID is required'),
+  ]),
+  gridController.deleteColumn,
+);
+
+// PATCH /api/sheets/:sheetId/grid/columns/reorder — reorder columns
+router.patch(
+  '/columns/reorder',
+  validate([
+    mongoId('sheetId'),
+    body('orderedIds').isArray({ min: 1 }).withMessage('orderedIds must be a non-empty array'),
+  ]),
+  gridController.reorderColumns,
+);
+
+// POST /api/sheets/:sheetId/grid/rows — add row
+router.post(
+  '/rows',
+  validate([mongoId('sheetId')]),
+  gridController.addRow,
+);
+
+// PATCH /api/sheets/:sheetId/grid/rows/:rowId/cells/:columnId — update cell
+router.patch(
+  '/rows/:rowId/cells/:columnId',
+  validate([
+    mongoId('sheetId'),
+    mongoId('rowId'),
+    param('columnId').notEmpty().withMessage('Column ID is required'),
+  ]),
+  gridController.updateCell,
+);
+
+// DELETE /api/sheets/:sheetId/grid/rows — delete rows
+router.delete(
+  '/rows',
+  validate([
+    mongoId('sheetId'),
+    body('rowIds').isArray({ min: 1 }).withMessage('rowIds must be a non-empty array'),
+  ]),
+  gridController.deleteRows,
+);
+
+// PATCH /api/sheets/:sheetId/grid/rows/reorder — reorder rows
+router.patch(
+  '/rows/reorder',
+  validate([
+    mongoId('sheetId'),
+    body('orderedIds').isArray({ min: 1 }).withMessage('orderedIds must be a non-empty array'),
+  ]),
+  gridController.reorderRows,
+);
+
+export default router;

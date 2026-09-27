@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Sheet, { type ISheet } from '../models/Sheet';
+import Row from '../models/Row';
 import UserSheetMeta, { type IUserSheetMeta } from '../models/UserSheetMeta';
 import Workspace, { type IWorkspace } from '../models/Workspace';
 import { getMemberRole } from './workspaceService';
@@ -214,16 +215,31 @@ export async function duplicateSheet(sheetId: string, userId: string) {
     workspaceId: sheet.workspaceId,
     name: copyName,
     createdBy: new mongoose.Types.ObjectId(userId),
+    columns: sheet.columns || [],
   });
+
+  // Copy all rows from the original sheet
+  const sourceRows = await Row.find({ sheetId: sheet._id }).sort({ order: 1 });
+  if (sourceRows.length > 0) {
+    const newRows = sourceRows.map((r) => ({
+      sheetId: newSheet._id,
+      order: r.order,
+      cells: r.cells || {},
+    }));
+    await Row.insertMany(newRows);
+  }
 
   const populated = await Sheet.findById(newSheet._id).populate('createdBy', CREATED_BY_POPULATE);
   if (!populated) throw new AppError('Failed to duplicate sheet', 500);
   return formatSheet(populated);
 }
 
-/** Deletes a sheet and its associated user meta. Requires admin/owner membership. */
+/** Deletes a sheet and its associated user meta and rows. Requires admin/owner membership. */
 export async function deleteSheet(sheetId: string, userId: string) {
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'admin');
+
+  // Delete all rows for this sheet
+  await Row.deleteMany({ sheetId: sheet._id });
 
   await Sheet.findByIdAndDelete(sheet._id);
   await UserSheetMeta.deleteMany({ sheetId: sheet._id });
@@ -231,12 +247,21 @@ export async function deleteSheet(sheetId: string, userId: string) {
   return { deleted: true, sheetId: sheet._id.toString() };
 }
 
-/** Deletes all sheets and user meta for a workspace. Called internally during workspace deletion. */
+/** Deletes all sheets, rows, and user meta for a workspace. Called internally during workspace deletion. */
 export async function deleteSheetsByWorkspace(workspaceId: string): Promise<void> {
   if (!mongoose.Types.ObjectId.isValid(workspaceId)) return;
 
-  await Sheet.deleteMany({ workspaceId: new mongoose.Types.ObjectId(workspaceId) });
-  await UserSheetMeta.deleteMany({ workspaceId: new mongoose.Types.ObjectId(workspaceId) });
+  const wsObjectId = new mongoose.Types.ObjectId(workspaceId);
+
+  // Delete all rows for all sheets in this workspace
+  const sheets = await Sheet.find({ workspaceId: wsObjectId }).select('_id');
+  const sheetIds = sheets.map((s) => s._id);
+  if (sheetIds.length > 0) {
+    await Row.deleteMany({ sheetId: { $in: sheetIds } });
+  }
+
+  await Sheet.deleteMany({ workspaceId: wsObjectId });
+  await UserSheetMeta.deleteMany({ workspaceId: wsObjectId });
 }
 
 /** Returns recently opened sheets for the user. */
