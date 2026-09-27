@@ -327,7 +327,27 @@ export function useGridSelection({
           break;
         }
         case 'Tab': {
-          // Do not preventDefault on Tab — let focus move normally outside the grid
+          e.preventDefault();
+          if (e.shiftKey) {
+            // Shift+Tab: move one column to the left, wrap to previous row
+            const newCol = colIdx - 1;
+            if (newCol >= 0) {
+              setActiveCell({ rowIdx, colIdx: newCol });
+            } else {
+              const newRow = Math.max(0, rowIdx - 1);
+              setActiveCell({ rowIdx: newRow, colIdx: colCount - 1 });
+            }
+          } else {
+            // Tab: move one column to the right, wrap to next row
+            const newCol = colIdx + 1;
+            if (newCol < colCount) {
+              setActiveCell({ rowIdx, colIdx: newCol });
+            } else {
+              const newRow = Math.min(rowCount - 1, rowIdx + 1);
+              setActiveCell({ rowIdx: newRow, colIdx: 0 });
+            }
+          }
+          setSelectionRange(null);
           break;
         }
         case 'Enter': {

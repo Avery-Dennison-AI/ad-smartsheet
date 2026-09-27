@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Search, Settings, Trash2, Copy, Plus, Home, Clock, Bold, Italic, Underline, Strikethrough, Eraser } from 'lucide-react';
 import {
   Button,
@@ -39,6 +39,7 @@ import {
   RelativeTime,
   SheetIcon,
   DatePicker,
+  CalendarDatePicker,
   Pill,
   SaveIndicator,
   ToggleButton,
@@ -1198,6 +1199,11 @@ export default function DesignSystemPage() {
                 data-icod-id="src_pages_designsystempage_tsx_3eca" />
             </div>
           </div>
+          {/* CalendarDatePicker */}
+          <div data-icod-id="ds_shared_calendardatepicker">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_calendardatepicker_label">CalendarDatePicker — floating calendar popover</span>
+            <CalendarDatePickerDemo data-icod-id="ds_shared_calendardatepicker_instance" />
+          </div>
           {/* Pill */}
           <div data-icod-id="ds_shared_pill">
             <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_pill_label">Pill — colored status labels</span>
@@ -1447,7 +1453,8 @@ function ToolbarDemo() {
     <Toolbar data-icod-id="src_pages_designsystempage_tsx_4d1c">
       <ToolbarGroup data-icod-id="src_pages_designsystempage_tsx_4c6c">
         <select
-          className={inputClass('w-28 h-6 text-xs py-0')}
+          className={inputClass('h-7 text-xs py-0')}
+          style={{ minWidth: '140px', width: '140px' }}
           value={fontFamily}
           onChange={(e) => setFontFamily(e.target.value)}
           aria-label="Font family"
@@ -1458,15 +1465,21 @@ function ToolbarDemo() {
           <option value="Courier New" data-icod-id="src_pages_designsystempage_tsx_8a90">Courier New</option>
         </select>
         <select
-          className={inputClass('w-14 h-6 text-xs py-0')}
+          className={inputClass('h-7 text-xs py-0')}
+          style={{ minWidth: '72px', width: '72px' }}
           value={fontSize}
           onChange={(e) => setFontSize(e.target.value)}
           aria-label="Font size"
           data-icod-id="src_pages_designsystempage_tsx_bbac">
           <option value="" data-icod-id="src_pages_designsystempage_tsx_3af0">Auto</option>
-          <option value="12" data-icod-id="src_pages_designsystempage_tsx_63c3">12px</option>
-          <option value="14" data-icod-id="src_pages_designsystempage_tsx_0aa3">14px</option>
-          <option value="16" data-icod-id="src_pages_designsystempage_tsx_0150">16px</option>
+          <option value="10" data-icod-id="ds_toolbar_size_10">10</option>
+          <option value="11" data-icod-id="ds_toolbar_size_11">11</option>
+          <option value="12" data-icod-id="src_pages_designsystempage_tsx_63c3">12</option>
+          <option value="13" data-icod-id="ds_toolbar_size_13">13</option>
+          <option value="14" data-icod-id="src_pages_designsystempage_tsx_0aa3">14</option>
+          <option value="16" data-icod-id="src_pages_designsystempage_tsx_0150">16</option>
+          <option value="18" data-icod-id="ds_toolbar_size_18">18</option>
+          <option value="20" data-icod-id="ds_toolbar_size_20">20</option>
         </select>
       </ToolbarGroup>
       <ToolbarGroup data-icod-id="src_pages_designsystempage_tsx_b98b">
@@ -1509,5 +1522,45 @@ function ToolbarDemo() {
       </ToolbarGroup>
       <div className="flex-1" data-icod-id="src_pages_designsystempage_tsx_3702" />
     </Toolbar>
+  );
+}
+
+/* ─── CalendarDatePicker interactive demo ─────────────────────────────── */
+function CalendarDatePickerDemo() {
+  const [date, setDate] = useState<string | null>('2025-01-15');
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div
+      className="flex items-center gap-4"
+      data-icod-id="src_pages_designsystempage_tsx_627b">
+      <div
+        ref={anchorRef}
+        className="relative"
+        data-icod-id="src_pages_designsystempage_tsx_7805">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setOpen(!open)}
+          data-icod-id="src_pages_designsystempage_tsx_4971">
+          {date ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pick a date'}
+        </Button>
+        {open && (
+          <CalendarDatePicker
+            value={date}
+            onChange={(val) => {
+              setDate(val);
+              setOpen(false);
+            }}
+            onClose={() => setOpen(false)}
+            anchorRef={anchorRef}
+            data-icod-id="src_pages_designsystempage_tsx_460a" />
+        )}
+      </div>
+      <span
+        className="text-xs text-muted-foreground"
+        data-icod-id="src_pages_designsystempage_tsx_9310">Selected: {date ?? 'none'}</span>
+    </div>
   );
 }

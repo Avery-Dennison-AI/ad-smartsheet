@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { Bold, Italic, Underline, Strikethrough, Eraser } from 'lucide-react';
 import { Toolbar, ToolbarGroup, ToggleButton, IconButton, inputClass } from '@/components/ui';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { applyFormatting, selectCellFormatting, selectColumnFormatting } from '@/store/slices/gridSlice';
+import { useAppDispatch } from '@/store/hooks';
+import { applyFormatting } from '@/store/slices/gridSlice';
 import type { CellFormatting, Column, GridRow, WorkspaceRole } from '@/types';
 
 interface FormattingToolbarProps {
@@ -27,6 +27,19 @@ const FONT_FAMILIES = [
 
 const FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20];
 
+/**
+ * Merges column-level formatting with cell-level formatting.
+ * Column formatting is the base; cell formatting overrides.
+ */
+function getEffectiveFormatting(
+  cellFmt: CellFormatting,
+  colFmt: CellFormatting,
+): CellFormatting {
+  if (!colFmt || Object.keys(colFmt).length === 0) return cellFmt;
+  if (!cellFmt || Object.keys(cellFmt).length === 0) return colFmt;
+  return { ...colFmt, ...cellFmt };
+}
+
 export default function FormattingToolbar({
   sheetId,
   userRole,
@@ -40,45 +53,109 @@ export default function FormattingToolbar({
 }: FormattingToolbarProps) {
   const dispatch = useAppDispatch();
 
-  // Determine the effective formatting to display in the toolbar
-  // Priority: if a single column is selected (no rows), show column formatting.
-  // Otherwise show cell formatting for the active cell.
+  // Determine selection mode
   const isColumnOnlySelection = selectedColumns.size > 0 && selectedRows.size === 0 && !activeCell && selectedCells.length === 0;
 
-  // For column-only selection, read column formatting
-  const singleSelectedColId = useMemo(() => {
-    if (selectedColumns.size !== 1) return null;
-    const idx = [...selectedColumns][0];
-    return columns[idx]?.id ?? null;
-  }, [selectedColumns, columns]);
+  // ─── Compute effective formatting for all selected cells ──────────────
 
-  const colFmt = useAppSelector((state) =>
-    singleSelectedColId ? selectColumnFormatting(state, singleSelectedColId) : {},
-  );
+  // Collect effective formatting for each selected cell
+  const allEffectiveFmts = useMemo((): CellFormatting[] => {
+    if (isColumnOnlySelection) {
+      // For column-only selection, we just look at column formatting
+      const fmts: CellFormatting[] = [];
+      for (const colIdx of selectedColumns) {
+        const col = columns[colIdx];
+        if (col) {
+          fmts.push(col.formatting ?? {});
+        }
+      }
+      return fmts;
+    }
 
-  // Read formatting for the active cell
-  const cellFmt = useAppSelector((state) =>
-    activeCell ? selectCellFormatting(state, activeCell.rowId, activeCell.columnId) : {},
-  );
+    // Build set of target cells
+    const targets: Array<{ rowId: string; columnId: string }> = [];
+    if (selectedRows.size > 0) {
+      for (const rowIdx of selectedRows) {
+        const row = rows[rowIdx];
+        if (!row) continue;
+        for (const col of columns) {
+          targets.push({ rowId: row.id, columnId: col.id });
+        }
+      }
+    } else if (selectedCells.length > 0) {
+      targets.push(...selectedCells);
+    } else if (activeCell) {
+      targets.push(activeCell);
+    }
 
-  // The formatting shown in the toolbar controls
-  const activeFmt = isColumnOnlySelection ? colFmt : cellFmt;
+    // Map of columnId -> column formatting (cache)
+    const colFmtCache = new Map<string, CellFormatting>();
+    const getColFmt = (columnId: string): CellFormatting => {
+      if (!colFmtCache.has(columnId)) {
+        const col = columns.find((c) => c.id === columnId);
+        colFmtCache.set(columnId, col?.formatting ?? {});
+      }
+      return colFmtCache.get(columnId)!;
+    };
+
+    const fmts: CellFormatting[] = [];
+    for (const target of targets) {
+      const row = rows.find((r) => r.id === target.rowId);
+      if (!row) continue;
+      const cellFmt = row.formatting?.[target.columnId] ?? {};
+      const colFmt = getColFmt(target.columnId);
+      fmts.push(getEffectiveFormatting(cellFmt, colFmt));
+    }
+    return fmts;
+  }, [isColumnOnlySelection, selectedColumns, selectedRows, selectedCells, activeCell, rows, columns]);
+
+  // Compute aggregate toggle states:
+  // - Boolean prop is "on" only if ALL selected cells have it true
+  // - Font family/size shows value if ALL share same value, otherwise "Mixed"
+  const aggregateFmt = useMemo(() => {
+    if (allEffectiveFmts.length === 0) return {};
+
+    const result: CellFormatting & { _mixedFontFamily?: boolean; _mixedFontSize?: boolean } = {};
+
+    // Boolean toggles
+    const boolProps: Array<'bold' | 'italic' | 'underline' | 'strikethrough'> = ['bold', 'italic', 'underline', 'strikethrough'];
+    for (const prop of boolProps) {
+      result[prop] = allEffectiveFmts.every((f) => !!f[prop]);
+    }
+
+    // Font family
+    const families = new Set(allEffectiveFmts.map((f) => f.fontFamily ?? 'default'));
+    if (families.size === 1) {
+      result.fontFamily = [...families][0];
+    } else {
+      result._mixedFontFamily = true;
+    }
+
+    // Font size
+    const sizes = new Set(allEffectiveFmts.map((f) => f.fontSize ?? undefined));
+    const uniqueSizes = [...sizes].filter(Boolean);
+    if (uniqueSizes.length === 1) {
+      result.fontSize = uniqueSizes[0];
+    } else {
+      result._mixedFontSize = true;
+    }
+
+    return result;
+  }, [allEffectiveFmts]);
 
   const isViewer = userRole === 'viewer';
 
-  // Build the list of target cells (skip blank rows) — for cell/row selections
+  // Build the list of target cells (skip blank rows)
   const getTargetCells = useCallback((): Array<{ rowId: string; columnId: string }> => {
-    // If columns are selected (full column), we format at column level instead
     if (isColumnOnlySelection) return [];
 
     let targets: Array<{ rowId: string; columnId: string }>;
 
     if (selectedRows.size > 0) {
-      // Expand selected rows into all cells across those rows
       targets = [];
       for (const rowIdx of selectedRows) {
         const row = rows[rowIdx];
-        if (!row || row.id.startsWith('blank-')) continue;
+        if (!row) continue;
         for (const col of columns) {
           targets.push({ rowId: row.id, columnId: col.id });
         }
@@ -92,20 +169,39 @@ export default function FormattingToolbar({
     }
 
     return targets.filter((c) => {
-      // Skip blank rows (not in DB yet)
       if (c.rowId.startsWith('blank-')) return false;
       return rows.some((r) => r.id === c.rowId);
     });
   }, [selectedCells, activeCell, rows, columns, selectedRows, isColumnOnlySelection]);
 
-  // Apply a formatting change
-  const applyFormat = useCallback(
-    (merged: CellFormatting | null) => {
-      if (isColumnOnlySelection && singleSelectedColId) {
-        // Apply formatting at column level
+  // Apply a PARTIAL formatting patch (merge, not overwrite)
+  const applyFormatPatch = useCallback(
+    (patch: CellFormatting) => {
+      if (isColumnOnlySelection) {
+        // Apply formatting at column level + cascade to clear cell overrides
+        const columnTargets: Array<{ columnId: string; formatting: CellFormatting | null }> = [];
+        for (const colIdx of selectedColumns) {
+          const col = columns[colIdx];
+          if (col) {
+            // Merge patch into existing column formatting
+            const existing = col.formatting ?? {};
+            const merged = { ...existing, ...patch };
+            // Remove undefined values
+            const cleaned: CellFormatting = {};
+            for (const [k, v] of Object.entries(merged)) {
+              if (v !== undefined) (cleaned as Record<string, unknown>)[k] = v;
+            }
+            columnTargets.push({
+              columnId: col.id,
+              formatting: Object.keys(cleaned).length > 0 ? cleaned : null,
+            });
+          }
+        }
+
         dispatch(applyFormatting({
           sheetId,
-          columnFormatting: [{ columnId: singleSelectedColId, formatting: merged }],
+          columnFormatting: columnTargets,
+          cascadePatch: patch,
         }))
           .unwrap()
           .catch(() => {});
@@ -115,54 +211,79 @@ export default function FormattingToolbar({
 
       const targets = getTargetCells();
       if (targets.length === 0) return;
-      dispatch(applyFormatting({ sheetId, cells: targets.map((c) => ({ ...c, formatting: merged })) }))
+
+      // For each target cell, merge the patch into its existing cell formatting
+      const cellPatches = targets.map((c) => {
+        const row = rows.find((r) => r.id === c.rowId);
+        const existingCellFmt = row?.formatting?.[c.columnId] ?? {};
+        const merged = { ...existingCellFmt, ...patch };
+        // Remove undefined values
+        const cleaned: CellFormatting = {};
+        for (const [k, v] of Object.entries(merged)) {
+          if (v !== undefined) (cleaned as Record<string, unknown>)[k] = v;
+        }
+        return {
+          rowId: c.rowId,
+          columnId: c.columnId,
+          formatting: Object.keys(cleaned).length > 0 ? cleaned : null,
+        };
+      });
+
+      dispatch(applyFormatting({ sheetId, cells: cellPatches }))
         .unwrap()
-        .catch(() => {
-          // Error handled by slice saveError
-        });
+        .catch(() => {});
       onReturnFocus?.();
     },
-    [dispatch, sheetId, getTargetCells, isColumnOnlySelection, singleSelectedColId, onReturnFocus],
+    [dispatch, sheetId, getTargetCells, isColumnOnlySelection, selectedColumns, columns, rows, onReturnFocus],
   );
 
   // Toggle a boolean formatting property
+  // When all are ON → turn OFF; when any is OFF → turn ON
   const toggleProp = useCallback(
     (prop: 'bold' | 'italic' | 'underline' | 'strikethrough') => {
-      const current = activeFmt[prop] ?? false;
-      applyFormat({ ...activeFmt, [prop]: !current });
+      const allOn = !!aggregateFmt[prop];
+      applyFormatPatch({ [prop]: !allOn });
     },
-    [activeFmt, applyFormat],
+    [aggregateFmt, applyFormatPatch],
   );
 
   // Handle font family change
   const handleFontFamily = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const val = e.target.value;
-      applyFormat({ ...activeFmt, fontFamily: val === 'default' ? undefined : val });
+      applyFormatPatch({ fontFamily: val === 'default' ? undefined : val });
     },
-    [activeFmt, applyFormat],
+    [applyFormatPatch],
   );
 
   // Handle font size change
   const handleFontSize = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const val = Number(e.target.value);
-      applyFormat({ ...activeFmt, fontSize: isNaN(val) ? undefined : val });
+      applyFormatPatch({ fontSize: isNaN(val) ? undefined : val });
     },
-    [activeFmt, applyFormat],
+    [applyFormatPatch],
   );
 
   // Clear all formatting
   const handleClearFormatting = useCallback(() => {
-    applyFormat({});
-  }, [applyFormat]);
+    // To clear, set all known properties to undefined
+    const clearPatch: CellFormatting = {
+      fontFamily: undefined,
+      fontSize: undefined,
+      bold: false,
+      italic: false,
+      underline: false,
+      strikethrough: false,
+    };
+    applyFormatPatch(clearPatch);
+  }, [applyFormatPatch]);
 
   // Keyboard shortcuts
   useEffect(() => {
     if (isViewer) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only fire when not in an input/textarea
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
@@ -189,16 +310,21 @@ export default function FormattingToolbar({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isViewer, toggleProp]);
 
+  // Determine display values for selects
+  const fontFamilyValue = aggregateFmt._mixedFontFamily ? '' : (aggregateFmt.fontFamily || 'default');
+  const fontSizeValue = aggregateFmt._mixedFontSize ? '' : (aggregateFmt.fontSize ?? '');
+
   return (
     <Toolbar
       disabled={isViewer}
-      className="select-none"
+      className="select-none items-center"
       data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_890b">
       {/* Group 1: Font family + Font size */}
       <ToolbarGroup data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_2159">
         <select
-          className={inputClass('w-28 h-6 text-xs py-0')}
-          value={activeFmt.fontFamily || 'default'}
+          className={inputClass('h-7 text-xs py-0')}
+          style={{ minWidth: '140px', width: '140px' }}
+          value={fontFamilyValue}
           onChange={handleFontFamily}
           onMouseDown={(e) => e.stopPropagation()}
           aria-label="Font family"
@@ -209,29 +335,33 @@ export default function FormattingToolbar({
               value={f.value}
               data-icod-id={`src_features_sheets_grid_formattingtoolbar_tsx_b799_${f.value}`}>{f.label}</option>
           ))}
+          {aggregateFmt._mixedFontFamily && (
+            <option value="" disabled data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_mixed_ff">Mixed</option>
+          )}
         </select>
         <select
-          className={inputClass('w-14 h-6 text-xs py-0')}
-          value={activeFmt.fontSize ?? ''}
+          className={inputClass('h-7 text-xs py-0')}
+          style={{ minWidth: '72px', width: '72px' }}
+          value={fontSizeValue}
           onChange={handleFontSize}
           onMouseDown={(e) => e.stopPropagation()}
           aria-label="Font size"
           data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_096d">
           <option
             value=""
-            data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_8b42">Auto</option>
+            data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_8b42">{aggregateFmt._mixedFontSize ? 'Mixed' : 'Auto'}</option>
           {FONT_SIZES.map((s) => (
             <option
               key={s}
               value={s}
-              data-icod-id={`src_features_sheets_grid_formattingtoolbar_tsx_057d_${s}`}>{s}px</option>
+              data-icod-id={`src_features_sheets_grid_formattingtoolbar_tsx_057d_${s}`}>{s}</option>
           ))}
         </select>
       </ToolbarGroup>
       {/* Group 2: Bold, Italic, Underline, Strikethrough */}
       <ToolbarGroup data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_9515">
         <ToggleButton
-          pressed={!!activeFmt.bold}
+          pressed={!!aggregateFmt.bold}
           onToggle={() => toggleProp('bold')}
           tooltip="Bold (Ctrl+B)"
           icon={<Bold
@@ -240,7 +370,7 @@ export default function FormattingToolbar({
           size="sm"
           data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_bb27" />
         <ToggleButton
-          pressed={!!activeFmt.italic}
+          pressed={!!aggregateFmt.italic}
           onToggle={() => toggleProp('italic')}
           tooltip="Italic (Ctrl+I)"
           icon={<Italic
@@ -249,7 +379,7 @@ export default function FormattingToolbar({
           size="sm"
           data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_3015" />
         <ToggleButton
-          pressed={!!activeFmt.underline}
+          pressed={!!aggregateFmt.underline}
           onToggle={() => toggleProp('underline')}
           tooltip="Underline (Ctrl+U)"
           icon={<Underline
@@ -258,7 +388,7 @@ export default function FormattingToolbar({
           size="sm"
           data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_ad42" />
         <ToggleButton
-          pressed={!!activeFmt.strikethrough}
+          pressed={!!aggregateFmt.strikethrough}
           onToggle={() => toggleProp('strikethrough')}
           tooltip="Strikethrough"
           icon={<Strikethrough

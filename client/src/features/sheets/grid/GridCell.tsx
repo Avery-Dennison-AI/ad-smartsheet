@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
 import { Pill, Avatar } from '@/components/ui';
+import CalendarDatePicker from '@/components/ui/CalendarDatePicker';
 import { cn } from '@/utils/cn';
 import { useAppSelector } from '@/store/hooks';
 import { selectCellFormatting, selectColumnFormatting } from '@/store/slices/gridSlice';
@@ -104,11 +105,9 @@ export default function GridCell({
   // Focus input when entering edit mode (only for types with an in-cell input)
   useEffect(() => {
     if (isEditing && inputRef.current) {
-      if (column.type === 'text' || column.type === 'number' || column.type === 'date') {
+      if (column.type === 'text' || column.type === 'number') {
         inputRef.current.focus();
-        if (column.type === 'text' || column.type === 'number') {
-          inputRef.current.select();
-        }
+        inputRef.current.select();
       }
     }
   }, [isEditing, column.type]);
@@ -201,7 +200,7 @@ export default function GridCell({
           return (
             <span
               className="truncate"
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_1727">{d.toLocaleDateString()}</span>
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_1727">{d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
           );
         } catch {
           return (
@@ -556,24 +555,37 @@ export default function GridCell({
           <div
             className="relative h-full w-full"
             data-icod-id="src_features_sheets_grid_gridcell_tsx_0a57">
-            <input
-              ref={inputRef}
-              type="date"
-              className="h-full w-full bg-transparent px-1 text-sm outline-none"
-              value={editValue}
-              onChange={(e) => {
-                setEditValue(e.target.value);
-                if (e.target.value) {
-                  if (!committedRef.current) {
-                    committedRef.current = true;
-                    onCommit(e.target.value);
-                    onStopEdit();
-                  }
+            {/* Static text showing current value while calendar is open */}
+            <span
+              className="flex h-full items-center truncate px-1 text-sm text-muted-foreground/60"
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_date_static">
+              {value != null ? (() => {
+                try {
+                  const d = new Date(String(value));
+                  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                } catch {
+                  return String(value);
+                }
+              })() : ''}
+            </span>
+            <CalendarDatePicker
+              value={editValue || null}
+              onChange={(dateVal) => {
+                if (!committedRef.current) {
+                  committedRef.current = true;
+                  setEditValue(dateVal ?? '');
+                  onCommit(dateVal);
+                  onStopEdit();
                 }
               }}
-              onKeyDown={handleKeyDown}
-              onBlur={() => { if (!committedRef.current) commitEdit(); }}
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_5aca" />
+              onClose={() => {
+                if (!committedRef.current) {
+                  committedRef.current = true;
+                  onStopEdit();
+                }
+              }}
+              anchorRef={cellRef}
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_4f2c" />
           </div>
         );
       case 'dropdown':
@@ -615,6 +627,9 @@ export default function GridCell({
         boxShadow: isPrimary && isScrolled ? '2px 0 6px -1px rgba(0,0,0,0.12)' : undefined,
       }}
       onMouseDown={(e) => {
+        // If this cell is currently editing, don't propagate mousedown to selection handler.
+        // This prevents ending edit mode when clicking inside the editor (input, calendar, list).
+        if (isEditing) return;
         // Let parent handle cell selection on mouse down
         if (onCellClick) onCellClick(e);
       }}
@@ -624,6 +639,7 @@ export default function GridCell({
         }
       }}
       onDoubleClick={handleDoubleClick}
+      data-editing={isEditing ? 'true' : undefined}
       data-icod-id="src_features_sheets_grid_gridcell_tsx_fe64">
       {isEditing && column.type !== 'checkbox' ? (
         renderEditMode()

@@ -552,7 +552,8 @@ export async function deleteRowsByWorkspace(workspaceId: string): Promise<void> 
   }
 }
 
-/** Updates cell formatting for multiple cells across rows. Requires editor+. */
+/** Updates cell formatting for multiple cells across rows. Requires editor+.
+ *  Merges the incoming patch into existing cell formatting (does not overwrite). */
 export async function updateFormatting(
   sheetId: string,
   userId: string,
@@ -575,20 +576,30 @@ export async function updateFormatting(
 
   const validRowIdSet = new Set(validRows.map((r) => r._id.toString()));
 
-  // Build bulk write operations
+  // Build bulk write operations — merge each field via dot-notation
   const ops: Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }> = [];
 
   for (const entry of cells) {
     if (!validRowIdSet.has(entry.rowId)) continue;
 
     if (entry.formatting && Object.keys(entry.formatting).length > 0) {
-      ops.push({
-        updateOne: {
-          filter: { _id: new mongoose.Types.ObjectId(entry.rowId) },
-          update: { $set: { [`formatting.${entry.columnId}`]: entry.formatting } },
-        },
-      });
+      // Build $set with dot-notation paths for each field
+      const setFields: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(entry.formatting)) {
+        if (value !== undefined) {
+          setFields[`formatting.${entry.columnId}.${key}`] = value;
+        }
+      }
+      if (Object.keys(setFields).length > 0) {
+        ops.push({
+          updateOne: {
+            filter: { _id: new mongoose.Types.ObjectId(entry.rowId) },
+            update: { $set: setFields },
+          },
+        });
+      }
     } else {
+      // Null formatting = remove all cell-level formatting for this column
       ops.push({
         updateOne: {
           filter: { _id: new mongoose.Types.ObjectId(entry.rowId) },
@@ -605,11 +616,13 @@ export async function updateFormatting(
   return { updated: ops.length };
 }
 
-/** Updates column-level formatting for one or more columns. Requires editor+. */
+/** Updates column-level formatting for one or more columns. Requires editor+.
+ *  If cascadePatch is provided, also clears matching cell-level overrides so the column setting takes effect. */
 export async function updateColumnFormatting(
   sheetId: string,
   userId: string,
   columns: Array<{ columnId: string; formatting: Record<string, unknown> | null }>,
+  cascadePatch?: Record<string, unknown>,
 ) {
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
 
@@ -622,7 +635,14 @@ export async function updateColumnFormatting(
 
     const col = serializeColumn(sheetColumns[colIndex]);
     if (entry.formatting && Object.keys(entry.formatting).length > 0) {
-      col.formatting = entry.formatting;
+      // Merge into existing column formatting
+      const existing = col.formatting ?? {};
+      col.formatting = { ...existing, ...entry.formatting };
+      // Clean up undefined values
+      for (const [k, v] of Object.entries(col.formatting)) {
+        if (v === undefined) delete col.formatting[k];
+      }
+      if (Object.keys(col.formatting).length === 0) col.formatting = undefined;
     } else {
       col.formatting = undefined;
     }
@@ -632,6 +652,54 @@ export async function updateColumnFormatting(
 
   if (updatedCount > 0) {
     await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: sheetColumns } });
+  }
+
+  // Cascade: clear matching cell-level formatting overrides for these columns
+  if (cascadePatch && Object.keys(cascadePatch).length > 0) {
+    const columnIds = columns.map((e) => e.columnId);
+    const patchKeys = Object.keys(cascadePatch);
+
+    // Find all rows that have formatting overrides for any of these columns + keys
+    const validRows = await Row.find({
+      sheetId: new mongoose.Types.ObjectId(sheetId),
+    }).select('_id formatting');
+
+    const ops: Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }> = [];
+
+    for (const row of validRows) {
+      const rowObj = row.toObject();
+      const fmt = rowObj.formatting instanceof Map ? Object.fromEntries(rowObj.formatting) : (rowObj.formatting || {});
+
+      for (const colId of columnIds) {
+        const cellFmt = fmt[colId];
+        if (!cellFmt) continue;
+
+        // Check if any patch key exists in this cell's formatting
+        const hasOverride = patchKeys.some((key) => key in cellFmt);
+        if (!hasOverride) continue;
+
+        // Build unset operations for each overridden key
+        const unsetFields: Record<string, string> = {};
+        for (const key of patchKeys) {
+          if (key in cellFmt) {
+            unsetFields[`formatting.${colId}.${key}`] = '';
+          }
+        }
+
+        if (Object.keys(unsetFields).length > 0) {
+          ops.push({
+            updateOne: {
+              filter: { _id: row._id },
+              update: { $unset: unsetFields },
+            },
+          });
+        }
+      }
+    }
+
+    if (ops.length > 0) {
+      await Row.bulkWrite(ops);
+    }
   }
 
   return { updated: updatedCount };

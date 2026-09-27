@@ -58,6 +58,7 @@ export function updateFormatting(
 export function updateColumnFormatting(
   sheetId: string,
   columns: Array<{ columnId: string; formatting: CellFormatting | null }>,
+  cascadePatch?: CellFormatting,
 ) {
-  return apiClient.patch(`/api/sheets/${sheetId}/grid/column-formatting`, { columns });
+  return apiClient.patch(`/api/sheets/${sheetId}/grid/column-formatting`, { columns, cascadePatch });
 }

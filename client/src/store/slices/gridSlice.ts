@@ -213,7 +213,9 @@ const gridSlice = createSlice({
         if (row) {
           if (!row.formatting) row.formatting = {};
           if (entry.formatting && Object.keys(entry.formatting).length > 0) {
-            row.formatting[entry.columnId] = entry.formatting;
+            // Merge into existing cell formatting (don't replace)
+            const existing = row.formatting[entry.columnId] ?? {};
+            row.formatting[entry.columnId] = { ...existing, ...entry.formatting };
           } else {
             delete row.formatting[entry.columnId];
           }
@@ -256,6 +258,31 @@ const gridSlice = createSlice({
       const col = state.columns.find((c) => c.id === action.payload.columnId);
       if (col) {
         col.formatting = action.payload.prev;
+      }
+    },
+    /** Clear specific cell-level formatting overrides for cells in given columns.
+     *  Used when applying column formatting with cascade. */
+    clearCellFormattingOverrides(
+      state,
+      action: PayloadAction<{ columnIds: string[]; patchKeys: string[] }>,
+    ) {
+      const { columnIds, patchKeys } = action.payload;
+      for (const row of state.rows) {
+        if (!row.formatting) continue;
+        for (const colId of columnIds) {
+          const cellFmt = row.formatting[colId];
+          if (!cellFmt) continue;
+          let changed = false;
+          for (const key of patchKeys) {
+            if (key in cellFmt) {
+              delete (cellFmt as Record<string, unknown>)[key];
+              changed = true;
+            }
+          }
+          if (changed && Object.keys(cellFmt).length === 0) {
+            delete row.formatting[colId];
+          }
+        }
       }
     },
   },
@@ -388,17 +415,19 @@ const gridSlice = createSlice({
   },
 });
 
-export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting, optimisticApplyColumnFormatting, rollbackColumnFormatting } = gridSlice.actions;
+export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting, optimisticApplyColumnFormatting, rollbackColumnFormatting, clearCellFormattingOverrides } = gridSlice.actions;
 
 // ─── Thunk: applyFormatting (defined after slice so it can reference actions) ──
 
 export const applyFormatting = createAsyncThunk(
   'grid/applyFormatting',
   async (
-    { sheetId, cells, columnFormatting }: {
+    { sheetId, cells, columnFormatting, cascadePatch }: {
       sheetId: string;
       cells?: Array<{ rowId: string; columnId: string; formatting: CellFormatting | null }>;
       columnFormatting?: Array<{ columnId: string; formatting: CellFormatting | null }>;
+      /** When applying column formatting with cascade, this patch is also sent to clear matching cell overrides. */
+      cascadePatch?: CellFormatting;
     },
     { dispatch, getState, rejectWithValue },
   ) => {
@@ -417,8 +446,15 @@ export const applyFormatting = createAsyncThunk(
         dispatch(optimisticApplyColumnFormatting({ columnId: entry.columnId, formatting: entry.formatting }));
       }
 
+      // If cascading, optimistically clear cell-level overrides for the patched keys
+      if (cascadePatch) {
+        const patchKeys = Object.keys(cascadePatch);
+        const columnIds = columnFormatting.map((e) => e.columnId);
+        dispatch(clearCellFormattingOverrides({ columnIds, patchKeys }));
+      }
+
       try {
-        const res = await gridService.updateColumnFormatting(sheetId, columnFormatting);
+        const res = await gridService.updateColumnFormatting(sheetId, columnFormatting, cascadePatch);
         return res.data.data as { updated: number };
       } catch (err: unknown) {
         for (const prev of prevColumnValues) {

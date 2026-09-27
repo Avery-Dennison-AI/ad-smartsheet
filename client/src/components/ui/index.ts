@@ -46,6 +46,7 @@ export { default as RelativeTime, formatRelative } from './RelativeTime';
 export { default as SheetIcon } from './SheetIcon';
 export { type ModalSize } from './Modal';
 export { default as DatePicker, type DatePickerProps } from './DatePicker';
+export { default as CalendarDatePicker } from './CalendarDatePicker';
 export { default as Pill, type PillProps } from './Pill';
 export { default as SaveIndicator, type SaveIndicatorProps } from './SaveIndicator';
 export { default as ToggleButton, type ToggleButtonProps } from './ToggleButton';
