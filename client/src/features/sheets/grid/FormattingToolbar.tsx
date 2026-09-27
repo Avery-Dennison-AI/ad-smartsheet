@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bold, Italic, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight, ChevronDown, PaintBucket, Type } from 'lucide-react';
-import { Toolbar, ToolbarGroup, ToggleButton, IconButton, inputClass, ColorSwatchPicker, DropdownMenu } from '@/components/ui';
+import { Toolbar, ToolbarGroup, ToggleButton, IconButton, Select, ColorSwatchPicker, DropdownMenu } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { useAppDispatch } from '@/store/hooks';
 import { applyFormatting } from '@/store/slices/gridSlice';
@@ -412,8 +412,9 @@ export default function FormattingToolbar({
       data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_890b">
       {/* Group 1: Font family + Font size */}
       <ToolbarGroup data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_2159">
-        <select
-          className={inputClass('h-7 text-xs py-0')}
+        <Select
+          size="sm"
+          className="h-7 text-xs py-0"
           style={{ minWidth: '140px', width: '140px' }}
           value={fontFamilyValue}
           onChange={handleFontFamily}
@@ -429,9 +430,10 @@ export default function FormattingToolbar({
           {aggregateFmt._mixedFontFamily && (
             <option value="" disabled data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_mixed_ff">Mixed</option>
           )}
-        </select>
-        <select
-          className={inputClass('h-7 text-xs py-0')}
+        </Select>
+        <Select
+          size="sm"
+          className="h-7 text-xs py-0"
           style={{ minWidth: '72px', width: '72px' }}
           value={fontSizeValue}
           onChange={handleFontSize}
@@ -447,7 +449,7 @@ export default function FormattingToolbar({
               value={s}
               data-icod-id={`src_features_sheets_grid_formattingtoolbar_tsx_057d_${s}`}>{s}</option>
           ))}
-        </select>
+        </Select>
       </ToolbarGroup>
       {/* Group 2: Bold, Italic, Underline, Strikethrough */}
       <ToolbarGroup data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_9515">
@@ -492,14 +494,12 @@ export default function FormattingToolbar({
       <ToolbarGroup data-icod-id="fmt_toolbar_colors">
         {/* Text Color button */}
         <div className="relative" data-icod-id="fmt_textcolor_wrap">
-          <button
+          <IconButton
             ref={textColorBtnRef}
-            type="button"
-            className="inline-flex h-6 flex-col items-center justify-center rounded-[var(--radius-sm)] px-1 transition-colors hover:bg-muted"
+            size="sm"
+            tooltip="Text color"
             onClick={() => setTextColorOpen(!textColorOpen)}
             onMouseDown={(e) => e.preventDefault()}
-            aria-label="Text color"
-            title="Text color"
             data-icod-id="fmt_textcolor_btn"
           >
             <span
@@ -514,7 +514,7 @@ export default function FormattingToolbar({
                 data-icod-id="fmt_textcolor_bar"
               />
             </span>
-          </button>
+          </IconButton>
           {textColorOpen && (
             <ColorSwatchPicker
               anchorRef={textColorBtnRef}
@@ -526,14 +526,12 @@ export default function FormattingToolbar({
         </div>
         {/* Fill Color button */}
         <div className="relative" data-icod-id="fmt_fillcolor_wrap">
-          <button
+          <IconButton
             ref={fillColorBtnRef}
-            type="button"
-            className="inline-flex h-6 flex-col items-center justify-center rounded-[var(--radius-sm)] px-1 transition-colors hover:bg-muted"
+            size="sm"
+            tooltip="Fill color"
             onClick={() => setFillColorOpen(!fillColorOpen)}
             onMouseDown={(e) => e.preventDefault()}
-            aria-label="Fill color"
-            title="Fill color"
             data-icod-id="fmt_fillcolor_btn"
           >
             <span
@@ -548,7 +546,7 @@ export default function FormattingToolbar({
                 data-icod-id="fmt_fillcolor_bar"
               />
             </span>
-          </button>
+          </IconButton>
           {fillColorOpen && (
             <ColorSwatchPicker
               anchorRef={fillColorBtnRef}
@@ -594,19 +592,19 @@ export default function FormattingToolbar({
         <DropdownMenu
           skipRestoreFocus
           trigger={
-            <button
-              type="button"
-              className="inline-flex h-6 items-center gap-0.5 rounded-[var(--radius-sm)] px-1 transition-colors hover:bg-muted"
+            <IconButton
+              size="sm"
+              tooltip="Vertical alignment"
               onMouseDown={(e) => e.preventDefault()}
-              aria-label="Vertical alignment"
-              title="Vertical alignment"
               data-icod-id="fmt_valign_btn"
             >
-              {currentVertAlignIcon}
-              <ChevronDown
-                className="h-2.5 w-2.5 text-muted-foreground"
-                data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_13a5" />
-            </button>
+              <span className="inline-flex items-center gap-0.5" data-icod-id="fmt_valign_icon_wrap">
+                {currentVertAlignIcon}
+                <ChevronDown
+                  className="h-2.5 w-2.5 text-muted-foreground"
+                  data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_13a5" />
+              </span>
+            </IconButton>
           }
           items={[
             {

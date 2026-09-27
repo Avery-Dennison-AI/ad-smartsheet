@@ -1017,8 +1017,9 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
           {/* Column resize guide line */}
           {colResizeDrag && (
             <div
-              className="pointer-events-none absolute top-0 bottom-0 z-50 w-px bg-primary"
+              className="pointer-events-none absolute top-0 bottom-0 w-px bg-primary"
               style={{
+                zIndex: 'var(--z-dropdown)',
                 left: (() => {
                   // Calculate the x position of the column being resized
                   let x = 0; // Start after row-number column (handled by CSS var)
@@ -1039,8 +1040,9 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
           {/* Row resize guide line */}
           {rowResizeDrag && (
             <div
-              className="pointer-events-none absolute left-0 right-0 z-50 h-px bg-primary"
+              className="pointer-events-none absolute left-0 right-0 h-px bg-primary"
               style={{
+                zIndex: 'var(--z-dropdown)',
                 top: (() => {
                   // Find the bottom edge of the row(s) being resized
                   if (rowResizeDrag.rowIds.length === 0) return 0;

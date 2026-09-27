@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { ChevronDown, Type, Hash, Calendar, List, CheckSquare, Users, GripVertical } from 'lucide-react';
-import { DropdownMenu, Tooltip, ResizeHandle } from '@/components/ui';
+import { DropdownMenu, Tooltip, IconButton, ResizeHandle } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
 import type { Column, ColumnType, WorkspaceRole } from '@/types';
@@ -184,14 +184,14 @@ export default function GridHeaderCell({
           data-icod-id="src_features_sheets_grid_gridheadercell_tsx_d303">
           <DropdownMenu
             trigger={
-              <button
-                className="rounded p-0.5 hover:bg-muted transition-colors"
-                aria-label="Column menu"
+              <IconButton
+                size="sm"
+                tooltip="Column menu"
                 data-icod-id="src_features_sheets_grid_gridheadercell_tsx_e82a">
                 <ChevronDown
                   className="h-3 w-3"
                   data-icod-id="src_features_sheets_grid_gridheadercell_tsx_41a0" />
-              </button>
+              </IconButton>
             }
             items={menuItems}
             skipRestoreFocus

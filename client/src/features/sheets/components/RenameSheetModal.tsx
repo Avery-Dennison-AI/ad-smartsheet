@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal, Button, Field, Input, Alert, inputClass } from '@/components/ui';
+import { Modal, Button, Field, Input, Alert, Textarea } from '@/components/ui';
 import { useAppDispatch } from '@/store/hooks';
 import { renameSheet } from '@/store/slices/sheetsSlice';
 
@@ -125,9 +125,9 @@ export default function RenameSheetModal({ open, onClose, sheetId, currentName, 
           hint={`${description.length}/300`}
           error={undefined}
           data-icod-id="src_features_sheets_components_renamesheetmodal_tsx_desc_field">
-          <textarea
+          <Textarea
             id="edit-sheet-description"
-            className={inputClass('resize-none')}
+            className="resize-none"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             maxLength={300}

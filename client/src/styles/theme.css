@@ -161,6 +161,35 @@
   --z-modal: 101;
   --z-toast: 200;
   --z-tooltip: 300;
+
+  /* ─── Palette (ColorSwatchPicker tokens) ──────────────────────────── */
+  /* Neutrals */
+  --palette-neutral-0: #FFFFFF;
+  --palette-neutral-100: #F1F5F9;
+  --palette-neutral-300: #CBD5E1;
+  --palette-neutral-500: #64748B;
+  --palette-neutral-800: #1E293B;
+  --palette-neutral-900: #000000;
+  /* Accents */
+  --palette-red: #EF4444;
+  --palette-orange: #F97316;
+  --palette-yellow: #EAB308;
+  --palette-green: #22C55E;
+  --palette-teal: #14B8A6;
+  --palette-blue: #3B82F6;
+  --palette-indigo: #6366F1;
+  --palette-violet: #8B5CF6;
+  --palette-pink: #EC4899;
+  /* Tints */
+  --palette-red-light: #FEF2F2;
+  --palette-orange-light: #FFF7ED;
+  --palette-yellow-light: #FEFCE8;
+  --palette-green-light: #F0FDF4;
+  --palette-teal-light: #F0FDFA;
+  --palette-blue-light: #EFF6FF;
+  --palette-indigo-light: #EEF2FF;
+  --palette-violet-light: #F5F3FF;
+  --palette-pink-light: #FDF4FF;
 }
 
 /* ─── Keyframes ───────────────────────────────────────────────────────────── */

@@ -1211,6 +1211,11 @@ export default function DesignSystemPage() {
           <div data-icod-id="ds_colorswatch_section">
             <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_colorswatch_label">ColorSwatchPicker — portal-rendered color palette popover for text/fill colors</span>
             <ColorSwatchPickerDemo data-icod-id="ds_colorswatch_instance" />
+            {/* Palette token swatches */}
+            <div className="mt-6" data-icod-id="ds_palette_tokens">
+              <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_palette_tokens_label">Palette design tokens (var(--palette-*))</span>
+              <PaletteTokenSwatches data-icod-id="ds_palette_tokens_instance" />
+            </div>
           </div>
           {/* Pill */}
           <div data-icod-id="ds_shared_pill">
@@ -1873,6 +1878,62 @@ function ColorSwatchPickerDemo() {
           {fillColor ?? 'null (default)'}
         </span>
       </div>
+    </div>
+  );
+}
+
+const PALETTE_TOKENS: Array<{ name: string; varName: string; hex: string }> = [
+  // Neutrals
+  { name: 'neutral-0', varName: '--palette-neutral-0', hex: '#FFFFFF' },
+  { name: 'neutral-100', varName: '--palette-neutral-100', hex: '#F1F5F9' },
+  { name: 'neutral-300', varName: '--palette-neutral-300', hex: '#CBD5E1' },
+  { name: 'neutral-500', varName: '--palette-neutral-500', hex: '#64748B' },
+  { name: 'neutral-800', varName: '--palette-neutral-800', hex: '#1E293B' },
+  { name: 'neutral-900', varName: '--palette-neutral-900', hex: '#000000' },
+  // Accents
+  { name: 'red', varName: '--palette-red', hex: '#EF4444' },
+  { name: 'orange', varName: '--palette-orange', hex: '#F97316' },
+  { name: 'yellow', varName: '--palette-yellow', hex: '#EAB308' },
+  { name: 'green', varName: '--palette-green', hex: '#22C55E' },
+  { name: 'teal', varName: '--palette-teal', hex: '#14B8A6' },
+  { name: 'blue', varName: '--palette-blue', hex: '#3B82F6' },
+  { name: 'indigo', varName: '--palette-indigo', hex: '#6366F1' },
+  { name: 'violet', varName: '--palette-violet', hex: '#8B5CF6' },
+  { name: 'pink', varName: '--palette-pink', hex: '#EC4899' },
+  // Tints
+  { name: 'red-light', varName: '--palette-red-light', hex: '#FEF2F2' },
+  { name: 'orange-light', varName: '--palette-orange-light', hex: '#FFF7ED' },
+  { name: 'yellow-light', varName: '--palette-yellow-light', hex: '#FEFCE8' },
+  { name: 'green-light', varName: '--palette-green-light', hex: '#F0FDF4' },
+  { name: 'teal-light', varName: '--palette-teal-light', hex: '#F0FDFA' },
+  { name: 'blue-light', varName: '--palette-blue-light', hex: '#EFF6FF' },
+  { name: 'indigo-light', varName: '--palette-indigo-light', hex: '#EEF2FF' },
+  { name: 'violet-light', varName: '--palette-violet-light', hex: '#F5F3FF' },
+  { name: 'pink-light', varName: '--palette-pink-light', hex: '#FDF4FF' },
+];
+
+function PaletteTokenSwatches() {
+  return (
+    <div className="grid grid-cols-3 gap-x-4 gap-y-2 sm:grid-cols-4 md:grid-cols-6" data-icod-id="ds_palette_grid">
+      {PALETTE_TOKENS.map((token) => (
+        <div
+          key={token.name}
+          className="flex items-center gap-2"
+          data-icod-id={`ds_palette_token_${token.name}`}>
+          <div
+            className="h-5 w-5 shrink-0 rounded-sm border border-border/60"
+            style={{ backgroundColor: `var(${token.varName})` }}
+            data-icod-id={`ds_palette_swatch_${token.name}`} />
+          <div className="min-w-0" data-icod-id={`ds_palette_info_${token.name}`}>
+            <div
+              className="truncate text-[10px] font-medium text-foreground"
+              data-icod-id={`ds_palette_name_${token.name}`}>{token.name}</div>
+            <div
+              className="truncate text-[10px] text-muted-foreground"
+              data-icod-id={`ds_palette_hex_${token.name}`}>{token.hex}</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

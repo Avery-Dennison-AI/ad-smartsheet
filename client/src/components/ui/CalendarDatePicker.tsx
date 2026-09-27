@@ -278,7 +278,7 @@ export default function CalendarDatePicker({
         {WEEKDAYS.map((wd) => (
           <div
             key={wd}
-            className="py-1 text-center text-[10px] font-medium text-muted-foreground"
+            className="py-1 text-center text-xs font-medium text-muted-foreground"
             data-icod-id={`src_components_ui_calendardatepicker_tsx_363e_${wd}`}>
             {wd}
           </div>

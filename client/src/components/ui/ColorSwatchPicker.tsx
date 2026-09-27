@@ -2,25 +2,65 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Check, RotateCcw } from 'lucide-react';
 
+interface SwatchDef {
+  varName: string;
+  /** Fallback hex for comparison logic (must match the CSS variable value). */
+  hex: string;
+}
+
 interface ColorSwatchRow {
   label: string;
-  colors: string[];
+  colors: SwatchDef[];
 }
 
 const SWATCH_ROWS: ColorSwatchRow[] = [
   {
     label: 'Neutrals',
-    colors: ['#FFFFFF', '#F1F5F9', '#CBD5E1', '#64748B', '#1E293B', '#000000'],
+    colors: [
+      { varName: '--palette-neutral-0', hex: '#FFFFFF' },
+      { varName: '--palette-neutral-100', hex: '#F1F5F9' },
+      { varName: '--palette-neutral-300', hex: '#CBD5E1' },
+      { varName: '--palette-neutral-500', hex: '#64748B' },
+      { varName: '--palette-neutral-800', hex: '#1E293B' },
+      { varName: '--palette-neutral-900', hex: '#000000' },
+    ],
   },
   {
     label: 'Accents',
-    colors: ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#14B8A6', '#3B82F6', '#6366F1', '#8B5CF6', '#EC4899'],
+    colors: [
+      { varName: '--palette-red', hex: '#EF4444' },
+      { varName: '--palette-orange', hex: '#F97316' },
+      { varName: '--palette-yellow', hex: '#EAB308' },
+      { varName: '--palette-green', hex: '#22C55E' },
+      { varName: '--palette-teal', hex: '#14B8A6' },
+      { varName: '--palette-blue', hex: '#3B82F6' },
+      { varName: '--palette-indigo', hex: '#6366F1' },
+      { varName: '--palette-violet', hex: '#8B5CF6' },
+      { varName: '--palette-pink', hex: '#EC4899' },
+    ],
   },
   {
     label: 'Tints',
-    colors: ['#FEF2F2', '#FFF7ED', '#FEFCE8', '#F0FDF4', '#F0FDFA', '#EFF6FF', '#EEF2FF', '#F5F3FF', '#FDF4FF'],
+    colors: [
+      { varName: '--palette-red-light', hex: '#FEF2F2' },
+      { varName: '--palette-orange-light', hex: '#FFF7ED' },
+      { varName: '--palette-yellow-light', hex: '#FEFCE8' },
+      { varName: '--palette-green-light', hex: '#F0FDF4' },
+      { varName: '--palette-teal-light', hex: '#F0FDFA' },
+      { varName: '--palette-blue-light', hex: '#EFF6FF' },
+      { varName: '--palette-indigo-light', hex: '#EEF2FF' },
+      { varName: '--palette-violet-light', hex: '#F5F3FF' },
+      { varName: '--palette-pink-light', hex: '#FDF4FF' },
+    ],
   },
 ];
+
+/** Light-background hex values where the check icon should be dark. */
+const LIGHT_HEXES = new Set([
+  '#FFFFFF', '#F1F5F9', '#FEF2F2', '#FFF7ED', '#FEFCE8',
+  '#F0FDF4', '#F0FDFA', '#EFF6FF', '#EEF2FF', '#F5F3FF',
+  '#FDF4FF', '#CBD5E1',
+]);
 
 export interface ColorSwatchPickerProps {
   anchorRef: React.RefObject<HTMLElement | null>;
@@ -139,27 +179,27 @@ export default function ColorSwatchPicker({
           <div
             className="flex flex-wrap gap-1 px-0.5"
             data-icod-id={`src_components_ui_colorswatchpicker_tsx_c859_${row.label}`}>
-            {row.colors.map((hex) => {
-              const isActive = value?.toUpperCase() === hex.toUpperCase();
+            {row.colors.map((swatch) => {
+              const isActive = value?.toUpperCase() === swatch.hex.toUpperCase();
               return (
                 <button
-                  key={hex}
+                  key={swatch.hex}
                   type="button"
                   className="relative h-5 w-5 rounded-sm border border-border/60 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  style={{ backgroundColor: hex }}
-                  title={hex}
-                  aria-label={`Color ${hex}`}
+                  style={{ backgroundColor: `var(${swatch.varName})` }}
+                  title={swatch.hex}
+                  aria-label={`Color ${swatch.hex}`}
                   onClick={() => {
-                    onChange(hex);
+                    onChange(swatch.hex);
                     onClose();
                   }}
-                  data-icod-id={`color_swatch_${hex.replace('#', '')}`}
+                  data-icod-id={`color_swatch_${swatch.hex.replace('#', '')}`}
                 >
                   {isActive && (
                     <Check
                       className="absolute inset-0 m-auto h-3 w-3 drop-shadow-sm"
-                      style={{ color: hex === '#FFFFFF' || hex === '#F1F5F9' || hex === '#FEF2F2' || hex === '#FFF7ED' || hex === '#FEFCE8' || hex === '#F0FDF4' || hex === '#F0FDFA' || hex === '#EFF6FF' || hex === '#EEF2FF' || hex === '#F5F3FF' || hex === '#FDF4FF' || hex === '#CBD5E1' ? '#1E293B' : '#FFFFFF' }}
-                      data-icod-id={`src_components_ui_colorswatchpicker_tsx_8988_${row.label}_${hex}`} />
+                      style={{ color: LIGHT_HEXES.has(swatch.hex) ? '#1E293B' : '#FFFFFF' }}
+                      data-icod-id={`src_components_ui_colorswatchpicker_tsx_8988_${row.label}_${swatch.hex}`} />
                   )}
                 </button>
               );

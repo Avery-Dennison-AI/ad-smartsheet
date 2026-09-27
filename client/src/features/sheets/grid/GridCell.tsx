@@ -1,11 +1,15 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
 import { Pill, Avatar } from '@/components/ui';
-import CalendarDatePicker from '@/components/ui/CalendarDatePicker';
 import { cn } from '@/utils/cn';
 import { useAppSelector } from '@/store/hooks';
 import { selectCellFormatting, selectColumnFormatting } from '@/store/slices/gridSlice';
 import FloatingCellList, { type FloatingCellListItem } from './FloatingCellList';
+import TextCellEditor from './editors/TextCellEditor';
+import NumberCellEditor from './editors/NumberCellEditor';
+import DateCellEditor from './editors/DateCellEditor';
+import DropdownCellEditor from './editors/DropdownCellEditor';
+import ContactCellEditor from './editors/ContactCellEditor';
 import type { Column } from '@/types';
 
 interface GridMember {
@@ -343,11 +347,9 @@ export default function GridCell({
           )}
           onSelect={handleSelectItem}
           header={
-            <input
-              className="h-full w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-              placeholder="Filter options..."
-              value={dropdownSearch}
-              onChange={(e) => setDropdownSearch(e.target.value)}
+            <DropdownCellEditor
+              search={dropdownSearch}
+              onSearchChange={(v) => setDropdownSearch(v)}
               onKeyDown={(e) => {
                 if (e.key === 'Tab') {
                   e.preventDefault();
@@ -359,8 +361,7 @@ export default function GridCell({
                   onStopEdit();
                 }
               }}
-              autoFocus
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_5f71" />
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_9025" />
           }
           footer={
             <>
@@ -487,11 +488,9 @@ export default function GridCell({
           )}
           onSelect={handleSelectMember}
           header={
-            <input
-              className="h-full w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-              placeholder="Search members..."
-              value={contactQuery}
-              onChange={(e) => setContactQuery(e.target.value)}
+            <ContactCellEditor
+              query={contactQuery}
+              onQueryChange={(v) => setContactQuery(v)}
               onKeyDown={(e) => {
                 if (e.key === 'Tab') {
                   e.preventDefault();
@@ -503,8 +502,7 @@ export default function GridCell({
                   onStopEdit();
                 }
               }}
-              autoFocus
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_2b68" />
+              data-icod-id="src_features_sheets_grid_gridcell_tsx_04a5" />
           }
           footer={
             value != null && value !== '' ? (
@@ -540,66 +538,51 @@ export default function GridCell({
     switch (column.type) {
       case 'text':
         return (
-          <input
-            ref={inputRef}
-            className="h-full w-full bg-transparent px-1 text-sm outline-none"
-            style={{ ...formattingStyle, color: fmt.textColor ?? undefined, backgroundColor: fmt.fillColor ? 'transparent' : undefined }}
+          <TextCellEditor
+            inputRef={inputRef}
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(v) => setEditValue(v)}
             onKeyDown={handleKeyDown}
             onBlur={() => { if (!committedRef.current) commitEdit(); }}
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_c428" />
+            formattingStyle={formattingStyle}
+            textColor={fmt.textColor ?? undefined}
+            fillColor={fmt.fillColor ?? undefined}
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_540d" />
         );
       case 'number':
         return (
-          <input
-            ref={inputRef}
-            type="number"
-            className="h-full w-full bg-transparent px-1 text-right text-sm outline-none"
-            style={{ ...formattingStyle, color: fmt.textColor ?? undefined, backgroundColor: fmt.fillColor ? 'transparent' : undefined }}
+          <NumberCellEditor
+            inputRef={inputRef}
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(v) => setEditValue(v)}
             onKeyDown={handleKeyDown}
             onBlur={() => { if (!committedRef.current) commitEdit(); }}
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_a5a7" />
+            formattingStyle={formattingStyle}
+            textColor={fmt.textColor ?? undefined}
+            fillColor={fmt.fillColor ?? undefined}
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_c696" />
         );
       case 'date':
         return (
-          <div
-            className="relative h-full w-full"
-            data-icod-id="src_features_sheets_grid_gridcell_tsx_0a57">
-            {/* Static text showing current value while calendar is open */}
-            <span
-              className="flex h-full items-center truncate px-1 text-sm text-muted-foreground/60"
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_date_static">
-              {value != null ? (() => {
-                try {
-                  const d = new Date(String(value));
-                  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                } catch {
-                  return String(value);
-                }
-              })() : ''}
-            </span>
-            <CalendarDatePicker
-              value={editValue || null}
-              onChange={(dateVal) => {
-                if (!committedRef.current) {
-                  committedRef.current = true;
-                  setEditValue(dateVal ?? '');
-                  onCommit(dateVal);
-                  onStopEdit();
-                }
-              }}
-              onClose={() => {
-                if (!committedRef.current) {
-                  committedRef.current = true;
-                  onStopEdit();
-                }
-              }}
-              anchorRef={cellRef}
-              data-icod-id="src_features_sheets_grid_gridcell_tsx_4f2c" />
-          </div>
+          <DateCellEditor
+            cellRef={cellRef}
+            editValue={editValue}
+            displayValue={value}
+            onChange={(dateVal) => {
+              if (!committedRef.current) {
+                committedRef.current = true;
+                setEditValue(dateVal ?? '');
+                onCommit(dateVal);
+                onStopEdit();
+              }
+            }}
+            onClose={() => {
+              if (!committedRef.current) {
+                committedRef.current = true;
+                onStopEdit();
+              }
+            }}
+            data-icod-id="src_features_sheets_grid_gridcell_tsx_4ce9" />
         );
       case 'dropdown':
         return renderDropdownEditor();
@@ -650,7 +633,7 @@ export default function GridCell({
         'group relative flex overflow-hidden',
         'h-full px-[var(--grid-cell-padding-x)]',
         'text-sm text-foreground cursor-cell',
-        isActive && 'ring-2 ring-inset ring-[var(--grid-selected-border)] z-10',
+        isActive && 'ring-2 ring-inset ring-[var(--grid-selected-border)] [z-index:var(--z-toolbar)]',
         // Only use Tailwind bg classes when no fill color; otherwise compositeBg handles it
         !fmt.fillColor && (isSelected || isRowSelected || isColSelected) && !isActive && !isPrimary && 'bg-[var(--grid-range-bg)]',
         !fmt.fillColor && !isSelected && !isActive && !isPrimary && !isRowSelected && !isColSelected && 'hover:bg-[var(--grid-row-hover)]',
