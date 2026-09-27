@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Clock, Table2 } from 'lucide-react';
 import { EmptyState, PageHeader, PageContainer, Card, DataTable, Spinner, FavoritesStar, RelativeTime } from '@/components/ui';
 import type { DataTableColumn } from '@/components/ui';
@@ -9,6 +10,7 @@ import type { SheetMetaItem } from '@/types';
 
 export default function RecentsPage() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const recents = useAppSelector(selectRecents);
   const loading = useAppSelector(selectUserMetaLoading);
 
@@ -27,9 +29,10 @@ export default function RecentsPage() {
           <Table2
             className="h-4 w-4 shrink-0 text-primary"
             data-icod-id="src_pages_recentspage_tsx_38fc" />
-          <span
-            className="truncate font-medium text-foreground"
-            data-icod-id="src_pages_recentspage_tsx_7950">{row.sheet.name}</span>
+          <Link
+            to={`/sheets/${row.sheet.id}`}
+            className="truncate font-medium text-primary hover:underline"
+            data-icod-id="src_pages_recentspage_tsx_7950">{row.sheet.name}</Link>
         </div>
       ),
     },
@@ -91,6 +94,8 @@ export default function RecentsPage() {
             columns={columns}
             rows={recents}
             rowKey={(row) => row.sheet.id}
+            onRowClick={(row) => navigate(`/sheets/${row.sheet.id}`)}
+            rowHref={(row) => `/sheets/${row.sheet.id}`}
             data-icod-id="src_pages_recentspage_tsx_d72b" />
         )}
       </Card>

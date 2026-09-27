@@ -1,3 +1,4 @@
+import { Link, useNavigate } from 'react-router-dom';
 import { DataTable, SheetIcon, RelativeTime, FavoritesStar } from '@/components/ui';
 import type { DataTableColumn } from '@/components/ui';
 import type { Sheet, WorkspaceRole } from '@/types';
@@ -24,6 +25,7 @@ export default function SheetListTable({
   favoritesMap,
 }: SheetListTableProps) {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const canCreate = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
 
   if (!loading && sheets.length === 0) {
@@ -46,9 +48,10 @@ export default function SheetListTable({
           <SheetIcon
             className="shrink-0"
             data-icod-id="src_features_sheets_components_sheetlisttable_tsx_4310" />
-          <span
-            className="truncate font-medium text-foreground"
-            data-icod-id="src_features_sheets_components_sheetlisttable_tsx_2344">{row.name}</span>
+          <Link
+            to={`/sheets/${row.id}`}
+            className="truncate font-medium text-primary hover:underline"
+            data-icod-id="src_features_sheets_components_sheetlisttable_tsx_2344">{row.name}</Link>
         </div>
       ),
     },
@@ -110,7 +113,8 @@ export default function SheetListTable({
       rows={sheets}
       rowKey={(row) => row.id}
       loading={loading}
-      className="cursor-pointer"
+      onRowClick={(row) => navigate(`/sheets/${row.id}`)}
+      rowHref={(row) => `/sheets/${row.id}`}
       data-icod-id="src_features_sheets_components_sheetlisttable_tsx_e2b2" />
   );
 }

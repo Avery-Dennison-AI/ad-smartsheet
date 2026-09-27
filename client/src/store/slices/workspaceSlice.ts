@@ -23,9 +23,14 @@ const initialState: WorkspaceState = {
 
 // ─── Thunks ────────────────────────────────────────────────────────────────
 
-export const fetchWorkspaces = createAsyncThunk('workspaces/fetchAll', async () => {
-  const { data } = await workspaceService.listWorkspaces();
-  return data.data as Workspace[];
+export const fetchWorkspaces = createAsyncThunk('workspaces/fetchAll', async (_, { rejectWithValue }) => {
+  try {
+    const { data } = await workspaceService.listWorkspaces();
+    return data.data as Workspace[];
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
+    return rejectWithValue(error.response?.data?.error?.message ?? error.message ?? 'Failed to load workspaces');
+  }
 });
 
 export const fetchWorkspace = createAsyncThunk(
@@ -110,9 +115,9 @@ const workspaceSlice = createSlice({
         state.status = 'succeeded';
         state.list = action.payload;
       })
-      .addCase(fetchWorkspaces.rejected, (state) => {
+      .addCase(fetchWorkspaces.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = 'Failed to load workspaces';
+        state.error = (action.payload as string) || 'Failed to load workspaces';
       })
       // fetchWorkspace
       .addCase(fetchWorkspace.pending, (state) => {

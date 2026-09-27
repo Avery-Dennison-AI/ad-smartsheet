@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, KeyboardEvent, MouseEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import Skeleton from './Skeleton';
 import EmptyState from './EmptyState';
@@ -19,6 +20,8 @@ export interface DataTableProps<T> {
   emptyState?: ReactNode;
   stickyHeader?: boolean;
   className?: string;
+  onRowClick?: (row: T) => void;
+  rowHref?: (row: T) => string;
 }
 
 const alignClass: Record<string, string> = {
@@ -36,7 +39,28 @@ export default function DataTable<T>({
   emptyState,
   stickyHeader = false,
   className,
+  onRowClick,
+  rowHref,
 }: DataTableProps<T>) {
+  const interactive = !!(onRowClick || rowHref);
+
+  /** Bail out when the click target is inside an interactive control. */
+  const isInteractiveTarget = (target: EventTarget | null): boolean =>
+    !!(target as Element | null)?.closest?.('button, a, input, select, [role="button"]');
+
+  const handleRowClick = (e: MouseEvent<HTMLTableRowElement>, row: T) => {
+    if (isInteractiveTarget(e.target)) return;
+    onRowClick?.(row);
+  };
+
+  const handleRowKeyDown = (e: KeyboardEvent<HTMLTableRowElement>, row: T) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    // Don't fire for interactive elements that already handle these keys
+    if (isInteractiveTarget(e.target)) return;
+    e.preventDefault();
+    onRowClick?.(row);
+  };
+
   if (loading) {
     return (
       <div
@@ -64,6 +88,9 @@ export default function DataTable<T>({
         data-icod-id="src_components_ui_datatable_tsx_empty" />
     );
   }
+
+  // Determine which column index is the "primary label" column (first non-actions column)
+  const primaryColIndex = columns.findIndex((col) => col.key !== 'actions');
 
   return (
     <div
@@ -96,21 +123,43 @@ export default function DataTable<T>({
         <tbody
           className="divide-y divide-border"
           data-icod-id="src_components_ui_datatable_tsx_tbody">
-          {rows.map((row) => (
-            <tr
-              key={rowKey(row)}
-              className="transition-colors hover:bg-muted/50"
-              data-icod-id={`src_components_ui_datatable_tsx_tr_${rowKey(row)}`}>
-              {columns.map((col) => (
-                <td
-                  key={col.key}
-                  className={cn('px-4 py-3', alignClass[col.align || 'left'])}
-                  data-icod-id={`src_components_ui_datatable_tsx_td_${rowKey(row)}_${col.key}`}>
-                  {col.cell(row)}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((row, __icodIdx0) => {
+            const href = rowHref?.(row);
+            return (
+              <tr
+                key={rowKey(row)}
+                className={cn(
+                  'transition-colors',
+                  interactive && 'cursor-pointer hover:bg-muted/60',
+                )}
+                {...(interactive ? { tabIndex: 0, role: 'button' } : {})}
+                onClick={(e) => handleRowClick(e, row)}
+                onKeyDown={(e) => handleRowKeyDown(e, row)}
+                data-icod-id={`src_components_ui_datatable_tsx_tr_${rowKey(row)}`}>
+                {columns.map((col, colIdx) => {
+                  const cellContent = col.cell(row);
+                  const isPrimary = colIdx === primaryColIndex && !!href;
+                  return (
+                    <td
+                      key={col.key}
+                      className={cn('px-4 py-3', alignClass[col.align || 'left'])}
+                      data-icod-id={`src_components_ui_datatable_tsx_td_${rowKey(row)}_${col.key}`}>
+                      {isPrimary ? (
+                        <Link
+                          to={href!}
+                          className="text-primary hover:underline"
+                          data-icod-id={`src_components_ui_datatable_tsx_e9c8_${__icodIdx0}_${col.key}`}>
+                          {cellContent}
+                        </Link>
+                      ) : (
+                        cellContent
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

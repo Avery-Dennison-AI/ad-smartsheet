@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Star, Table2 } from 'lucide-react';
 import { EmptyState, PageHeader, PageContainer, Card, DataTable, Spinner, FavoritesStar, RelativeTime } from '@/components/ui';
 import type { DataTableColumn } from '@/components/ui';
@@ -9,6 +10,7 @@ import type { SheetMetaItem } from '@/types';
 
 export default function FavoritesPage() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const favorites = useAppSelector(selectFavorites);
   const loading = useAppSelector(selectUserMetaLoading);
 
@@ -27,9 +29,10 @@ export default function FavoritesPage() {
           <Table2
             className="h-4 w-4 shrink-0 text-primary"
             data-icod-id="src_pages_favoritespage_tsx_15da" />
-          <span
-            className="truncate font-medium text-foreground"
-            data-icod-id="src_pages_favoritespage_tsx_8883">{row.sheet.name}</span>
+          <Link
+            to={`/sheets/${row.sheet.id}`}
+            className="truncate font-medium text-primary hover:underline"
+            data-icod-id="src_pages_favoritespage_tsx_8883">{row.sheet.name}</Link>
         </div>
       ),
     },
@@ -91,6 +94,8 @@ export default function FavoritesPage() {
             columns={columns}
             rows={favorites}
             rowKey={(row) => row.sheet.id}
+            onRowClick={(row) => navigate(`/sheets/${row.sheet.id}`)}
+            rowHref={(row) => `/sheets/${row.sheet.id}`}
             data-icod-id="src_pages_favoritespage_tsx_391f" />
         )}
       </Card>

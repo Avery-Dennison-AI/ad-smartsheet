@@ -9,6 +9,7 @@ interface SheetsState {
   currentSheetId: string | null;
   loading: boolean;
   error: string | null;
+  errorStatus?: number;
 }
 
 const initialState: SheetsState = {
@@ -17,15 +18,21 @@ const initialState: SheetsState = {
   currentSheetId: null,
   loading: false,
   error: null,
+  errorStatus: undefined,
 };
 
 // ─── Thunks ────────────────────────────────────────────────────────────────
 
 export const fetchSheets = createAsyncThunk(
   'sheets/fetchAll',
-  async (workspaceId: string) => {
-    const { data } = await sheetService.listSheets(workspaceId);
-    return { workspaceId, sheets: data.data as Sheet[] };
+  async (workspaceId: string, { rejectWithValue }) => {
+    try {
+      const { data } = await sheetService.listSheets(workspaceId);
+      return { workspaceId, sheets: data.data as Sheet[] };
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
+      return rejectWithValue(error.response?.data?.error?.message ?? error.message ?? 'Failed to load sheets');
+    }
   },
 );
 
@@ -119,7 +126,7 @@ const sheetsSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // fetchSheets
-      .addCase(fetchSheets.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchSheets.pending, (state) => { state.loading = true; state.error = null; state.errorStatus = undefined; })
       .addCase(fetchSheets.fulfilled, (state, action) => {
         state.loading = false;
         const { workspaceId, sheets } = action.payload;
@@ -128,12 +135,12 @@ const sheetsSlice = createSlice({
           state.byId[sheet.id] = sheet;
         }
       })
-      .addCase(fetchSheets.rejected, (state) => {
+      .addCase(fetchSheets.rejected, (state, action) => {
         state.loading = false;
-        state.error = 'Failed to load sheets';
+        state.error = (action.payload as string) || 'Failed to load sheets';
       })
       // fetchSheet
-      .addCase(fetchSheet.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchSheet.pending, (state) => { state.loading = true; state.error = null; state.errorStatus = undefined; })
       .addCase(fetchSheet.fulfilled, (state, action) => {
         state.loading = false;
         const sheet = action.payload;
@@ -152,6 +159,7 @@ const sheetsSlice = createSlice({
         state.loading = false;
         const payload = action.payload as { status?: number; message?: string } | undefined;
         state.error = payload?.message || 'Failed to load sheet';
+        state.errorStatus = payload?.status;
       })
       // createSheet
       .addCase(createSheet.fulfilled, (state, action) => {
@@ -189,6 +197,7 @@ export const { clearCurrentSheet } = sheetsSlice.actions;
 
 export const selectSheetsLoading = (state: RootState) => state.sheets.loading;
 export const selectSheetsError = (state: RootState) => state.sheets.error;
+export const selectSheetsErrorStatus = (state: RootState) => state.sheets.errorStatus;
 export const selectCurrentSheetId = (state: RootState) => state.sheets.currentSheetId;
 
 export const selectCurrentSheet = (state: RootState) => {

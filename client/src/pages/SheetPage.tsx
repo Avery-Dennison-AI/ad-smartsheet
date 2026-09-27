@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { PageContainer, PageHeader, Button, EmptyState, Spinner, SheetIcon, FavoritesStar } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { fetchSheet, selectCurrentSheet, selectSheetsLoading, selectSheetsError, clearCurrentSheet } from '@/store/slices/sheetsSlice';
+import { fetchSheet, selectCurrentSheet, selectSheetsLoading, selectSheetsError, selectSheetsErrorStatus, clearCurrentSheet } from '@/store/slices/sheetsSlice';
 import { setFavoriteMeta, selectRecents, selectFavorites } from '@/store/slices/userMetaSlice';
 import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 import SheetActionsMenu from '@/features/sheets/components/SheetActionsMenu';
@@ -15,9 +15,10 @@ export default function SheetPage() {
   const sheet = useAppSelector(selectCurrentSheet);
   const loading = useAppSelector(selectSheetsLoading);
   const error = useAppSelector(selectSheetsError);
+  const errorStatus = useAppSelector(selectSheetsErrorStatus);
   const recents = useAppSelector(selectRecents);
   const favorites = useAppSelector(selectFavorites);
-  const { handleSheetAccessLost } = useWorkspaceAccessLost();
+  const { handleSheetAccessLost, isAccessError } = useWorkspaceAccessLost();
 
   // Derive favorite state from userMeta
   const isFavorite = sheetId
@@ -31,12 +32,12 @@ export default function SheetPage() {
     return () => { dispatch(clearCurrentSheet()); };
   }, [sheetId, dispatch]);
 
-  // Access lost handling — redirect on 403/404
+  // Access lost handling — redirect on 403/404 using status code
   useEffect(() => {
-    if (error && (error.includes('not found') || error.includes('Access denied'))) {
+    if (error && isAccessError({ status: errorStatus })) {
       handleSheetAccessLost(sheet?.workspaceId);
     }
-  }, [error, handleSheetAccessLost, sheet?.workspaceId]);
+  }, [error, errorStatus, isAccessError, handleSheetAccessLost, sheet?.workspaceId]);
 
   if (loading) {
     return (
@@ -51,23 +52,28 @@ export default function SheetPage() {
   }
 
   if (error) {
-    return (
-      <PageContainer fullWidth data-icod-id="src_pages_sheetpage_tsx_fa08">
-        <EmptyState
-          icon={AlertTriangle}
-          title="Sheet not accessible"
-          description={error}
-          action={
-            <Button
-              size="sm"
-              onClick={() => navigate('/home')}
-              data-icod-id="src_pages_sheetpage_tsx_6cf9">
-              Go Home
-            </Button>
-          }
-          data-icod-id="src_pages_sheetpage_tsx_61f3" />
-      </PageContainer>
-    );
+    // Access errors (403/404) are handled by the useEffect above — this is for other errors
+    if (!isAccessError({ status: errorStatus })) {
+      return (
+        <PageContainer fullWidth data-icod-id="src_pages_sheetpage_tsx_fa08">
+          <EmptyState
+            icon={AlertTriangle}
+            title="Something went wrong"
+            description={error}
+            action={
+              <Button
+                size="sm"
+                onClick={() => sheetId && dispatch(fetchSheet(sheetId))}
+                data-icod-id="src_pages_sheetpage_tsx_6cf9">
+                Try again
+              </Button>
+            }
+            data-icod-id="src_pages_sheetpage_tsx_61f3" />
+        </PageContainer>
+      );
+    }
+    // For access errors, show loading-like state while redirect happens
+    return null;
   }
 
   if (!sheet) {
