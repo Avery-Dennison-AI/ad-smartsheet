@@ -56,11 +56,10 @@ function Swatch({ color, name, hex }: { color: string; name: string; hex: string
         style={{ backgroundColor: color }}
         data-icod-id="src_pages_designsystempage_tsx_3734" />
       <span
-        className="text-[var(--text-xs)] font-medium text-foreground"
+        className="text-token-xs font-medium text-foreground"
         data-icod-id="src_pages_designsystempage_tsx_bbb4">{name}</span>
       <span
-        className="text-muted-foreground"
-        style={{ fontSize: 'var(--text-2xs)' }}
+        className="text-token-2xs text-muted-foreground"
         data-icod-id="src_pages_designsystempage_tsx_0715">{hex}</span>
     </div>
   );
@@ -82,7 +81,7 @@ export default function DesignSystemPage() {
       className="mx-auto max-w-5xl"
       data-icod-id="src_pages_designsystempage_tsx_5a53">
       <h1
-        className="mb-8 text-[var(--text-xl)] font-bold text-foreground"
+        className="mb-8 text-token-xl font-bold text-foreground"
         data-icod-id="src_pages_designsystempage_tsx_a283">Design System</h1>
       {/* ─── 1. Color Tokens ─────────────────────────────────────────────── */}
       <Section title="Color Tokens" data-icod-id="src_pages_designsystempage_tsx_8506">
@@ -1040,7 +1039,7 @@ export default function DesignSystemPage() {
           className="rounded-[var(--radius-lg)] border border-border bg-muted/50"
           data-icod-id="ds_pagecontainer_outer">
           <PageContainer data-icod-id="ds_pagecontainer_instance">
-            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-gray-400)] p-6 text-center text-[var(--text-sm)] text-[var(--color-gray-600)]" data-icod-id="ds_pagecontainer_content">
+            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-gray-400)] p-6 text-center text-token-sm text-[var(--color-gray-600)]" data-icod-id="ds_pagecontainer_content">
               Sample content inside PageContainer (max-w-6xl, px-6 py-6 / xl:px-8 xl:py-8)
             </div>
           </PageContainer>

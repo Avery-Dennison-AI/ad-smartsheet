@@ -68,12 +68,12 @@ export default function AppShell({ children }: AppShellProps) {
   const userDropdownHeader = user ? (
     <div data-icod-id="src_components_layout_appshell_tsx_d948">
       <div
-        className="text-[var(--text-sm)] font-medium text-[var(--color-gray-900)]"
+        className="text-token-sm font-medium text-[var(--color-gray-900)]"
         data-icod-id="src_components_layout_appshell_tsx_6e5e">
         {user.fullName}
       </div>
       <div
-        className="text-[var(--text-xs)] text-[var(--color-gray-600)]"
+        className="text-token-xs text-[var(--color-gray-600)]"
         data-icod-id="src_components_layout_appshell_tsx_28b7">
         {user.email}
       </div>
@@ -101,7 +101,7 @@ export default function AppShell({ children }: AppShellProps) {
               data-icod-id="src_components_layout_appshell_tsx_1e53">
               <Tooltip content="GridFlow" data-icod-id="src_components_layout_appshell_tsx_cfcf">
                 <div
-                  className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary)] text-[var(--text-sm)] font-bold text-white"
+                  className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary)] text-token-sm font-bold text-white"
                   data-icod-id="src_components_layout_appshell_tsx_4cd2">
                   GF
                 </div>
@@ -122,12 +122,12 @@ export default function AppShell({ children }: AppShellProps) {
                 className="flex items-center gap-2"
                 data-icod-id="src_components_layout_appshell_tsx_1947">
                 <div
-                  className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary)] text-[var(--text-sm)] font-bold text-white"
+                  className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-[var(--color-primary)] text-token-sm font-bold text-white"
                   data-icod-id="src_components_layout_appshell_tsx_eca9">
                   GF
                 </div>
                 <span
-                  className="text-[var(--text-sm)] font-semibold text-[var(--color-gray-900)]"
+                  className="text-token-sm font-semibold text-[var(--color-gray-900)]"
                   data-icod-id="src_components_layout_appshell_tsx_c345">
                   GridFlow
                 </span>
@@ -177,7 +177,7 @@ export default function AppShell({ children }: AppShellProps) {
               className="mb-1 flex items-center justify-between px-1"
               data-icod-id="src_components_layout_appshell_tsx_47c8">
               <span
-                className="text-[var(--text-xs)] font-semibold uppercase tracking-widest text-[var(--color-gray-400)]"
+                className="text-token-xs font-medium uppercase tracking-wider text-[var(--color-gray-400)]"
                 data-icod-id="src_components_layout_appshell_tsx_b5c2">
                 Workspaces
               </span>
@@ -244,7 +244,7 @@ export default function AppShell({ children }: AppShellProps) {
                     className="mb-1 px-1"
                     data-icod-id="src_components_layout_appshell_tsx_2284">
                     <span
-                      className="text-[var(--text-xs)] font-semibold uppercase tracking-widest text-[var(--color-gray-400)]"
+                      className="text-token-xs font-medium uppercase tracking-wider text-[var(--color-gray-400)]"
                       data-icod-id="src_components_layout_appshell_tsx_e56e">
                       Admin
                     </span>
@@ -290,7 +290,7 @@ export default function AppShell({ children }: AppShellProps) {
               readOnly
               rightIcon={
                 <kbd
-                  className="flex items-center rounded border border-border bg-[var(--color-gray-100)] px-1 font-mono leading-none text-[var(--text-2xs)] text-[var(--color-gray-400)]"
+                   className="flex items-center rounded border border-border bg-[var(--color-gray-100)] px-1 font-mono leading-none text-token-2xs text-[var(--color-gray-400)]"
                   data-icod-id="src_components_layout_appshell_tsx_d263">
                   ⌘K
                 </kbd>

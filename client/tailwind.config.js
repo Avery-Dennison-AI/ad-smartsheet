@@ -45,6 +45,15 @@ export default {
         input: 'rgb(var(--input, 203 213 225) / <alpha-value>)',
         ring: 'rgb(var(--ring, 79 70 229) / <alpha-value>)',
       },
+      fontSize: {
+        'token-2xs': 'var(--text-2xs)',
+        'token-xs': 'var(--text-xs)',
+        'token-sm': 'var(--text-sm)',
+        'token-base': 'var(--text-base)',
+        'token-md': 'var(--text-md)',
+        'token-lg': 'var(--text-lg)',
+        'token-xl': 'var(--text-xl)',
+      },
       borderRadius: {
         sm: 'var(--radius-sm)',   // 4px
         md: 'var(--radius-md)',   // 6px

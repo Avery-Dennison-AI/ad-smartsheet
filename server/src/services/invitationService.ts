@@ -103,7 +103,7 @@ export async function revokeInvitation(invitationId: string): Promise<IInvitatio
 }
 
 export async function listInvitations() {
-  const invitations = await Invitation.find()
+  const invitations = await Invitation.find({ status: { $ne: 'accepted' } })
     .populate('invitedBy', 'fullName email')
     .sort({ createdAt: -1 });
 

@@ -28,7 +28,7 @@ const variantClass: Record<BadgeVariant, string> = {
 };
 
 const sizeClass: Record<BadgeSize, string> = {
-  sm: 'px-1.5 py-0.5',
+  sm: 'px-1.5 py-0.5 text-token-2xs',
   md: 'px-2 py-0.5 text-xs',
 };
 
@@ -54,7 +54,6 @@ export default function Badge({
         sizeClass[size],
         className,
       )}
-      style={size === 'sm' ? { fontSize: 'var(--text-2xs)' } : undefined}
       data-icod-id="src_components_ui_badge_tsx_9c6c">
       {children}
     </span>

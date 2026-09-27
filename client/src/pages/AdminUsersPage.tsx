@@ -1,5 +1,5 @@
-import { useState, useEffect, type FormEvent } from 'react';
-import { Search, Plus, Users, Mail, RefreshCw, XCircle, MoreHorizontal } from 'lucide-react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { Search, Users, Mail, RefreshCw, XCircle, MoreHorizontal } from 'lucide-react';
 import {
   Button,
   Input,
@@ -45,17 +45,22 @@ import type { AdminUser, InvitationItem, InvitationStatus } from '@/types';
 
 // ─── Status badge variant mapping ──────────────────────────────────────────
 
-function statusBadgeVariant(status: InvitationStatus): 'status-blue' | 'status-green' | 'status-red' | 'status-gray' {
+function statusBadgeVariant(status: InvitationStatus): 'status-blue' | 'status-red' | 'status-gray' {
   switch (status) {
     case 'pending': return 'status-blue';
-    case 'accepted': return 'status-green';
     case 'revoked': return 'status-red';
     case 'expired': return 'status-gray';
+    case 'accepted': return 'status-gray'; // filtered out server-side; fallback only
   }
 }
 
 function roleBadgeVariant(role: string): 'status-blue' | 'neutral' {
   return role === 'admin' ? 'status-blue' : 'neutral';
+}
+
+/** Capitalize first letter of a string. */
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 // ─── Invite Modal ──────────────────────────────────────────────────────────
@@ -100,10 +105,11 @@ function InviteModal({ open, onClose }: InviteModalProps) {
     }
   }
 
-  function handleClose() {
+  // Stable callback so Modal's focus effect does not re-run on every render.
+  const handleClose = useCallback(() => {
     resetForm();
     onClose();
-  }
+  }, [onClose]);
 
   function handleInviteAnother() {
     setInvitePath(null);
@@ -142,7 +148,8 @@ function InviteModal({ open, onClose }: InviteModalProps) {
             <Button
               size="sm"
               loading={loading}
-              onClick={() => document.getElementById('invite-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+              type="submit"
+              form="invite-form"
               data-icod-id="src_pages_adminuserspage_tsx_send_invite">Send Invitation</Button>
           </>
         )
@@ -202,7 +209,12 @@ function InviteModal({ open, onClose }: InviteModalProps) {
 
 // ─── Users Tab ─────────────────────────────────────────────────────────────
 
-function UsersTab() {
+interface UsersTabProps {
+  inviteOpen: boolean;
+  setInviteOpen: (v: boolean) => void;
+}
+
+function UsersTab({ inviteOpen: _inviteOpen, setInviteOpen: _setInviteOpen }: UsersTabProps) {
   const dispatch = useAppDispatch();
   const users = useAppSelector(selectAdminUsers);
   const status = useAppSelector(selectAdminUsersStatus);
@@ -264,7 +276,7 @@ function UsersTab() {
                 <Badge variant="neutral" size="sm" data-icod-id={`admin_users_you_badge_${user.id}`}>You</Badge>
               )}
             </div>
-            <span className="text-muted-foreground" style={{ fontSize: 'var(--text-xs)' }} data-icod-id={`admin_users_email_${user.id}`}>{user.email}</span>
+            <span className="text-token-xs text-muted-foreground" data-icod-id={`admin_users_email_${user.id}`}>{user.email}</span>
           </div>
         </div>
       ),
@@ -273,7 +285,7 @@ function UsersTab() {
       key: 'role',
       header: 'Role',
       cell: (user) => (
-        <Badge variant={roleBadgeVariant(user.role)} data-icod-id={`admin_users_role_${user.id}`}>{user.role}</Badge>
+        <Badge variant={roleBadgeVariant(user.role)} data-icod-id={`admin_users_role_${user.id}`}>{capitalize(user.role)}</Badge>
       ),
     },
     {
@@ -331,9 +343,9 @@ function UsersTab() {
 
   return (
     <div className="flex flex-col gap-4" data-icod-id="admin_users_tab_root">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3" data-icod-id="admin_users_filters">
-        <div className="flex-1" data-icod-id="admin_users_search_wrap">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 mb-4" data-icod-id="admin_users_filters">
+        <div className="w-64" data-icod-id="admin_users_search_wrap">
           <Input
             leftIcon={<Search className="h-4 w-4" data-icod-id="admin_users_search_icon" />}
             placeholder="Search users..."
@@ -342,7 +354,7 @@ function UsersTab() {
             data-icod-id="admin_users_search_input" />
         </div>
         <Select
-          className="w-full sm:w-40"
+          className="w-40"
           value={filterStatus}
           onChange={(e) => { setFilterStatus(e.target.value as typeof filterStatus); setPage(1); }}
           data-icod-id="admin_users_status_filter">
@@ -402,12 +414,16 @@ function UsersTab() {
 
 // ─── Invitations Tab ───────────────────────────────────────────────────────
 
-function InvitationsTab() {
+interface InvitationsTabProps {
+  inviteOpen: boolean;
+  setInviteOpen: (v: boolean) => void;
+}
+
+function InvitationsTab({ inviteOpen, setInviteOpen }: InvitationsTabProps) {
   const dispatch = useAppDispatch();
   const invitations = useAppSelector(selectAdminInvitations);
   const status = useAppSelector(selectAdminInvitationsStatus);
   const error = useAppSelector(selectAdminInvitationsError);
-  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
   const [regenResult, setRegenResult] = useState<{ invitePath: string } | null>(null);
 
@@ -458,14 +474,14 @@ function InvitationsTab() {
       key: 'role',
       header: 'Role',
       cell: (inv) => (
-        <Badge variant={roleBadgeVariant(inv.role)} data-icod-id={`admin_inv_role_${inv.id}`}>{inv.role}</Badge>
+        <Badge variant={roleBadgeVariant(inv.role)} data-icod-id={`admin_inv_role_${inv.id}`}>{capitalize(inv.role)}</Badge>
       ),
     },
     {
       key: 'status',
       header: 'Status',
       cell: (inv) => (
-        <Badge variant={statusBadgeVariant(inv.status)} data-icod-id={`admin_inv_status_${inv.id}`}>{inv.status}</Badge>
+        <Badge variant={statusBadgeVariant(inv.status)} data-icod-id={`admin_inv_status_${inv.id}`}>{capitalize(inv.status)}</Badge>
       ),
     },
     {
@@ -521,12 +537,6 @@ function InvitationsTab() {
 
   return (
     <div className="flex flex-col gap-4" data-icod-id="admin_inv_tab_root">
-      <div className="flex justify-end" data-icod-id="admin_inv_header">
-        <Button
-          leftIcon={<Plus className="h-4 w-4" data-icod-id="admin_inv_plus_icon" />}
-          onClick={() => setInviteModalOpen(true)}
-          data-icod-id="admin_inv_send_btn">Send Invitation</Button>
-      </div>
       {error && <Alert variant="error" data-icod-id="admin_inv_error">{error}</Alert>}
       <DataTable
         columns={columns}
@@ -535,18 +545,15 @@ function InvitationsTab() {
         loading={status === 'loading'}
         emptyState={
           <EmptyState
+            compact
             icon={Mail}
-            title="No invitations"
+            title="No invitations yet."
             description="Send an invitation to add a new team member."
-            action={<Button onClick={() => setInviteModalOpen(true)} data-icod-id="admin_inv_empty_btn">Send Invitation</Button>}
+            action={<Button onClick={() => setInviteOpen(true)} data-icod-id="admin_inv_empty_btn">Send Invitation</Button>}
             data-icod-id="admin_inv_empty" />
         }
         className="rounded-[var(--radius-lg)] border border-border bg-card"
         data-icod-id="admin_inv_table" />
-      <InviteModal
-        open={inviteModalOpen}
-        onClose={() => setInviteModalOpen(false)}
-        data-icod-id="admin_inv_modal" />
       {/* Regenerated link modal */}
       <Modal
         open={!!regenResult}
@@ -590,27 +597,46 @@ function InvitationsTab() {
 
 export default function AdminUsersPage() {
   const [activeTab, setActiveTab] = useState('users');
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  const users = useAppSelector(selectAdminUsers);
+  const invitations = useAppSelector(selectAdminInvitations);
 
   const tabs = [
-    { id: 'users', label: 'Users', icon: <Users className="h-4 w-4" data-icod-id="admin_page_users_icon" /> },
-    { id: 'invitations', label: 'Invitations', icon: <Mail className="h-4 w-4" data-icod-id="admin_page_inv_icon" /> },
+    { id: 'users', label: 'Users', icon: <Users className="h-4 w-4" data-icod-id="admin_page_users_icon" />, badge: users.length },
+    { id: 'invitations', label: 'Invitations', icon: <Mail className="h-4 w-4" data-icod-id="admin_page_inv_icon" />, badge: invitations.length },
   ];
 
+  // Stable callback for closing the invite modal.
+  const handleCloseInvite = useCallback(() => setInviteOpen(false), []);
+
   return (
-    <PageContainer data-icod-id="src_pages_adminuserspage_tsx_744e">
-      <div className="flex flex-col gap-6" data-icod-id="admin_page_root">
+    <PageContainer fullWidth data-icod-id="src_pages_adminuserspage_tsx_744e">
+      <div className="flex flex-col gap-4" data-icod-id="admin_page_root">
         <PageHeader
-          title="User Management"
-          description="Manage team members and send invitations"
+          title="Users"
+          description="Manage who has access to GridFlow"
+          className="mb-3"
+          actions={
+            <Button
+              variant="primary"
+              onClick={() => setInviteOpen(true)}
+              data-icod-id="admin_page_invite_btn">Invite user</Button>
+          }
           data-icod-id="admin_page_header" />
         <Tabs
           tabs={tabs}
           activeTab={activeTab}
           onChange={setActiveTab}
+          className="mt-3 mb-4"
           data-icod-id="admin_page_tabs" />
-        {activeTab === 'users' && <UsersTab data-icod-id="admin_page_users_tab" />}
-        {activeTab === 'invitations' && <InvitationsTab data-icod-id="admin_page_inv_tab" />}
+        {activeTab === 'users' && <UsersTab inviteOpen={inviteOpen} setInviteOpen={setInviteOpen} data-icod-id="admin_page_users_tab" />}
+        {activeTab === 'invitations' && <InvitationsTab inviteOpen={inviteOpen} setInviteOpen={setInviteOpen} data-icod-id="admin_page_inv_tab" />}
       </div>
+      <InviteModal
+        open={inviteOpen}
+        onClose={handleCloseInvite}
+        data-icod-id="admin_page_invite_modal" />
     </PageContainer>
   );
 }

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, type ReactNode, type KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, type ReactNode, type KeyboardEvent } from 'react';
+import ReactDOM from 'react-dom';
 import { cn } from '@/utils/cn';
 
 export interface DropdownMenuItem {
@@ -18,20 +19,62 @@ export interface DropdownMenuProps {
   header?: ReactNode;
 }
 
-/** Trigger + floating menu with keyboard navigation (arrow keys, Escape). */
+/** Trigger + floating menu with keyboard navigation (arrow keys, Escape).
+ *  Renders the menu via a portal into document.body so it is never clipped
+ *  by overflow-hidden or scrollable parent containers. */
 export default function DropdownMenu({ trigger, items, className, header }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
   const [focusIndex, setFocusIndex] = useState(-1);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Close on click outside
+  // Compute position whenever the menu opens
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+
+    const rect = triggerRef.current.getBoundingClientRect();
+    const gap = 4;
+
+    // Default: below trigger, right-aligned
+    let top = rect.bottom + gap;
+    let left = rect.right;
+
+    // Measure menu height after render — use a rough estimate first,
+    // then adjust on next layout if needed.
+    const menuHeight = menuRef.current?.offsetHeight ?? 200;
+    const menuWidth = menuRef.current?.offsetWidth ?? 180;
+
+    // Flip upward if not enough space below
+    if (top + menuHeight > window.innerHeight) {
+      top = rect.top - gap - menuHeight;
+    }
+
+    // Prevent overflow on the left
+    if (left - menuWidth < 0) {
+      left = rect.left + menuWidth;
+    }
+
+    setMenuPos({ top, left });
+  }, [open]);
+
+  // Close helper
+  const close = () => {
+    setOpen(false);
+    setFocusIndex(-1);
+    setMenuPos(null);
+  };
+
+  // Close on click outside (both trigger and portal menu)
   useEffect(() => {
     if (!open) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setFocusIndex(-1);
+      const target = e.target as Node;
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        menuRef.current && !menuRef.current.contains(target)
+      ) {
+        close();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -42,13 +85,22 @@ export default function DropdownMenu({ trigger, items, className, header }: Drop
   useEffect(() => {
     if (!open) return;
     const handleEsc = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        setFocusIndex(-1);
-      }
+      if (e.key === 'Escape') close();
     };
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
+  }, [open]);
+
+  // Close on scroll or resize
+  useEffect(() => {
+    if (!open) return;
+    const handleScrollOrResize = () => close();
+    window.addEventListener('scroll', handleScrollOrResize, { capture: true, passive: true });
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, { capture: true });
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
   }, [open]);
 
   const actionableIndices = items
@@ -86,46 +138,29 @@ export default function DropdownMenu({ trigger, items, className, header }: Drop
         const item = items[focusIndex];
         if (item && item.type !== 'divider' && item.onClick) {
           item.onClick();
-          setOpen(false);
-          setFocusIndex(-1);
+          close();
         }
         break;
       }
       case 'Escape':
-        setOpen(false);
-        setFocusIndex(-1);
+        close();
         break;
     }
   };
 
-  return (
-    <div
-      ref={containerRef}
-      className={cn('relative inline-block', className)}
-      data-icod-id="src_components_ui_dropdownmenu_tsx_76ca">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => { setOpen(!open); if (!open) setFocusIndex(actionableIndices[0] ?? 0); }}
-        onKeyDown={handleKeyDown}
-        aria-haspopup="true"
-        aria-expanded={open}
-        data-icod-id="src_components_ui_dropdownmenu_tsx_184c">
-        {trigger}
-      </div>
-      {open && (
+  const menuPortal = open && menuPos
+    ? ReactDOM.createPortal(
         <div
           ref={menuRef}
           role="menu"
-          className={cn(
-            'absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-[var(--radius-md)] border border-border bg-card py-1 shadow-[var(--shadow-md)]',
-          )}
+          className="fixed z-[9999] min-w-[180px] rounded-[var(--radius-md)] border border-border bg-card py-1 shadow-[var(--shadow-md)]"
+          style={{ top: menuPos.top, left: menuPos.left, transform: 'translateX(-100%)' }}
           data-icod-id="src_components_ui_dropdownmenu_tsx_a5ea">
           {header && (
             <>
               <div
                 role="none"
-                className="px-3 py-3 text-[var(--text-sm)] font-medium text-[var(--color-gray-900)]"
+                className="px-3 py-3 text-token-sm font-medium text-[var(--color-gray-900)]"
                 data-icod-id="src_components_ui_dropdownmenu_tsx_header">
                 {header}
               </div>
@@ -157,8 +192,7 @@ export default function DropdownMenu({ trigger, items, className, header }: Drop
                 )}
                 onClick={() => {
                   item.onClick?.();
-                  setOpen(false);
-                  setFocusIndex(-1);
+                  close();
                 }}
                 onMouseEnter={() => setFocusIndex(index)}
                 data-icod-id={`src_components_ui_dropdownmenu_tsx_0930_${index}`}>
@@ -176,8 +210,27 @@ export default function DropdownMenu({ trigger, items, className, header }: Drop
               </button>
             );
           })}
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div
+      className={cn('relative inline-block', className)}
+      data-icod-id="src_components_ui_dropdownmenu_tsx_76ca">
+      <div
+        ref={triggerRef}
+        role="button"
+        tabIndex={0}
+        onClick={() => { setOpen(!open); if (!open) setFocusIndex(actionableIndices[0] ?? 0); }}
+        onKeyDown={handleKeyDown}
+        aria-haspopup="true"
+        aria-expanded={open}
+        data-icod-id="src_components_ui_dropdownmenu_tsx_184c">
+        {trigger}
+      </div>
+      {menuPortal}
     </div>
   );
 }

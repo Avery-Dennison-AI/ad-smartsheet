@@ -120,11 +120,10 @@ export default function SidebarNavItem({
   const inner = (
     <span
       className={cn(
-        'flex h-8 w-full items-center gap-2 px-2',
+        'flex h-8 w-full items-center gap-2 px-2 text-token-sm',
         baseClasses,
         activeStyle,
       )}
-      style={{ fontSize: 'var(--text-sm)' }}
       data-icod-id="src_components_layout_sidebarnavitem_tsx_08ae">
       {leadingVisual}
       <span

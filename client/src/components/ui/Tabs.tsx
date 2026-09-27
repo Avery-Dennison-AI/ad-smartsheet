@@ -5,6 +5,8 @@ export interface TabItem {
   id: string;
   label: string;
   icon?: ReactNode;
+  /** Optional count rendered as a small muted badge next to the label. */
+  badge?: number;
 }
 
 export interface TabsProps {
@@ -40,6 +42,13 @@ export default function Tabs({ tabs, activeTab, onChange, className }: TabsProps
               className="h-4 w-4"
               data-icod-id={`src_components_ui_tabs_tsx_543e_${tab.id}`}>{tab.icon}</span>}
             {tab.label}
+            {tab.badge !== undefined && (
+              <span
+                className="ml-1 rounded-full bg-muted px-1.5 py-0.5 leading-none text-token-xs text-muted-foreground"
+                data-icod-id={`src_components_ui_tabs_tsx_badge_${tab.id}`}>
+                {tab.badge}
+              </span>
+            )}
             {isActive && (
               <span
                 className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full"

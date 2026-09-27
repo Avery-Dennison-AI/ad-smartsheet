@@ -12,6 +12,9 @@ export interface ModalProps {
   children: ReactNode;
 }
 
+const FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 /**
  * Centred overlay dialog with focus trapping.
  * Closes on Escape and backdrop click. Scroll lock built in.
@@ -25,18 +28,36 @@ export default function Modal({
   children,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  // Stable ref to onClose so the keydown effect never re-runs when the
+  // callback changes identity — prevents focus-stealing on every keystroke.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
+  // Auto-focus first focusable element — runs ONLY when open transitions to true.
+  useEffect(() => {
+    if (!open) return;
+
+    requestAnimationFrame(() => {
+      if (dialogRef.current) {
+        const firstFocusable = dialogRef.current.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+        firstFocusable?.focus();
+      }
+    });
+  }, [open]);
+
+  // Keydown listener (Escape + focus trap) — depends only on `open`.
   useEffect(() => {
     if (!open) return;
 
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onCloseRef.current();
+        return;
+      }
 
       // Focus trap
       if (e.key === 'Tab' && dialogRef.current) {
-        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
         if (focusable.length === 0) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -58,21 +79,11 @@ export default function Modal({
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
 
-    // Auto-focus first focusable element
-    requestAnimationFrame(() => {
-      if (dialogRef.current) {
-        const firstFocusable = dialogRef.current.querySelector<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        firstFocusable?.focus();
-      }
-    });
-
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -103,7 +114,7 @@ export default function Modal({
             className="flex items-center justify-between"
             data-icod-id="src_components_ui_modal_tsx_7fac">
             <h2
-              className="text-[var(--text-md)] font-semibold"
+              className="text-token-md font-semibold"
               data-icod-id="src_components_ui_modal_tsx_f42f">{title}</h2>
             <Button
               variant="ghost"
