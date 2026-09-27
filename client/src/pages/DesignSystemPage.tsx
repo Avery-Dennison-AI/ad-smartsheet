@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Search, Settings, Trash2, Copy, Plus, Home, Clock, Bold, Italic, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight, ChevronDown, PaintBucket, Type, Check } from 'lucide-react';
+import { Search, Settings, Trash2, Copy, Plus, Home, Clock, Bold, Italic, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight, ChevronDown, PaintBucket, Type } from 'lucide-react';
 import {
   Button,
   IconButton,
@@ -49,6 +49,7 @@ import {
   ResizeHandle,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
+import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import type { RoleValue } from '@/components/ui/RoleMenu';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
 import ColumnPropertiesModal from '@/features/sheets/grid/ColumnPropertiesModal';
@@ -1499,10 +1500,8 @@ function ToolbarDemo() {
   const [verticalAlign, setVerticalAlign] = useState<'top' | 'middle' | 'bottom' | null>(null);
   const textColorBtnRef = useRef<HTMLButtonElement>(null);
   const fillColorBtnRef = useRef<HTMLButtonElement>(null);
-  const vertAlignBtnRef = useRef<HTMLButtonElement>(null);
   const [textColorOpen, setTextColorOpen] = useState(false);
   const [fillColorOpen, setFillColorOpen] = useState(false);
-  const [vertAlignOpen, setVertAlignOpen] = useState(false);
 
   return (
     <Toolbar data-icod-id="src_pages_designsystempage_tsx_4d1c">
@@ -1664,74 +1663,49 @@ function ToolbarDemo() {
       </ToolbarGroup>
       {/* Group C: Vertical alignment */}
       <ToolbarGroup data-icod-id="ds_toolbar_valign">
-        <div className="relative" data-icod-id="ds_valign_wrap">
-          <button
-            ref={vertAlignBtnRef}
-            type="button"
-            className="inline-flex h-6 items-center gap-0.5 rounded-[var(--radius-sm)] px-1 transition-colors hover:bg-muted"
-            onClick={() => setVertAlignOpen(!vertAlignOpen)}
-            onMouseDown={(e) => e.preventDefault()}
-            aria-label="Vertical alignment"
-            title="Vertical alignment"
-            data-icod-id="ds_valign_btn"
-          >
-            <AlignCenter
-              className="h-3.5 w-3.5"
-              data-icod-id="src_pages_designsystempage_tsx_2705" />
-            <ChevronDown
-              className="h-2.5 w-2.5 text-muted-foreground"
-              data-icod-id="src_pages_designsystempage_tsx_098e" />
-          </button>
-          {vertAlignOpen && (
-            <div
-              className="absolute left-0 top-full z-[200] mt-1 w-36 rounded-md border border-border bg-card py-1 shadow-lg"
-              data-icod-id="ds_valign_menu"
+        <DropdownMenu
+          skipRestoreFocus
+          trigger={
+            <button
+              type="button"
+              className="inline-flex h-6 items-center gap-0.5 rounded-[var(--radius-sm)] px-1 transition-colors hover:bg-muted"
+              onMouseDown={(e) => e.preventDefault()}
+              aria-label="Vertical alignment"
+              title="Vertical alignment"
+              data-icod-id="ds_valign_btn"
             >
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
-                onClick={() => { setVerticalAlign(verticalAlign === 'top' ? null : 'top'); setVertAlignOpen(false); }}
-                data-icod-id="ds_valign_top"
-              >
-                <AlignTopIcon
-                  className="h-3.5 w-3.5"
-                  data-icod-id="src_pages_designsystempage_tsx_0fd2" />
-                <span data-icod-id="src_pages_designsystempage_tsx_4088">Top</span>
-                {verticalAlign === 'top' && <Check
-                  className="ml-auto h-3 w-3 text-primary"
-                  data-icod-id="src_pages_designsystempage_tsx_1ac0" />}
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
-                onClick={() => { setVerticalAlign(verticalAlign === 'middle' ? null : 'middle'); setVertAlignOpen(false); }}
-                data-icod-id="ds_valign_middle"
-              >
-                <AlignCenter
-                  className="h-3.5 w-3.5"
-                  data-icod-id="src_pages_designsystempage_tsx_883c" />
-                <span data-icod-id="src_pages_designsystempage_tsx_b00f">Middle</span>
-                {(verticalAlign === 'middle' || verticalAlign == null) && <Check
-                  className="ml-auto h-3 w-3 text-primary"
-                  data-icod-id="src_pages_designsystempage_tsx_cd2a" />}
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
-                onClick={() => { setVerticalAlign(verticalAlign === 'bottom' ? null : 'bottom'); setVertAlignOpen(false); }}
-                data-icod-id="ds_valign_bottom"
-              >
-                <AlignBottomIcon
-                  className="h-3.5 w-3.5"
-                  data-icod-id="src_pages_designsystempage_tsx_fe6c" />
-                <span data-icod-id="src_pages_designsystempage_tsx_3995">Bottom</span>
-                {verticalAlign === 'bottom' && <Check
-                  className="ml-auto h-3 w-3 text-primary"
-                  data-icod-id="src_pages_designsystempage_tsx_40cf" />}
-              </button>
-            </div>
-          )}
-        </div>
+              <AlignCenter
+                className="h-3.5 w-3.5"
+                data-icod-id="src_pages_designsystempage_tsx_2705" />
+              <ChevronDown
+                className="h-2.5 w-2.5 text-muted-foreground"
+                data-icod-id="src_pages_designsystempage_tsx_098e" />
+            </button>
+          }
+          items={[
+            {
+              label: 'Top',
+              icon: <AlignTopIcon
+                className="h-3.5 w-3.5"
+                data-icod-id="src_pages_designsystempage_tsx_91f9" />,
+              onClick: () => setVerticalAlign(verticalAlign === 'top' ? null : 'top'),
+            },
+            {
+              label: 'Middle',
+              icon: <AlignCenter
+                className="h-3.5 w-3.5"
+                data-icod-id="src_pages_designsystempage_tsx_77eb" />,
+              onClick: () => setVerticalAlign(verticalAlign === 'middle' ? null : 'middle'),
+            },
+            {
+              label: 'Bottom',
+              icon: <AlignBottomIcon
+                className="h-3.5 w-3.5"
+                data-icod-id="src_pages_designsystempage_tsx_c565" />,
+              onClick: () => setVerticalAlign(verticalAlign === 'bottom' ? null : 'bottom'),
+            },
+          ] as DropdownMenuItem[]}
+          data-icod-id="src_pages_designsystempage_tsx_82db" />
       </ToolbarGroup>
       <ToolbarGroup data-icod-id="src_pages_designsystempage_tsx_96d0">
         <IconButton

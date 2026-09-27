@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bold, Italic, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight, ChevronDown, PaintBucket, Type, Check } from 'lucide-react';
-import { Toolbar, ToolbarGroup, ToggleButton, IconButton, inputClass, ColorSwatchPicker } from '@/components/ui';
+import { Bold, Italic, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight, ChevronDown, PaintBucket, Type } from 'lucide-react';
+import { Toolbar, ToolbarGroup, ToggleButton, IconButton, inputClass, ColorSwatchPicker, DropdownMenu } from '@/components/ui';
+import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { useAppDispatch } from '@/store/hooks';
 import { applyFormatting } from '@/store/slices/gridSlice';
 import type { CellFormatting, Column, GridRow, WorkspaceRole } from '@/types';
@@ -353,22 +354,6 @@ export default function FormattingToolbar({
   const [textColorOpen, setTextColorOpen] = useState(false);
   const [fillColorOpen, setFillColorOpen] = useState(false);
 
-  // ─── Vertical align dropdown state ────────────────────────────────────
-  const vertAlignBtnRef = useRef<HTMLButtonElement>(null);
-  const [vertAlignOpen, setVertAlignOpen] = useState(false);
-
-  // Close popovers when clicking outside
-  useEffect(() => {
-    if (!vertAlignOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      if (vertAlignBtnRef.current && !vertAlignBtnRef.current.contains(e.target as Node)) {
-        setVertAlignOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [vertAlignOpen]);
-
   // Text alignment handler (radio-group behavior)
   const handleTextAlign = useCallback(
     (align: 'left' | 'center' | 'right') => {
@@ -390,7 +375,6 @@ export default function FormattingToolbar({
       } else {
         applyFormatPatch({ verticalAlign: align });
       }
-      setVertAlignOpen(false);
     },
     [aggregateFmt, applyFormatPatch],
   );
@@ -607,78 +591,47 @@ export default function FormattingToolbar({
       </ToolbarGroup>
       {/* Group C: Vertical alignment */}
       <ToolbarGroup data-icod-id="fmt_toolbar_valign">
-        <div className="relative" data-icod-id="fmt_valign_wrap">
-          <button
-            ref={vertAlignBtnRef}
-            type="button"
-            className="inline-flex h-6 items-center gap-0.5 rounded-[var(--radius-sm)] px-1 transition-colors hover:bg-muted"
-            onClick={() => setVertAlignOpen(!vertAlignOpen)}
-            onMouseDown={(e) => e.preventDefault()}
-            aria-label="Vertical alignment"
-            title="Vertical alignment"
-            data-icod-id="fmt_valign_btn"
-          >
-            {currentVertAlignIcon}
-            <ChevronDown
-              className="h-2.5 w-2.5 text-muted-foreground"
-              data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_13a5" />
-          </button>
-          {vertAlignOpen && (
-            <div
-              className="absolute left-0 top-full z-[200] mt-1 w-36 rounded-md border border-border bg-card py-1 shadow-lg"
-              data-icod-id="fmt_valign_menu"
+        <DropdownMenu
+          skipRestoreFocus
+          trigger={
+            <button
+              type="button"
+              className="inline-flex h-6 items-center gap-0.5 rounded-[var(--radius-sm)] px-1 transition-colors hover:bg-muted"
+              onMouseDown={(e) => e.preventDefault()}
+              aria-label="Vertical alignment"
+              title="Vertical alignment"
+              data-icod-id="fmt_valign_btn"
             >
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
-                onClick={() => handleVerticalAlign('top')}
-                data-icod-id="fmt_valign_top"
-              >
-                <AlignTop
-                  className="h-3.5 w-3.5"
-                  data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_36a4" />
-                <span data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_fd51">Top</span>
-                {!aggregateFmt._mixedVerticalAlign && aggregateFmt.verticalAlign === 'top' && (
-                  <Check
-                    className="ml-auto h-3 w-3 text-primary"
-                    data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_8607" />
-                )}
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
-                onClick={() => handleVerticalAlign('middle')}
-                data-icod-id="fmt_valign_middle"
-              >
-                <AlignCenter
-                  className="h-3.5 w-3.5"
-                  data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_a799" />
-                <span data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_690c">Middle</span>
-                {(!aggregateFmt._mixedVerticalAlign && (aggregateFmt.verticalAlign === 'middle' || aggregateFmt.verticalAlign == null)) && (
-                  <Check
-                    className="ml-auto h-3 w-3 text-primary"
-                    data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_8eba" />
-                )}
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted"
-                onClick={() => handleVerticalAlign('bottom')}
-                data-icod-id="fmt_valign_bottom"
-              >
-                <AlignBottom
-                  className="h-3.5 w-3.5"
-                  data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_4e5f" />
-                <span data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_65d6">Bottom</span>
-                {!aggregateFmt._mixedVerticalAlign && aggregateFmt.verticalAlign === 'bottom' && (
-                  <Check
-                    className="ml-auto h-3 w-3 text-primary"
-                    data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_b5aa" />
-                )}
-              </button>
-            </div>
-          )}
-        </div>
+              {currentVertAlignIcon}
+              <ChevronDown
+                className="h-2.5 w-2.5 text-muted-foreground"
+                data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_13a5" />
+            </button>
+          }
+          items={[
+            {
+              label: 'Top',
+              icon: <AlignTop
+                className="h-3.5 w-3.5"
+                data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_29f8" />,
+              onClick: () => handleVerticalAlign('top'),
+            },
+            {
+              label: 'Middle',
+              icon: <AlignCenter
+                className="h-3.5 w-3.5"
+                data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_7e62" />,
+              onClick: () => handleVerticalAlign('middle'),
+            },
+            {
+              label: 'Bottom',
+              icon: <AlignBottom
+                className="h-3.5 w-3.5"
+                data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_0344" />,
+              onClick: () => handleVerticalAlign('bottom'),
+            },
+          ] as DropdownMenuItem[]}
+          data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_b646" />
       </ToolbarGroup>
       {/* Group 3: Clear formatting */}
       <ToolbarGroup data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_0003">
