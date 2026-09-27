@@ -62,3 +62,14 @@ export function updateColumnFormatting(
 ) {
   return apiClient.patch(`/api/sheets/${sheetId}/grid/column-formatting`, { columns, cascadePatch });
 }
+
+export function updateColumnWidth(sheetId: string, columnId: string, width: number) {
+  return apiClient.patch(`/api/sheets/${sheetId}/grid/columns/${columnId}/width`, { width });
+}
+
+export function updateRowHeights(
+  sheetId: string,
+  updates: Array<{ rowId: string; height: number }>,
+) {
+  return apiClient.patch(`/api/sheets/${sheetId}/grid/rows/heights`, { heights: updates });
+}

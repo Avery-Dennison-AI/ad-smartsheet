@@ -89,3 +89,17 @@ export const updateColumnFormatting = asyncHandler(async (req: Request, res: Res
   const result = await gridService.updateColumnFormatting(req.params.sheetId, req.user!.id, columns, cascadePatch);
   sendSuccess(res, result);
 });
+
+/** PATCH /api/sheets/:sheetId/grid/columns/:columnId/width */
+export const patchColumnWidth = asyncHandler(async (req: Request, res: Response) => {
+  const { width } = req.body;
+  const column = await gridService.updateColumnWidth(req.params.sheetId, req.user!.id, req.params.columnId, width);
+  sendSuccess(res, column);
+});
+
+/** PATCH /api/sheets/:sheetId/grid/rows/heights */
+export const patchRowHeights = asyncHandler(async (req: Request, res: Response) => {
+  const { heights } = req.body;
+  const result = await gridService.updateRowHeights(req.params.sheetId, req.user!.id, heights);
+  sendSuccess(res, result);
+});

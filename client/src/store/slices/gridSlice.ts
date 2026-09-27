@@ -299,6 +299,46 @@ const gridSlice = createSlice({
         }
       }
     },
+    optimisticResizeColumn(
+      state,
+      action: PayloadAction<{ columnId: string; width: number }>,
+    ) {
+      const col = state.columns.find((c) => c.id === action.payload.columnId);
+      if (col) {
+        col.width = action.payload.width;
+      }
+    },
+    rollbackColumnWidth(
+      state,
+      action: PayloadAction<{ columnId: string; prevWidth: number | undefined }>,
+    ) {
+      const col = state.columns.find((c) => c.id === action.payload.columnId);
+      if (col) {
+        col.width = action.payload.prevWidth;
+      }
+    },
+    optimisticResizeRows(
+      state,
+      action: PayloadAction<Array<{ rowId: string; height: number }>>,
+    ) {
+      for (const entry of action.payload) {
+        const row = state.rows.find((r) => r.id === entry.rowId);
+        if (row) {
+          row.height = entry.height;
+        }
+      }
+    },
+    rollbackRowHeights(
+      state,
+      action: PayloadAction<Array<{ rowId: string; prevHeight: number | undefined }>>,
+    ) {
+      for (const entry of action.payload) {
+        const row = state.rows.find((r) => r.id === entry.rowId);
+        if (row) {
+          row.height = entry.prevHeight;
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -425,11 +465,31 @@ const gridSlice = createSlice({
       .addCase(applyFormatting.rejected, (state, action) => {
         state.saving = false;
         state.saveError = (action.payload as string) || 'Failed to update formatting';
+      })
+      // resizeColumn
+      .addCase(resizeColumn.pending, (state) => { state.saving = true; state.saveError = null; })
+      .addCase(resizeColumn.fulfilled, (state, action) => {
+        state.saving = false;
+        const idx = state.columns.findIndex((c) => c.id === action.payload.id);
+        if (idx !== -1) state.columns[idx] = action.payload;
+      })
+      .addCase(resizeColumn.rejected, (state, action) => {
+        state.saving = false;
+        state.saveError = (action.payload as string) || 'Failed to resize column';
+      })
+      // resizeRows
+      .addCase(resizeRows.pending, (state) => { state.saving = true; state.saveError = null; })
+      .addCase(resizeRows.fulfilled, (state) => {
+        state.saving = false;
+      })
+      .addCase(resizeRows.rejected, (state, action) => {
+        state.saving = false;
+        state.saveError = (action.payload as string) || 'Failed to resize rows';
       });
   },
 });
 
-export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting, optimisticApplyColumnFormatting, rollbackColumnFormatting, clearCellFormattingOverrides } = gridSlice.actions;
+export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting, optimisticApplyColumnFormatting, rollbackColumnFormatting, clearCellFormattingOverrides, optimisticResizeColumn, rollbackColumnWidth, optimisticResizeRows, rollbackRowHeights } = gridSlice.actions;
 
 // ─── Thunk: applyFormatting (defined after slice so it can reference actions) ──
 
@@ -509,6 +569,56 @@ export const applyFormatting = createAsyncThunk(
 // ─── Stable empty formatting constant (avoids re-renders) ──────────────
 
 const EMPTY_FORMATTING: CellFormatting = {};
+
+// ─── Thunk: resizeColumn (optimistic with rollback) ───────────────────────
+
+export const resizeColumn = createAsyncThunk(
+  'grid/resizeColumn',
+  async (
+    { sheetId, columnId, width }: { sheetId: string; columnId: string; width: number },
+    { dispatch, getState, rejectWithValue },
+  ) => {
+    const state = getState() as RootState;
+    const col = state.grid.columns.find((c) => c.id === columnId);
+    const prevWidth = col?.width;
+
+    dispatch(optimisticResizeColumn({ columnId, width }));
+
+    try {
+      const res = await gridService.updateColumnWidth(sheetId, columnId, width);
+      return res.data.data as Column;
+    } catch (err: unknown) {
+      dispatch(rollbackColumnWidth({ columnId, prevWidth }));
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
+
+// ─── Thunk: resizeRows (optimistic with rollback) ─────────────────────────
+
+export const resizeRows = createAsyncThunk(
+  'grid/resizeRows',
+  async (
+    { sheetId, updates }: { sheetId: string; updates: Array<{ rowId: string; height: number }> },
+    { dispatch, getState, rejectWithValue },
+  ) => {
+    const state = getState() as RootState;
+    const prevHeights = updates.map((u) => {
+      const row = state.grid.rows.find((r) => r.id === u.rowId);
+      return { rowId: u.rowId, prevHeight: row?.height };
+    });
+
+    dispatch(optimisticResizeRows(updates));
+
+    try {
+      const res = await gridService.updateRowHeights(sheetId, updates);
+      return res.data.data as { updated: number };
+    } catch (err: unknown) {
+      dispatch(rollbackRowHeights(prevHeights));
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
 
 // ─── Selectors ─────────────────────────────────────────────────────────────
 

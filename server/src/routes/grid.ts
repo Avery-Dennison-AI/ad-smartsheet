@@ -60,6 +60,18 @@ router.patch(
   gridController.setPrimaryColumn,
 );
 
+// PATCH /api/sheets/:sheetId/grid/columns/:columnId/width — resize column
+// MUST be registered BEFORE /columns/:columnId to avoid "width" being swallowed as a body field
+router.patch(
+  '/columns/:columnId/width',
+  validate([
+    mongoId('sheetId'),
+    param('columnId').notEmpty().withMessage('Column ID is required'),
+    body('width').isNumeric().withMessage('Width must be a number'),
+  ]),
+  gridController.patchColumnWidth,
+);
+
 // PATCH /api/sheets/:sheetId/grid/columns/:columnId — update column
 router.patch(
   '/columns/:columnId',
@@ -119,6 +131,17 @@ router.patch(
     body('orderedIds').isArray({ min: 1 }).withMessage('orderedIds must be a non-empty array'),
   ]),
   gridController.reorderRows,
+);
+
+// PATCH /api/sheets/:sheetId/grid/rows/heights — resize rows in bulk
+// MUST be registered BEFORE /rows/:rowId to avoid "heights" being treated as a rowId
+router.patch(
+  '/rows/heights',
+  validate([
+    mongoId('sheetId'),
+    body('heights').isArray({ min: 1 }).withMessage('heights must be a non-empty array'),
+  ]),
+  gridController.patchRowHeights,
 );
 
 // DELETE /api/sheets/:sheetId/grid/rows — delete rows (bulk)

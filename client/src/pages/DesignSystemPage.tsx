@@ -46,6 +46,7 @@ import {
   Toolbar,
   ToolbarGroup,
   ColorSwatchPicker,
+  ResizeHandle,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { RoleValue } from '@/components/ui/RoleMenu';
@@ -1311,6 +1312,44 @@ export default function DesignSystemPage() {
           <div data-icod-id="ds_grid_col_props_demo">
             <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_grid_col_props_label">ColumnPropertiesModal — unified column editor</span>
             <ColumnPropertiesModalDemo data-icod-id="ds_grid_col_props_instance" />
+          </div>
+        </div>
+      </Section>
+      {/* ─── ResizeHandle ────────────────────────────────────────────────────── */}
+      <Section title="ResizeHandle" data-icod-id="ds_resizehandle_section">
+        <div className="space-y-6" data-icod-id="ds_resizehandle_wrap">
+          <p className="text-sm text-muted-foreground" data-icod-id="ds_resizehandle_desc">
+            Drag handle used for column and row resizing in the sheet grid. Hover to see the teal highlight.
+          </p>
+          {/* Column resize demo */}
+          <div data-icod-id="ds_resizehandle_column">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_resizehandle_col_label">Column resize (vertical bar on right edge)</span>
+            <div
+              className="relative h-10 w-48 rounded-[var(--radius-sm)] border border-border bg-card"
+              data-icod-id="ds_resizehandle_col_box">
+              <span className="flex h-full items-center px-3 text-xs text-muted-foreground" data-icod-id="ds_resizehandle_col_text">Header cell</span>
+              <ResizeHandle direction="column" onDragStart={() => {}} data-icod-id="ds_resizehandle_col_handle" />
+            </div>
+          </div>
+          {/* Row resize demo */}
+          <div data-icod-id="ds_resizehandle_row">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_resizehandle_row_label">Row resize (horizontal bar on bottom edge)</span>
+            <div
+              className="relative flex h-10 w-48 items-center justify-center rounded-[var(--radius-sm)] border border-border bg-card"
+              data-icod-id="ds_resizehandle_row_box">
+              <span className="text-xs text-muted-foreground" data-icod-id="ds_resizehandle_row_text">Row number</span>
+              <ResizeHandle direction="row" onDragStart={() => {}} data-icod-id="ds_resizehandle_row_handle" />
+            </div>
+          </div>
+          {/* Disabled state */}
+          <div data-icod-id="ds_resizehandle_disabled">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_resizehandle_dis_label">Disabled (viewer mode — no handle rendered)</span>
+            <div
+              className="relative h-10 w-48 rounded-[var(--radius-sm)] border border-border bg-card"
+              data-icod-id="ds_resizehandle_dis_box">
+              <span className="flex h-full items-center px-3 text-xs text-muted-foreground" data-icod-id="ds_resizehandle_dis_text">Viewer header</span>
+              <ResizeHandle direction="column" onDragStart={() => {}} disabled data-icod-id="ds_resizehandle_dis_handle" />
+            </div>
           </div>
         </div>
       </Section>

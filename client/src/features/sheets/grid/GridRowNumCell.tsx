@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
-import { DropdownMenu } from '@/components/ui';
+import { DropdownMenu, ResizeHandle } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
 import type { WorkspaceRole } from '@/types';
@@ -22,6 +22,8 @@ interface GridRowNumCellProps {
   onDragStart?: (rowIndex: number) => void;
   onDragOver?: (rowIndex: number) => void;
   onDrop?: (rowIndex: number) => void;
+  onRowResizeStart?: (e: React.MouseEvent, rowIndex: number) => void;
+  onRowResizeDoubleClick?: (rowIndex: number) => void;
 }
 
 export default function GridRowNumCell({
@@ -36,6 +38,8 @@ export default function GridRowNumCell({
   onDragStart,
   onDragOver,
   onDrop,
+  onRowResizeStart,
+  onRowResizeDoubleClick,
 }: GridRowNumCellProps) {
   const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
   const canDelete = userRole === 'admin' || userRole === 'owner';
@@ -64,8 +68,8 @@ export default function GridRowNumCell({
   return (
     <div
       className={cn(
-        'group relative flex items-center justify-center border-b border-r select-none',
-        'h-[var(--grid-row-height)] w-[var(--grid-row-num-width)]',
+        'group relative flex h-full items-center justify-center border-b border-r select-none',
+        'w-[var(--grid-row-num-width)]',
         'bg-[var(--grid-header-bg)] text-[var(--grid-header-text)]',
         'text-xs font-medium cursor-pointer',
         isSelected && 'bg-[var(--grid-range-bg)]',
@@ -106,6 +110,12 @@ export default function GridRowNumCell({
             data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_e9e0" />
         )}
       </div>
+      {/* Row resize handle on bottom edge */}
+      <ResizeHandle
+        direction="row"
+        disabled={!canEdit}
+        onDragStart={(e) => onRowResizeStart?.(e, rowIndex)}
+        data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_e0f2" />
     </div>
   );
 }

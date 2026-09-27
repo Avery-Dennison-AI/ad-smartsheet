@@ -126,6 +126,7 @@ function serializeColumn(col: any): ColumnDef {
     isPrimary: col.isPrimary ?? false,
     options: col.options ? col.options.map((o: any) => ({ label: o.label, color: o.color })) : undefined,
     formatting: col.formatting ?? undefined,
+    width: col.width ?? undefined,
   };
 }
 
@@ -138,6 +139,7 @@ function formatRow(row: IRow) {
     order: row.order,
     cells: obj.cells || {},
     formatting: row.formatting instanceof Map ? Object.fromEntries(row.formatting) : (obj.formatting || {}),
+    height: row.height ?? undefined,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -785,4 +787,61 @@ export async function updateColumnFormatting(
   }
 
   return { updated: updatedCount };
+}
+
+/** Updates a column's width. Requires editor+. */
+export async function updateColumnWidth(
+  sheetId: string,
+  userId: string,
+  columnId: string,
+  width: number,
+): Promise<ColumnDef> {
+  const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
+
+  const columns = [...(sheet.columns || [])];
+  const colIndex = columns.findIndex((c) => c.id === columnId);
+  if (colIndex === -1) throw new AppError('Column not found', 404);
+
+  // Clamp width to [60, 800]
+  const clampedWidth = Math.max(60, Math.min(800, Math.round(width)));
+
+  const col = serializeColumn(columns[colIndex]);
+  col.width = clampedWidth;
+  columns[colIndex] = col;
+
+  await Sheet.findByIdAndUpdate(sheetId, { $set: { columns } });
+  return col;
+}
+
+/** Updates row heights in bulk. Requires editor+. */
+export async function updateRowHeights(
+  sheetId: string,
+  userId: string,
+  updates: Array<{ rowId: string; height: number }>,
+): Promise<{ updated: number }> {
+  await getSheetWithAccess(sheetId, userId, 'editor');
+
+  if (!updates || updates.length === 0) return { updated: 0 };
+
+  // Validate all row IDs are valid ObjectIds
+  const validUpdates = updates.filter(
+    (u) => mongoose.Types.ObjectId.isValid(u.rowId),
+  );
+  if (validUpdates.length === 0) return { updated: 0 };
+
+  // Build bulk write operations with ownership check in the query
+  const ops = validUpdates.map((u) => ({
+    updateOne: {
+      filter: {
+        _id: new mongoose.Types.ObjectId(u.rowId),
+        sheetId: new mongoose.Types.ObjectId(sheetId),
+      },
+      update: {
+        $set: { height: Math.max(34, Math.min(400, Math.round(u.height))) },
+      },
+    },
+  }));
+
+  const result = await Row.bulkWrite(ops);
+  return { updated: result.modifiedCount };
 }

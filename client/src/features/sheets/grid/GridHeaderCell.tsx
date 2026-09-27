@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { ChevronDown, Type, Hash, Calendar, List, CheckSquare, Users, GripVertical } from 'lucide-react';
-import { DropdownMenu, Tooltip } from '@/components/ui';
+import { DropdownMenu, Tooltip, ResizeHandle } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
 import type { Column, ColumnType, WorkspaceRole } from '@/types';
@@ -35,6 +35,8 @@ interface GridHeaderCellProps {
   onDragOver?: (columnId: string) => void;
   onDrop?: (columnId: string) => void;
   onSetPrimary?: (columnId: string) => void;
+  onColumnResizeStart?: (e: React.MouseEvent, columnId: string) => void;
+  onColumnResizeDoubleClick?: (columnId: string) => void;
 }
 
 export default function GridHeaderCell({
@@ -53,6 +55,8 @@ export default function GridHeaderCell({
   onDragOver,
   onDrop,
   onSetPrimary,
+  onColumnResizeStart,
+  onColumnResizeDoubleClick,
 }: GridHeaderCellProps) {
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(column.name);
@@ -204,6 +208,12 @@ export default function GridHeaderCell({
             data-icod-id="src_features_sheets_grid_gridheadercell_tsx_2633" />
         </div>
       )}
+      {/* Column resize handle on right edge */}
+      <ResizeHandle
+        direction="column"
+        disabled={!canEdit}
+        onDragStart={(e) => onColumnResizeStart?.(e, column.id)}
+        data-icod-id="src_features_sheets_grid_gridheadercell_tsx_8092" />
     </div>
   );
 }

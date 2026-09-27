@@ -15,6 +15,8 @@ import {
   reorderRows,
   optimisticUpdateCell,
   rollbackCell,
+  resizeColumn,
+  resizeRows,
   selectGridColumns,
   selectGridRows,
   selectGridLoading,
@@ -28,12 +30,16 @@ import ColumnPropertiesModal from './ColumnPropertiesModal';
 import FormattingToolbar from './FormattingToolbar';
 import type { ColumnType, DropdownOption, WorkspaceRole } from '@/types';
 
-const ROW_HEIGHT = 34; // matches --grid-row-height
+const DEFAULT_ROW_HEIGHT = 34; // matches --grid-row-height
 const HEADER_HEIGHT = 36; // matches --grid-header-height
 const MIN_BLANK_ROWS = 50;
 const OVERSCAN = 5;
-const DEFAULT_COL_WIDTH = 180;
-const PRIMARY_COL_WIDTH = 260;
+const DEFAULT_COL_WIDTH = 160;
+const PRIMARY_COL_WIDTH = 240;
+const MIN_COL_WIDTH = 60;
+const MAX_COL_WIDTH = 800;
+const MIN_ROW_HEIGHT = 34;
+const MAX_ROW_HEIGHT = 400;
 
 interface SheetGridProps {
   sheetId: string;
@@ -62,6 +68,54 @@ const defaultColumnPropertiesState: ColumnPropertiesState = {
   insertPosition: null,
 };
 
+// ─── Helper: get column width ──────────────────────────────────────────────
+function getColWidth(col: { isPrimary?: boolean; width?: number }): number {
+  return col.width ?? (col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH);
+}
+
+// ─── Helper: get row height ────────────────────────────────────────────────
+function getRowHeight(row: { height?: number } | undefined): number {
+  return row?.height ?? DEFAULT_ROW_HEIGHT;
+}
+
+// ─── Row position cache builder ────────────────────────────────────────────
+function buildRowPositions(
+  rows: Array<{ height?: number }>,
+  blankRowCount: number,
+  defaultHeight: number = DEFAULT_ROW_HEIGHT,
+): { tops: number[]; total: number } {
+  const dataCount = rows.length;
+  const totalCount = dataCount + blankRowCount;
+  const tops: number[] = new Array(totalCount);
+  let top = HEADER_HEIGHT;
+
+  for (let i = 0; i < dataCount; i++) {
+    tops[i] = top;
+    top += rows[i]?.height ?? defaultHeight;
+  }
+  for (let i = dataCount; i < totalCount; i++) {
+    tops[i] = top;
+    top += defaultHeight;
+  }
+
+  return { tops, total: top };
+}
+
+// ─── Binary search: find first visible row index ──────────────────────────
+function findFirstVisible(tops: number[], scrollTop: number): number {
+  let lo = 0;
+  let hi = tops.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    if (tops[mid] <= scrollTop) {
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return Math.max(0, hi);
+}
+
 export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   const dispatch = useAppDispatch();
   const columns = useAppSelector(selectGridColumns);
@@ -87,6 +141,24 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   // Drag state
   const [dragColId, setDragColId] = useState<string | null>(null);
   const [dragRowIndex, setDragRowIndex] = useState<number | null>(null);
+
+  // ─── Column resize drag state ──────────────────────────────────────────
+  type ColResizeDrag = {
+    columnId: string;
+    startX: number;
+    startWidth: number;
+    currentWidth: number;
+  } | null;
+  const [colResizeDrag, setColResizeDrag] = useState<ColResizeDrag>(null);
+
+  // ─── Row resize drag state ─────────────────────────────────────────────
+  type RowResizeDrag = {
+    rowIds: string[];
+    startY: number;
+    startHeights: Record<string, number>;
+    currentDelta: number;
+  } | null;
+  const [rowResizeDrag, setRowResizeDrag] = useState<RowResizeDrag>(null);
 
   // Load grid on mount
   useEffect(() => {
@@ -147,15 +219,50 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     }
   }, []);
 
-  // Virtualization calculations
-  const totalRows = rows.length + MIN_BLANK_ROWS;
-  const totalHeight = totalRows * ROW_HEIGHT + HEADER_HEIGHT;
+  // ─── Compute column widths map (including live drag overrides) ─────────
+  const liveColumnWidths = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const col of columns) {
+      map[col.id] = getColWidth(col);
+    }
+    // Apply live drag override
+    if (colResizeDrag) {
+      map[colResizeDrag.columnId] = colResizeDrag.currentWidth;
+    }
+    return map;
+  }, [columns, colResizeDrag]);
 
-  const visibleStartRow = Math.max(0, Math.floor((scrollTop - HEADER_HEIGHT) / ROW_HEIGHT) - OVERSCAN);
-  const visibleEndRow = Math.min(
-    totalRows - 1,
-    Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN,
-  );
+  // ─── Total content width ───────────────────────────────────────────────
+  const totalContentWidth = useMemo(() => {
+    let w = 0;
+    for (const col of columns) {
+      w += liveColumnWidths[col.id] ?? getColWidth(col);
+    }
+    return w;
+  }, [columns, liveColumnWidths]);
+
+  // ─── Row positions cache ───────────────────────────────────────────────
+  const rowPositions = useMemo(() => {
+    return buildRowPositions(rows, MIN_BLANK_ROWS, DEFAULT_ROW_HEIGHT);
+  }, [rows]);
+
+  const totalRows = rows.length + MIN_BLANK_ROWS;
+
+  // ─── Visible row range ─────────────────────────────────────────────────
+  const { visibleStartRow, visibleEndRow } = useMemo(() => {
+    const { tops } = rowPositions;
+    const start = findFirstVisible(tops, scrollTop);
+    const overscanStart = Math.max(0, start - OVERSCAN);
+
+    let end = start;
+    const bottomEdge = scrollTop + viewportHeight;
+    while (end < totalRows - 1 && tops[end] < bottomEdge) {
+      end++;
+    }
+    const overscanEnd = Math.min(totalRows - 1, end + OVERSCAN);
+
+    return { visibleStartRow: overscanStart, visibleEndRow: overscanEnd };
+  }, [rowPositions, scrollTop, viewportHeight, totalRows]);
 
   const visibleRows = useMemo(() => {
     const result = [];
@@ -164,6 +271,18 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     }
     return result;
   }, [visibleStartRow, visibleEndRow]);
+
+  // ─── Live row heights during row resize ────────────────────────────────
+  const liveRowHeights = useMemo(() => {
+    if (!rowResizeDrag) return null;
+    const map: Record<string, number> = {};
+    for (const rowId of rowResizeDrag.rowIds) {
+      const startH = rowResizeDrag.startHeights[rowId] ?? DEFAULT_ROW_HEIGHT;
+      const newH = Math.max(MIN_ROW_HEIGHT, Math.min(MAX_ROW_HEIGHT, startH + rowResizeDrag.currentDelta));
+      map[rowId] = newH;
+    }
+    return map;
+  }, [rowResizeDrag]);
 
   // Selection hook
   const selection = useGridSelection({
@@ -454,6 +573,147 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     [dragRowIndex, rows, sheetId, dispatch],
   );
 
+  // ─── Column resize handlers ─────────────────────────────────────────────
+
+  const handleColumnResizeStart = useCallback(
+    (e: React.MouseEvent, columnId: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const col = columns.find((c) => c.id === columnId);
+      if (!col) return;
+      const startWidth = getColWidth(col);
+      setColResizeDrag({
+        columnId,
+        startX: e.clientX,
+        startWidth,
+        currentWidth: startWidth,
+      });
+    },
+    [columns],
+  );
+
+  const handleColumnResizeDoubleClick = useCallback(
+    (columnId: string) => {
+      // Auto-fit: measure widest content in this column
+      // For now, reset to default width since measuring rendered cells requires DOM access
+      const col = columns.find((c) => c.id === columnId);
+      if (!col) return;
+      const defaultW = col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH;
+      dispatch(resizeColumn({ sheetId, columnId, width: defaultW }));
+    },
+    [sheetId, columns, dispatch],
+  );
+
+  // Global mousemove/mouseup for column resize
+  useEffect(() => {
+    if (!colResizeDrag) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - colResizeDrag.startX;
+      const newWidth = Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, colResizeDrag.startWidth + delta));
+      setColResizeDrag((prev) =>
+        prev ? { ...prev, currentWidth: newWidth } : null,
+      );
+    };
+
+    const handleMouseUp = () => {
+      if (colResizeDrag) {
+        const finalWidth = Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, colResizeDrag.currentWidth));
+        dispatch(resizeColumn({ sheetId, columnId: colResizeDrag.columnId, width: finalWidth }));
+      }
+      setColResizeDrag(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [colResizeDrag, sheetId, dispatch]);
+
+  // ─── Row resize handlers ────────────────────────────────────────────────
+
+  const handleRowResizeStart = useCallback(
+    (e: React.MouseEvent, rowIndex: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Determine which rows to resize: if the clicked row is selected, resize all selected rows
+      let targetRowIds: string[];
+      let startHeights: Record<string, number> = {};
+
+      if (selection.selectedRowIndices.has(rowIndex)) {
+        // Resize all selected rows
+        targetRowIds = [];
+        for (const idx of selection.selectedRowIndices) {
+          const row = rows[idx];
+          if (row) {
+            targetRowIds.push(row.id);
+            startHeights[row.id] = getRowHeight(row);
+          }
+        }
+      } else {
+        // Resize only this single row
+        const row = rows[rowIndex];
+        if (!row) return;
+        targetRowIds = [row.id];
+        startHeights[row.id] = getRowHeight(row);
+      }
+
+      if (targetRowIds.length === 0) return;
+
+      setRowResizeDrag({
+        rowIds: targetRowIds,
+        startY: e.clientY,
+        startHeights,
+        currentDelta: 0,
+      });
+    },
+    [rows, selection.selectedRowIndices],
+  );
+
+  const handleRowResizeDoubleClick = useCallback(
+    (rowIndex: number) => {
+      // Reset to default height
+      const row = rows[rowIndex];
+      if (!row) return;
+      dispatch(resizeRows({ sheetId, updates: [{ rowId: row.id, height: DEFAULT_ROW_HEIGHT }] }));
+    },
+    [sheetId, rows, dispatch],
+  );
+
+  // Global mousemove/mouseup for row resize
+  useEffect(() => {
+    if (!rowResizeDrag) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientY - rowResizeDrag.startY;
+      setRowResizeDrag((prev) =>
+        prev ? { ...prev, currentDelta: delta } : null,
+      );
+    };
+
+    const handleMouseUp = () => {
+      if (rowResizeDrag) {
+        const updates = rowResizeDrag.rowIds.map((rowId) => {
+          const startH = rowResizeDrag.startHeights[rowId] ?? DEFAULT_ROW_HEIGHT;
+          const finalH = Math.max(MIN_ROW_HEIGHT, Math.min(MAX_ROW_HEIGHT, startH + rowResizeDrag.currentDelta));
+          return { rowId, height: finalH };
+        });
+        dispatch(resizeRows({ sheetId, updates }));
+      }
+      setRowResizeDrag(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [rowResizeDrag, sheetId, dispatch]);
+
   const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
 
   if (loading) {
@@ -491,7 +751,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         tabIndex={0}
         data-icod-id="src_features_sheets_grid_sheetgrid_tsx_f8f4">
         <div
-          style={{ height: totalHeight, minWidth: 'max-content' }}
+          style={{ height: rowPositions.total, minWidth: 'max-content' }}
           className="relative"
           data-icod-id="src_features_sheets_grid_sheetgrid_tsx_d24c">
           {/* Sticky header row */}
@@ -510,36 +770,41 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
               data-icod-id="src_features_sheets_grid_sheetgrid_tsx_9515" />
 
             {/* Column headers */}
-            {columns.map((col, colIdx) => (
-              <div
-                key={col.id}
-                style={{
-                  width: col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH,
-                  minWidth: col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH,
-                  position: col.isPrimary ? 'sticky' : undefined,
-                  left: col.isPrimary ? 'var(--grid-row-num-width)' : undefined,
-                  zIndex: col.isPrimary ? 21 : undefined,
-                }}
-                data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_dc1c_${col.id}`}>
-                <GridHeaderCell
-                  column={col}
-                  columnIndex={colIdx}
-                  userRole={userRole}
-                  isScrolled={col.isPrimary ? isScrolled : false}
-                  isColumnSelected={selection.isColSelected(colIdx)}
-                  onRename={handleRenameColumn}
-                  onEditProperties={handleEditColumnProperties}
-                  onDelete={handleDeleteColumn}
-                  onInsertLeft={(id) => handleInsertColumn(id, 'left')}
-                  onInsertRight={(id) => handleInsertColumn(id, 'right')}
-                  onSelectColumn={selection.selectColumn}
-                  onDragStart={handleColDragStart}
-                  onDragOver={() => {}}
-                  onDrop={handleColDrop}
-                  onSetPrimary={canEdit && !col.isPrimary && col.type === 'text' ? handleSetPrimaryColumn : undefined}
-                  data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_aa0f_${col.id}`} />
-              </div>
-            ))}
+            {columns.map((col, colIdx) => {
+              const colW = liveColumnWidths[col.id] ?? getColWidth(col);
+              return (
+                <div
+                  key={col.id}
+                  style={{
+                    width: colW,
+                    minWidth: colW,
+                    position: col.isPrimary ? 'sticky' : undefined,
+                    left: col.isPrimary ? 'var(--grid-row-num-width)' : undefined,
+                    zIndex: col.isPrimary ? 21 : undefined,
+                  }}
+                  data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_dc1c_${col.id}`}>
+                  <GridHeaderCell
+                    column={col}
+                    columnIndex={colIdx}
+                    userRole={userRole}
+                    isScrolled={col.isPrimary ? isScrolled : false}
+                    isColumnSelected={selection.isColSelected(colIdx)}
+                    onRename={handleRenameColumn}
+                    onEditProperties={handleEditColumnProperties}
+                    onDelete={handleDeleteColumn}
+                    onInsertLeft={(id) => handleInsertColumn(id, 'left')}
+                    onInsertRight={(id) => handleInsertColumn(id, 'right')}
+                    onSelectColumn={selection.selectColumn}
+                    onDragStart={handleColDragStart}
+                    onDragOver={() => {}}
+                    onDrop={handleColDrop}
+                    onSetPrimary={canEdit && !col.isPrimary && col.type === 'text' ? handleSetPrimaryColumn : undefined}
+                    onColumnResizeStart={handleColumnResizeStart}
+                    onColumnResizeDoubleClick={handleColumnResizeDoubleClick}
+                    data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_aa0f_${col.id}`} />
+                </div>
+              );
+            })}
 
             {/* Add column button */}
             {canEdit && (
@@ -575,11 +840,14 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
             )}
           </div>
 
-          {/* Data rows (virtualized) */}
+          {/* Data rows (virtualized with variable heights) */}
           {visibleRows.map((rowIdx) => {
             const row = rows[rowIdx];
             const isBlankRow = !row;
-            const top = HEADER_HEIGHT + rowIdx * ROW_HEIGHT;
+            const rowH = liveRowHeights && row && liveRowHeights[row.id] !== undefined
+              ? liveRowHeights[row.id]
+              : getRowHeight(row);
+            const top = rowPositions.tops[rowIdx] ?? (HEADER_HEIGHT + rowIdx * DEFAULT_ROW_HEIGHT);
             const isRowHovered = hoveredRowIndex === rowIdx;
 
             return (
@@ -588,7 +856,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                 className="absolute flex w-max"
                 style={{
                   top,
-                  height: ROW_HEIGHT,
+                  height: rowH,
                   willChange: 'transform',
                 }}
                 onMouseEnter={() => setHoveredRowIndex(rowIdx)}
@@ -611,6 +879,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                     onDragStart={handleRowDragStart}
                     onDragOver={() => {}}
                     onDrop={handleRowDrop}
+                    onRowResizeStart={handleRowResizeStart}
+                    onRowResizeDoubleClick={handleRowResizeDoubleClick}
                     data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_6b31_${rowIdx}`} />
                 </div>
                 {/* Data cells */}
@@ -619,13 +889,14 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                   const isActive = selection.isActiveCell(rowIdx, colIdx);
                   const isSelected = selection.isCellSelected(rowIdx, colIdx);
                   const isEditing = selection.editingCell?.rowIdx === rowIdx && selection.editingCell?.colIdx === colIdx;
+                  const colW = liveColumnWidths[col.id] ?? getColWidth(col);
 
                   return (
                     <div
                       key={col.id}
                       style={{
-                        width: col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH,
-                        minWidth: col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH,
+                        width: colW,
+                        minWidth: colW,
                         position: col.isPrimary ? 'sticky' : undefined,
                         left: col.isPrimary ? 'var(--grid-row-num-width)' : undefined,
                         zIndex: col.isPrimary ? 11 : undefined,
@@ -640,6 +911,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                         isEditing={isEditing}
                         readOnly={!canEdit}
                         workspaceMembers={workspaceMembers}
+                        rowHeight={rowH}
                         onCommit={(val) => {
                           if (isBlankRow) {
                             handleBlankRowCommit(colIdx, val);
@@ -669,6 +941,49 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
               </div>
             );
           })}
+
+          {/* Column resize guide line */}
+          {colResizeDrag && (
+            <div
+              className="pointer-events-none absolute top-0 bottom-0 z-50 w-px bg-primary"
+              style={{
+                left: (() => {
+                  // Calculate the x position of the column being resized
+                  let x = 0; // Start after row-number column (handled by CSS var)
+                  for (const col of columns) {
+                    const w = liveColumnWidths[col.id] ?? getColWidth(col);
+                    if (col.id === colResizeDrag.columnId) {
+                      return x + w;
+                    }
+                    x += w;
+                  }
+                  return x;
+                })(),
+              }}
+              data-icod-id="col_resize_guide"
+            />
+          )}
+
+          {/* Row resize guide line */}
+          {rowResizeDrag && (
+            <div
+              className="pointer-events-none absolute left-0 right-0 z-50 h-px bg-primary"
+              style={{
+                top: (() => {
+                  // Find the bottom edge of the row(s) being resized
+                  if (rowResizeDrag.rowIds.length === 0) return 0;
+                  // Use the last row in the list to find its bottom edge
+                  const lastRowId = rowResizeDrag.rowIds[rowResizeDrag.rowIds.length - 1];
+                  const rowIdx = rows.findIndex((r) => r.id === lastRowId);
+                  if (rowIdx === -1) return 0;
+                  const rowTop = rowPositions.tops[rowIdx] ?? 0;
+                  const rowH = liveRowHeights?.[lastRowId] ?? getRowHeight(rows[rowIdx]);
+                  return rowTop + rowH;
+                })(),
+              }}
+              data-icod-id="row_resize_guide"
+            />
+          )}
         </div>
       </div>
       {/* Modals */}

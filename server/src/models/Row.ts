@@ -5,6 +5,7 @@ export interface IRow extends Document {
   order: number;
   cells: Map<string, unknown>;
   formatting: Map<string, Record<string, unknown>>;
+  height?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,6 +16,7 @@ const rowSchema = new Schema<IRow>(
     order: { type: Number, required: true },
     cells: { type: Schema.Types.Mixed, default: {} },
     formatting: { type: Map, of: Schema.Types.Mixed, default: () => new Map() },
+    height: { type: Number, default: undefined, min: 34, max: 400 },
   },
   { timestamps: true },
 );

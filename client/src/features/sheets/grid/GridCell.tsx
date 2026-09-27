@@ -23,6 +23,7 @@ interface GridCellProps {
   isEditing: boolean;
   readOnly: boolean;
   workspaceMembers?: GridMember[];
+  rowHeight?: number;
   onCommit: (value: unknown) => void;
   onStartEdit: () => void;
   onStopEdit: () => void;
@@ -50,6 +51,7 @@ export default function GridCell({
   isEditing,
   readOnly,
   workspaceMembers,
+  rowHeight,
   onCommit,
   onStartEdit,
   onStopEdit,
@@ -640,7 +642,7 @@ export default function GridCell({
       ref={cellRef}
       className={cn(
         'group relative flex overflow-hidden',
-        'h-[var(--grid-row-height)] px-[var(--grid-cell-padding-x)]',
+        'h-full px-[var(--grid-cell-padding-x)]',
         'text-sm text-foreground cursor-cell',
         isActive && 'ring-2 ring-inset ring-[var(--grid-selected-border)] z-10',
         // Only use Tailwind bg classes when no fill color; otherwise compositeBg handles it

@@ -125,6 +125,7 @@ export interface Column {
   order: number;
   options?: DropdownOption[];
   formatting?: CellFormatting;
+  width?: number;
 }
 
 export interface GridRow {
@@ -132,6 +133,7 @@ export interface GridRow {
   order: number;
   cells: Record<string, string | number | boolean | null>;
   formatting?: Record<string, CellFormatting>;
+  height?: number;
   createdAt?: string;
   updatedAt?: string;
 }
