@@ -14,6 +14,7 @@ export interface ColumnDef {
   order: number;
   isPrimary: boolean;
   options?: DropdownOption[];
+  formatting?: Record<string, unknown>;
 }
 
 export interface ISheet extends Document {
@@ -46,6 +47,7 @@ const columnDefSchema = new Schema<ColumnDef>(
     order: { type: Number, required: true },
     isPrimary: { type: Boolean, default: false },
     options: { type: [dropdownOptionSchema], default: undefined },
+    formatting: { type: Schema.Types.Mixed, default: undefined },
   },
   { _id: false },
 );

@@ -14,15 +14,23 @@ const TYPE_ICONS: Record<ColumnType, typeof Type> = {
   contact: Users,
 };
 
+interface SelectionModifiers {
+  shift: boolean;
+  meta: boolean;
+}
+
 interface GridHeaderCellProps {
   column: Column;
+  columnIndex: number;
   userRole: WorkspaceRole;
   isScrolled?: boolean;
+  isColumnSelected?: boolean;
   onRename: (columnId: string, name: string) => void;
   onEditProperties: (columnId: string) => void;
   onDelete: (columnId: string) => void;
   onInsertLeft: (columnId: string) => void;
   onInsertRight: (columnId: string) => void;
+  onSelectColumn?: (colIdx: number, modifiers: SelectionModifiers) => void;
   onDragStart?: (columnId: string) => void;
   onDragOver?: (columnId: string) => void;
   onDrop?: (columnId: string) => void;
@@ -31,13 +39,16 @@ interface GridHeaderCellProps {
 
 export default function GridHeaderCell({
   column,
+  columnIndex,
   userRole,
   isScrolled,
+  isColumnSelected,
   onRename,
   onEditProperties,
   onDelete,
   onInsertLeft,
   onInsertRight,
+  onSelectColumn,
   onDragStart,
   onDragOver,
   onDrop,
@@ -113,13 +124,21 @@ export default function GridHeaderCell({
     );
   }
 
+  const handleHeaderClick = useCallback((e: React.MouseEvent) => {
+    if (renaming) return;
+    // Don't trigger column selection when clicking the menu button area
+    if ((e.target as HTMLElement).closest('[data-column-menu]')) return;
+    onSelectColumn?.(columnIndex, { shift: e.shiftKey, meta: e.metaKey || e.ctrlKey });
+  }, [renaming, onSelectColumn, columnIndex]);
+
   return (
     <div
       className={cn(
         'group relative flex items-center border-b border-r select-none',
         'h-[var(--grid-header-height)] px-[var(--grid-cell-padding-x)]',
         'bg-[var(--grid-header-bg)] text-[var(--grid-header-text)]',
-        'text-xs font-semibold',
+        'text-xs font-semibold cursor-pointer',
+        isColumnSelected && 'bg-[var(--grid-range-bg)]',
       )}
       style={{
         borderColor: 'var(--grid-line-color)',
@@ -129,6 +148,7 @@ export default function GridHeaderCell({
       onDragStart={() => onDragStart?.(column.id)}
       onDragOver={(e) => { e.preventDefault(); onDragOver?.(column.id); }}
       onDrop={() => onDrop?.(column.id)}
+      onClick={handleHeaderClick}
       data-icod-id="src_features_sheets_grid_gridheadercell_tsx_649d">
       {renaming ? (
         <input
@@ -156,6 +176,7 @@ export default function GridHeaderCell({
       {canEdit && !renaming && (
         <div
           className="ml-auto hidden items-center gap-0.5 group-hover:flex"
+          data-column-menu=""
           data-icod-id="src_features_sheets_grid_gridheadercell_tsx_d303">
           <DropdownMenu
             trigger={

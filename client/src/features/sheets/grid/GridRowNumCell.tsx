@@ -5,12 +5,17 @@ import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
 import type { WorkspaceRole } from '@/types';
 
+interface SelectionModifiers {
+  shift: boolean;
+  meta: boolean;
+}
+
 interface GridRowNumCellProps {
   rowNumber: number;
   rowIndex: number;
   userRole: WorkspaceRole;
   isSelected?: boolean;
-  onSelectRow: (rowIndex: number) => void;
+  onSelectRow: (rowIndex: number, modifiers: SelectionModifiers) => void;
   onInsertAbove: (rowIndex: number) => void;
   onInsertBelow: (rowIndex: number) => void;
   onDeleteRows: (rowIndices: number[]) => void;
@@ -51,8 +56,9 @@ export default function GridRowNumCell({
     );
   }
 
-  const handleClick = useCallback(() => {
-    onSelectRow(rowIndex);
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSelectRow(rowIndex, { shift: e.shiftKey, meta: e.metaKey || e.ctrlKey });
   }, [onSelectRow, rowIndex]);
 
   return (
@@ -61,8 +67,8 @@ export default function GridRowNumCell({
         'group relative flex items-center justify-center border-b border-r select-none',
         'h-[var(--grid-row-height)] w-[var(--grid-row-num-width)]',
         'bg-[var(--grid-header-bg)] text-[var(--grid-header-text)]',
-        'text-xs font-medium',
-        isSelected && 'bg-primary/10',
+        'text-xs font-medium cursor-pointer',
+        isSelected && 'bg-[var(--grid-range-bg)]',
       )}
       style={{ borderColor: 'var(--grid-line-color)' }}
       onClick={handleClick}

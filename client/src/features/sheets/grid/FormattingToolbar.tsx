@@ -1,15 +1,19 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Bold, Italic, Underline, Strikethrough, Eraser } from 'lucide-react';
 import { Toolbar, ToolbarGroup, ToggleButton, IconButton, inputClass } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { applyFormatting, selectCellFormatting, selectGridRows } from '@/store/slices/gridSlice';
-import type { CellFormatting, WorkspaceRole } from '@/types';
+import { applyFormatting, selectCellFormatting, selectColumnFormatting } from '@/store/slices/gridSlice';
+import type { CellFormatting, Column, GridRow, WorkspaceRole } from '@/types';
 
 interface FormattingToolbarProps {
   sheetId: string;
   userRole: WorkspaceRole;
   activeCell: { rowId: string; columnId: string } | null;
   selectedCells: Array<{ rowId: string; columnId: string }>;
+  selectedRows: Set<number>;
+  selectedColumns: Set<number>;
+  columns: Column[];
+  rows: GridRow[];
 }
 
 const FONT_FAMILIES = [
@@ -26,30 +30,85 @@ export default function FormattingToolbar({
   userRole,
   activeCell,
   selectedCells,
+  selectedRows,
+  selectedColumns,
+  columns,
+  rows,
 }: FormattingToolbarProps) {
   const dispatch = useAppDispatch();
-  const rows = useAppSelector(selectGridRows);
+
+  // Determine the effective formatting to display in the toolbar
+  // Priority: if a single column is selected (no rows), show column formatting.
+  // Otherwise show cell formatting for the active cell.
+  const isColumnOnlySelection = selectedColumns.size > 0 && selectedRows.size === 0 && !activeCell && selectedCells.length === 0;
+
+  // For column-only selection, read column formatting
+  const singleSelectedColId = useMemo(() => {
+    if (selectedColumns.size !== 1) return null;
+    const idx = [...selectedColumns][0];
+    return columns[idx]?.id ?? null;
+  }, [selectedColumns, columns]);
+
+  const colFmt = useAppSelector((state) =>
+    singleSelectedColId ? selectColumnFormatting(state, singleSelectedColId) : {},
+  );
 
   // Read formatting for the active cell
-  const activeFmt = useAppSelector((state) =>
+  const cellFmt = useAppSelector((state) =>
     activeCell ? selectCellFormatting(state, activeCell.rowId, activeCell.columnId) : {},
   );
 
+  // The formatting shown in the toolbar controls
+  const activeFmt = isColumnOnlySelection ? colFmt : cellFmt;
+
   const isViewer = userRole === 'viewer';
 
-  // Build the list of target cells (skip blank rows)
+  // Build the list of target cells (skip blank rows) — for cell/row selections
   const getTargetCells = useCallback((): Array<{ rowId: string; columnId: string }> => {
-    const targets = selectedCells.length > 0 ? selectedCells : activeCell ? [activeCell] : [];
+    // If columns are selected (full column), we format at column level instead
+    if (isColumnOnlySelection) return [];
+
+    let targets: Array<{ rowId: string; columnId: string }>;
+
+    if (selectedRows.size > 0) {
+      // Expand selected rows into all cells across those rows
+      targets = [];
+      for (const rowIdx of selectedRows) {
+        const row = rows[rowIdx];
+        if (!row || row.id.startsWith('blank-')) continue;
+        for (const col of columns) {
+          targets.push({ rowId: row.id, columnId: col.id });
+        }
+      }
+    } else if (selectedCells.length > 0) {
+      targets = selectedCells;
+    } else if (activeCell) {
+      targets = [activeCell];
+    } else {
+      targets = [];
+    }
+
     return targets.filter((c) => {
       // Skip blank rows (not in DB yet)
       if (c.rowId.startsWith('blank-')) return false;
       return rows.some((r) => r.id === c.rowId);
     });
-  }, [selectedCells, activeCell, rows]);
+  }, [selectedCells, activeCell, rows, columns, selectedRows, isColumnOnlySelection]);
 
-  // Apply a formatting change to all target cells
+  // Apply a formatting change
   const applyFormat = useCallback(
     (merged: CellFormatting | null) => {
+      if (isColumnOnlySelection && singleSelectedColId) {
+        // Apply formatting at column level
+        dispatch(applyFormatting({
+          sheetId,
+          columnFormatting: [{ columnId: singleSelectedColId, formatting: merged }],
+        }))
+          .unwrap()
+          .catch(() => {});
+        return;
+      }
+
       const targets = getTargetCells();
       if (targets.length === 0) return;
       dispatch(applyFormatting({ sheetId, cells: targets.map((c) => ({ ...c, formatting: merged })) }))
@@ -58,7 +117,7 @@ export default function FormattingToolbar({
           // Error handled by slice saveError
         });
     },
-    [dispatch, sheetId, getTargetCells],
+    [dispatch, sheetId, getTargetCells, isColumnOnlySelection, singleSelectedColId],
   );
 
   // Toggle a boolean formatting property

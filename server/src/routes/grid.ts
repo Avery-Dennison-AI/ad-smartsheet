@@ -89,6 +89,16 @@ router.post(
   gridController.addRow,
 );
 
+// PATCH /api/sheets/:sheetId/grid/column-formatting — update column-level formatting
+router.patch(
+  '/column-formatting',
+  validate([
+    mongoId('sheetId'),
+    body('columns').isArray({ min: 1 }).withMessage('columns must be a non-empty array'),
+  ]),
+  gridController.updateColumnFormatting,
+);
+
 // PATCH /api/sheets/:sheetId/grid/formatting — update cell formatting
 // MUST be registered BEFORE /rows/:rowId to avoid "formatting" being treated as a rowId
 router.patch(

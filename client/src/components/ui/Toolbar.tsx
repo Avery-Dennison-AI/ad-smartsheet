@@ -23,7 +23,7 @@ export function Toolbar({ children, disabled = false, className }: ToolbarProps)
         disabled && 'opacity-50 pointer-events-none',
         className,
       )}
-      style={{ borderColor: 'var(--color-border)' }}
+      style={{ borderColor: 'rgb(var(--border))' }}
       data-icod-id="src_components_ui_toolbar_tsx_f1a0">
       {items.map((child, idx) => (
         <span
@@ -33,7 +33,7 @@ export function Toolbar({ children, disabled = false, className }: ToolbarProps)
           {idx > 0 && (
             <div
               className="w-px h-4 mx-1.5 shrink-0"
-              style={{ backgroundColor: 'var(--color-border)' }}
+              style={{ backgroundColor: 'rgb(var(--border))' }}
               data-icod-id={`src_components_ui_toolbar_tsx_2e77_${idx}`} />
           )}
           {child}

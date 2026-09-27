@@ -54,3 +54,10 @@ export function updateFormatting(
 ) {
   return apiClient.patch(`/api/sheets/${sheetId}/grid/formatting`, { cells });
 }
+
+export function updateColumnFormatting(
+  sheetId: string,
+  columns: Array<{ columnId: string; formatting: CellFormatting | null }>,
+) {
+  return apiClient.patch(`/api/sheets/${sheetId}/grid/column-formatting`, { columns });
+}

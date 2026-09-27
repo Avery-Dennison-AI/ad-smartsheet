@@ -125,6 +125,7 @@ function serializeColumn(col: any): ColumnDef {
     order: col.order,
     isPrimary: col.isPrimary ?? false,
     options: col.options ? col.options.map((o: any) => ({ label: o.label, color: o.color })) : undefined,
+    formatting: col.formatting ?? undefined,
   };
 }
 
@@ -559,28 +560,79 @@ export async function updateFormatting(
 ) {
   await getSheetWithAccess(sheetId, userId, 'editor');
 
-  let updated = 0;
+  // Validate all row IDs belong to this sheet and build bulk ops
+  const validRowIds = cells
+    .map((e) => e.rowId)
+    .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+  if (validRowIds.length === 0) return { updated: 0 };
+
+  // Validate all rows belong to this sheet in one query
+  const validRows = await Row.find({
+    _id: { $in: validRowIds },
+    sheetId: new mongoose.Types.ObjectId(sheetId),
+  }).select('_id');
+
+  const validRowIdSet = new Set(validRows.map((r) => r._id.toString()));
+
+  // Build bulk write operations
+  const ops: Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }> = [];
 
   for (const entry of cells) {
-    if (!mongoose.Types.ObjectId.isValid(entry.rowId)) continue;
-
-    // Validate the row belongs to this sheet
-    const row = await Row.findById(entry.rowId).select('sheetId');
-    if (!row || row.sheetId.toString() !== sheetId) continue;
+    if (!validRowIdSet.has(entry.rowId)) continue;
 
     if (entry.formatting && Object.keys(entry.formatting).length > 0) {
-      await Row.findByIdAndUpdate(entry.rowId, {
-        $set: { [`formatting.${entry.columnId}`]: entry.formatting },
+      ops.push({
+        updateOne: {
+          filter: { _id: new mongoose.Types.ObjectId(entry.rowId) },
+          update: { $set: { [`formatting.${entry.columnId}`]: entry.formatting } },
+        },
       });
     } else {
-      // Clear formatting for that cell
-      await Row.findByIdAndUpdate(entry.rowId, {
-        $unset: { [`formatting.${entry.columnId}`]: '' },
+      ops.push({
+        updateOne: {
+          filter: { _id: new mongoose.Types.ObjectId(entry.rowId) },
+          update: { $unset: { [`formatting.${entry.columnId}`]: '' } },
+        },
       });
     }
-
-    updated++;
   }
 
-  return { updated };
+  if (ops.length > 0) {
+    await Row.bulkWrite(ops);
+  }
+
+  return { updated: ops.length };
+}
+
+/** Updates column-level formatting for one or more columns. Requires editor+. */
+export async function updateColumnFormatting(
+  sheetId: string,
+  userId: string,
+  columns: Array<{ columnId: string; formatting: Record<string, unknown> | null }>,
+) {
+  const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
+
+  const sheetColumns = [...(sheet.columns || [])];
+  let updatedCount = 0;
+
+  for (const entry of columns) {
+    const colIndex = sheetColumns.findIndex((c) => c.id === entry.columnId);
+    if (colIndex === -1) continue;
+
+    const col = serializeColumn(sheetColumns[colIndex]);
+    if (entry.formatting && Object.keys(entry.formatting).length > 0) {
+      col.formatting = entry.formatting;
+    } else {
+      col.formatting = undefined;
+    }
+    sheetColumns[colIndex] = col;
+    updatedCount++;
+  }
+
+  if (updatedCount > 0) {
+    await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: sheetColumns } });
+  }
+
+  return { updated: updatedCount };
 }

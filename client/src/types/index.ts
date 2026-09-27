@@ -124,6 +124,7 @@ export interface Column {
   isPrimary: boolean;
   order: number;
   options?: DropdownOption[];
+  formatting?: CellFormatting;
 }
 
 export interface GridRow {

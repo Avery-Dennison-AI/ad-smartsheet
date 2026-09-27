@@ -236,6 +236,28 @@ const gridSlice = createSlice({
         }
       }
     },
+    optimisticApplyColumnFormatting(
+      state,
+      action: PayloadAction<{ columnId: string; formatting: CellFormatting | null }>,
+    ) {
+      const col = state.columns.find((c) => c.id === action.payload.columnId);
+      if (col) {
+        if (action.payload.formatting && Object.keys(action.payload.formatting).length > 0) {
+          col.formatting = action.payload.formatting;
+        } else {
+          col.formatting = undefined;
+        }
+      }
+    },
+    rollbackColumnFormatting(
+      state,
+      action: PayloadAction<{ columnId: string; prev: CellFormatting | undefined }>,
+    ) {
+      const col = state.columns.find((c) => c.id === action.payload.columnId);
+      if (col) {
+        col.formatting = action.payload.prev;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -366,40 +388,77 @@ const gridSlice = createSlice({
   },
 });
 
-export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting } = gridSlice.actions;
+export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting, optimisticApplyColumnFormatting, rollbackColumnFormatting } = gridSlice.actions;
 
 // ─── Thunk: applyFormatting (defined after slice so it can reference actions) ──
 
 export const applyFormatting = createAsyncThunk(
   'grid/applyFormatting',
   async (
-    { sheetId, cells }: { sheetId: string; cells: Array<{ rowId: string; columnId: string; formatting: CellFormatting | null }> },
+    { sheetId, cells, columnFormatting }: {
+      sheetId: string;
+      cells?: Array<{ rowId: string; columnId: string; formatting: CellFormatting | null }>;
+      columnFormatting?: Array<{ columnId: string; formatting: CellFormatting | null }>;
+    },
     { dispatch, getState, rejectWithValue },
   ) => {
     // Optimistic update: immediately apply formatting to state
     const state = getState() as RootState;
-    const previousValues: Array<{ rowId: string; columnId: string; prev: CellFormatting | undefined }> = [];
 
-    for (const entry of cells) {
-      const row = state.grid.rows.find((r) => r.id === entry.rowId);
-      if (row) {
-        const prev = row.formatting?.[entry.columnId];
-        previousValues.push({ rowId: entry.rowId, columnId: entry.columnId, prev });
+    // Handle column-level formatting
+    if (columnFormatting && columnFormatting.length > 0) {
+      const prevColumnValues: Array<{ columnId: string; prev: CellFormatting | undefined }> = [];
+      for (const entry of columnFormatting) {
+        const col = state.grid.columns.find((c) => c.id === entry.columnId);
+        prevColumnValues.push({ columnId: entry.columnId, prev: col?.formatting });
+      }
+
+      for (const entry of columnFormatting) {
+        dispatch(optimisticApplyColumnFormatting({ columnId: entry.columnId, formatting: entry.formatting }));
+      }
+
+      try {
+        const res = await gridService.updateColumnFormatting(sheetId, columnFormatting);
+        return res.data.data as { updated: number };
+      } catch (err: unknown) {
+        for (const prev of prevColumnValues) {
+          dispatch(rollbackColumnFormatting({ columnId: prev.columnId, prev: prev.prev }));
+        }
+        return rejectWithValue(parseApiError(err).message);
       }
     }
 
-    dispatch(optimisticApplyFormatting(cells));
+    // Handle cell-level formatting
+    if (cells && cells.length > 0) {
+      const previousValues: Array<{ rowId: string; columnId: string; prev: CellFormatting | undefined }> = [];
 
-    try {
-      const res = await gridService.updateFormatting(sheetId, cells);
-      return res.data.data as { updated: number };
-    } catch (err: unknown) {
-      // Rollback on failure
-      dispatch(rollbackFormatting(previousValues));
-      return rejectWithValue(parseApiError(err).message);
+      for (const entry of cells) {
+        const row = state.grid.rows.find((r) => r.id === entry.rowId);
+        if (row) {
+          const prev = row.formatting?.[entry.columnId];
+          previousValues.push({ rowId: entry.rowId, columnId: entry.columnId, prev });
+        }
+      }
+
+      dispatch(optimisticApplyFormatting(cells));
+
+      try {
+        const res = await gridService.updateFormatting(sheetId, cells);
+        return res.data.data as { updated: number };
+      } catch (err: unknown) {
+        // Rollback on failure
+        dispatch(rollbackFormatting(previousValues));
+        return rejectWithValue(parseApiError(err).message);
+      }
     }
+
+    return { updated: 0 };
   },
 );
+
+// ─── Stable empty formatting constant (avoids re-renders) ──────────────
+
+const EMPTY_FORMATTING: CellFormatting = {};
 
 // ─── Selectors ─────────────────────────────────────────────────────────────
 
@@ -412,10 +471,16 @@ export const selectGridError = (state: RootState) => state.grid.error;
 export const selectGridSaveError = (state: RootState) => state.grid.saveError;
 export const selectGridErrorStatus = (state: RootState) => state.grid.errorStatus;
 
-/** Returns the CellFormatting for a specific cell, or {} if none. */
+/** Returns the CellFormatting for a specific cell, or a stable empty object if none. */
 export function selectCellFormatting(state: RootState, rowId: string, columnId: string): CellFormatting {
   const row = state.grid.rows.find((r) => r.id === rowId);
-  return row?.formatting?.[columnId] ?? {};
+  return row?.formatting?.[columnId] ?? EMPTY_FORMATTING;
+}
+
+/** Returns the column-level formatting for a column, or a stable empty object if none. */
+export function selectColumnFormatting(state: RootState, columnId: string): CellFormatting {
+  const col = state.grid.columns.find((c) => c.id === columnId);
+  return col?.formatting ?? EMPTY_FORMATTING;
 }
 
 export default gridSlice.reducer;

@@ -466,6 +466,10 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         userRole={userRole}
         activeCell={fmtActiveCell}
         selectedCells={fmtSelectedCells}
+        selectedRows={selection.selectedRowIndices}
+        selectedColumns={selection.selectedColIndices}
+        columns={columns}
+        rows={rows}
         data-icod-id="src_features_sheets_grid_sheetgrid_tsx_1675" />
       {/* Scrollable grid container */}
       <div
@@ -495,7 +499,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
               data-icod-id="src_features_sheets_grid_sheetgrid_tsx_9515" />
 
             {/* Column headers */}
-            {columns.map((col) => (
+            {columns.map((col, colIdx) => (
               <div
                 key={col.id}
                 style={{
@@ -508,13 +512,16 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                 data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_dc1c_${col.id}`}>
                 <GridHeaderCell
                   column={col}
+                  columnIndex={colIdx}
                   userRole={userRole}
                   isScrolled={col.isPrimary ? isScrolled : false}
+                  isColumnSelected={selection.isColSelected(colIdx)}
                   onRename={handleRenameColumn}
                   onEditProperties={handleEditColumnProperties}
                   onDelete={handleDeleteColumn}
                   onInsertLeft={(id) => handleInsertColumn(id, 'left')}
                   onInsertRight={(id) => handleInsertColumn(id, 'right')}
+                  onSelectColumn={selection.selectColumn}
                   onDragStart={handleColDragStart}
                   onDragOver={() => {}}
                   onDrop={handleColDrop}
@@ -584,8 +591,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                     rowNumber={rowIdx + 1}
                     rowIndex={rowIdx}
                     userRole={userRole}
-                    isSelected={false}
-                    onSelectRow={() => {}}
+                    isSelected={selection.isRowSelected(rowIdx)}
+                    onSelectRow={selection.selectRow}
                     onInsertAbove={handleInsertRowAbove}
                     onInsertBelow={handleInsertRowBelow}
                     onDeleteRows={handleDeleteRows}
@@ -636,6 +643,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                         isPrimary={!!col.isPrimary}
                         isScrolled={col.isPrimary ? isScrolled : false}
                         isRowHovered={col.isPrimary ? isRowHovered : false}
+                        isRowSelected={selection.isRowSelected(rowIdx)}
+                        isColSelected={selection.isColSelected(colIdx)}
                         data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_1587_${rowIdx}_${col.id}`} />
                     </div>
                   );

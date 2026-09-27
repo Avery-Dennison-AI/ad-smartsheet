@@ -82,3 +82,10 @@ export const updateFormatting = asyncHandler(async (req: Request, res: Response)
   const result = await gridService.updateFormatting(req.params.sheetId, req.user!.id, cells);
   sendSuccess(res, result);
 });
+
+/** PATCH /api/sheets/:sheetId/grid/column-formatting */
+export const updateColumnFormatting = asyncHandler(async (req: Request, res: Response) => {
+  const { columns } = req.body;
+  const result = await gridService.updateColumnFormatting(req.params.sheetId, req.user!.id, columns);
+  sendSuccess(res, result);
+});

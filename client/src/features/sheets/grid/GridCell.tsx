@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
 import { Pill, Avatar } from '@/components/ui';
 import { cn } from '@/utils/cn';
 import { useAppSelector } from '@/store/hooks';
-import { selectCellFormatting } from '@/store/slices/gridSlice';
+import { selectCellFormatting, selectColumnFormatting } from '@/store/slices/gridSlice';
 import FloatingCellList, { type FloatingCellListItem } from './FloatingCellList';
 import type { Column } from '@/types';
 
@@ -32,6 +32,10 @@ interface GridCellProps {
   isScrolled?: boolean;
   /** Whether the row is currently hovered. */
   isRowHovered?: boolean;
+  /** Whether this cell's row is selected via row header click. */
+  isRowSelected?: boolean;
+  /** Whether this cell's column is selected via column header click. */
+  isColSelected?: boolean;
 }
 
 export default function GridCell({
@@ -50,6 +54,8 @@ export default function GridCell({
   isPrimary,
   isScrolled,
   isRowHovered,
+  isRowSelected,
+  isColSelected,
 }: GridCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -61,10 +67,20 @@ export default function GridCell({
   // Track whether we've already committed in this edit session to prevent double-fire
   const committedRef = useRef(false);
 
-  // Read cell formatting from Redux store
-  const fmt = useAppSelector((state) =>
+  // Read cell formatting and column formatting from Redux store, then merge
+  const cellFmt = useAppSelector((state) =>
     rowId ? selectCellFormatting(state, rowId, column.id) : {},
   );
+  const colFmt = useAppSelector((state) =>
+    selectColumnFormatting(state, column.id),
+  );
+
+  // Merge: column formatting is the base, cell formatting overrides
+  const fmt = useMemo(() => {
+    if (!colFmt || Object.keys(colFmt).length === 0) return cellFmt;
+    if (!cellFmt || Object.keys(cellFmt).length === 0) return colFmt;
+    return { ...colFmt, ...cellFmt };
+  }, [colFmt, cellFmt]);
 
   // Build inline styles from formatting
   const formattingStyle: React.CSSProperties = {
@@ -572,7 +588,7 @@ export default function GridCell({
   const getCellBg = (): string | undefined => {
     if (!isPrimary) return undefined;
     if (isActive) return 'var(--grid-selection-bg)';
-    if (isSelected) return 'var(--grid-range-bg)';
+    if (isSelected || isRowSelected || isColSelected) return 'var(--grid-range-bg)';
     if (isRowHovered) return 'var(--grid-row-hover-bg)';
     return 'var(--grid-bg)';
   };
@@ -587,8 +603,8 @@ export default function GridCell({
         'h-[var(--grid-row-height)] px-[var(--grid-cell-padding-x)]',
         'text-sm text-foreground cursor-cell',
         isActive && 'ring-2 ring-inset ring-[var(--grid-selected-border)] z-10',
-        isSelected && !isActive && !isPrimary && 'bg-[var(--grid-range-bg)]',
-        !isSelected && !isActive && !isPrimary && 'hover:bg-[var(--grid-row-hover)]',
+        (isSelected || isRowSelected || isColSelected) && !isActive && !isPrimary && 'bg-[var(--grid-range-bg)]',
+        !isSelected && !isActive && !isPrimary && !isRowSelected && !isColSelected && 'hover:bg-[var(--grid-row-hover)]',
       )}
       style={{
         borderColor: 'var(--grid-line-color)',
