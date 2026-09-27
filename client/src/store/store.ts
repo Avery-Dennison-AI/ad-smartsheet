@@ -3,6 +3,8 @@ import uiReducer from './slices/uiSlice';
 import authReducer from './slices/authSlice';
 import adminReducer from './slices/adminSlice';
 import workspacesReducer from './slices/workspaceSlice';
+import sheetsReducer from './slices/sheetsSlice';
+import userMetaReducer from './slices/userMetaSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +12,8 @@ export const store = configureStore({
     auth: authReducer,
     admin: adminReducer,
     workspaces: workspacesReducer,
+    sheets: sheetsReducer,
+    userMeta: userMetaReducer,
   },
 });
 

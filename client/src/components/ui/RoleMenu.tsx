@@ -34,7 +34,6 @@ export default function RoleMenu({
   const menuItems: DropdownMenuItem[] = [];
 
   for (const r of ROLE_ITEMS) {
-    // Use a JSX node as label — DropdownMenu renders {item.label} which accepts ReactNode at runtime
     const labelNode = (
       <div
         className="flex flex-col"
@@ -49,7 +48,7 @@ export default function RoleMenu({
     );
 
     menuItems.push({
-      label: labelNode as unknown as string,
+      label: labelNode,
       onClick: () => onChange(r.role),
       icon: r.role === value ? <Check
         className="h-3 w-3 text-primary"

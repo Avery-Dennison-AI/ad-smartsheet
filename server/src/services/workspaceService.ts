@@ -3,6 +3,7 @@ import Workspace, { type IWorkspace, type WorkspaceRole } from '../models/Worksp
 import User from '../models/User';
 import { AppError } from '../utils/AppError';
 import { escapeRegex } from '../utils/escapeRegex';
+import { deleteSheetsByWorkspace } from './sheetService';
 
 const MEMBER_POPULATE = '_id fullName email';
 
@@ -113,6 +114,8 @@ export async function deleteWorkspace(workspaceId: string, userId: string): Prom
     throw new AppError('Only the workspace owner can delete this workspace', 403);
   }
 
+  // Clean up all sheets and user meta for this workspace before deleting it
+  await deleteSheetsByWorkspace(workspaceId);
   await Workspace.findByIdAndDelete(workspaceId);
 }
 

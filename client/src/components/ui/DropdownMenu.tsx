@@ -4,7 +4,7 @@ import { cn } from '@/utils/cn';
 
 export interface DropdownMenuItem {
   type?: 'item' | 'divider';
-  label?: string;
+  label?: string | ReactNode;
   icon?: ReactNode;
   shortcut?: string;
   danger?: boolean;

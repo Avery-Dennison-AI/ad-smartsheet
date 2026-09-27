@@ -11,6 +11,7 @@ import RecentsPage from '@/pages/RecentsPage';
 import FavoritesPage from '@/pages/FavoritesPage';
 import DesignSystemPage from '@/pages/DesignSystemPage';
 import WorkspacePage from '@/pages/WorkspacePage';
+import SheetPage from '@/pages/SheetPage';
 import AcceptInvitePage from '@/pages/AcceptInvitePage';
 import AdminUsersPage from '@/pages/AdminUsersPage';
 
@@ -86,6 +87,7 @@ function AppRoutes() {
       <Route path="/favorites" element={<ProtectedRoute data-icod-id="src_app_tsx_0c3a"><AppShell data-icod-id="src_app_tsx_3d12"><FavoritesPage data-icod-id="src_app_tsx_997c" /></AppShell></ProtectedRoute>} />
       <Route path="/design-system" element={<ProtectedRoute data-icod-id="src_app_tsx_22ed"><AppShell data-icod-id="src_app_tsx_5e50"><DesignSystemPage data-icod-id="src_app_tsx_0ba9" /></AppShell></ProtectedRoute>} />
       <Route path="/workspaces/:id" element={<ProtectedRoute data-icod-id="src_app_tsx_157a"><AppShell data-icod-id="src_app_tsx_66f4"><WorkspacePage data-icod-id="src_app_tsx_e7d0" /></AppShell></ProtectedRoute>} />
+      <Route path="/sheets/:sheetId" element={<ProtectedRoute data-icod-id="src_app_tsx_4746"><AppShell data-icod-id="src_app_tsx_b0b1"><SheetPage data-icod-id="src_app_tsx_1376" /></AppShell></ProtectedRoute>} />
       <Route path="/admin/users" element={<AdminOnlyRoute data-icod-id="src_app_tsx_c855"><AppShell data-icod-id="src_app_tsx_a0a1"><AdminUsersPage data-icod-id="src_app_tsx_4c46" /></AppShell></AdminOnlyRoute>} />
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />

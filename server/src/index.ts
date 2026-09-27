@@ -12,6 +12,9 @@ import authRouter from './routes/auth';
 import invitationsRouter from './routes/invitations';
 import adminUsersRouter from './routes/adminUsers';
 import workspacesRouter from './routes/workspaces';
+import workspaceSheetsRouter from './routes/workspaceSheets';
+import sheetsRouter from './routes/sheets';
+import userSheetsRouter from './routes/userSheets';
 import { seedAdmin } from './config/seedAdmin';
 import { migrateWorkspaceColors } from './config/migrations';
 import { sendSuccess } from './utils/response';
@@ -65,6 +68,9 @@ app.use('/api/auth', authRouter);
 app.use('/api', invitationsRouter);
 app.use('/api/admin', adminUsersRouter);
 app.use('/api/workspaces', workspacesRouter);
+app.use('/api/workspaces', workspaceSheetsRouter);
+app.use('/api/sheets', sheetsRouter);
+app.use('/api/user', userSheetsRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use(errorHandler);

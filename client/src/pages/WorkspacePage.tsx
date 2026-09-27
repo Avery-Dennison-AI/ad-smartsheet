@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Settings, Users, LayoutGrid, AlertTriangle, Trash2 } from 'lucide-react';
+import { Plus, Settings, Users, AlertTriangle, Trash2 } from 'lucide-react';
 import { PageContainer, EmptyState, Button, AvatarGroup, Skeleton, DropdownMenu, WorkspaceIcon, PageHeader } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 import { fetchWorkspace, selectCurrentWorkspace, selectCurrentWorkspaceStatus, clearCurrentWorkspace } from '@/store/slices/workspaceSlice';
+import { fetchSheets, selectSheetsByWorkspace, selectSheetsLoading } from '@/store/slices/sheetsSlice';
+import { selectFavorites } from '@/store/slices/userMetaSlice';
 import { ShareModal, WorkspaceSettingsModal, DeleteWorkspaceDialog } from '@/features/workspaces';
+import { SheetListTable, CreateSheetModal } from '@/features/sheets';
 import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 
 export default function WorkspacePage() {
@@ -14,12 +17,22 @@ export default function WorkspacePage() {
   const user = useAppSelector(selectCurrentUser);
   const workspace = useAppSelector(selectCurrentWorkspace);
   const status = useAppSelector(selectCurrentWorkspaceStatus);
+  const sheets = useAppSelector(selectSheetsByWorkspace(id || ''));
+  const sheetsLoading = useAppSelector(selectSheetsLoading);
+  const favorites = useAppSelector(selectFavorites);
   const { handleAccessLost, isAccessError } = useWorkspaceAccessLost();
 
   const [shareOpen, setShareOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [createSheetOpen, setCreateSheetOpen] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // Build favorites map for quick lookup
+  const favoritesMap: Record<string, boolean> = {};
+  for (const fav of favorites) {
+    favoritesMap[fav.sheet.id] = true;
+  }
 
   /** Load or reload the workspace — handles both initial load and retry. */
   const loadWorkspace = useCallback(() => {
@@ -40,6 +53,13 @@ export default function WorkspacePage() {
     loadWorkspace();
     return () => { dispatch(clearCurrentWorkspace()); };
   }, [loadWorkspace, dispatch]);
+
+  // Fetch sheets when workspace loads
+  useEffect(() => {
+    if (id && workspace) {
+      dispatch(fetchSheets(id));
+    }
+  }, [id, workspace, dispatch]);
 
   if (fetchError) {
     return (
@@ -83,6 +103,7 @@ export default function WorkspacePage() {
   const currentMember = workspace.members.find((m) => m.id === user?.id);
   const currentUserRole = currentMember?.role ?? null;
   const canManage = currentUserRole === 'owner' || currentUserRole === 'admin';
+  const canCreate = currentUserRole === 'editor' || currentUserRole === 'admin' || currentUserRole === 'owner';
   const isOwner = currentUserRole === 'owner';
 
   // Build settings dropdown items
@@ -127,6 +148,15 @@ export default function WorkspacePage() {
               max={5}
               size="sm"
               data-icod-id="src_pages_workspacepage_tsx_22e5" />
+            {canCreate && (
+              <Button
+                size="sm"
+                leftIcon={<Plus className="h-4 w-4" data-icod-id="src_pages_workspacepage_tsx_b1f6" />}
+                onClick={() => setCreateSheetOpen(true)}
+                data-icod-id="src_pages_workspacepage_tsx_newsheet">
+                New sheet
+              </Button>
+            )}
             <Button
               variant="secondary"
               size="sm"
@@ -146,13 +176,21 @@ export default function WorkspacePage() {
           </div>
         }
         data-icod-id="src_pages_workspacepage_tsx_30c3" />
-      {/* Main content area — placeholder for sheets */}
-      <EmptyState
-        icon={LayoutGrid}
-        title="No sheets yet"
-        description="Sheets you create in this workspace will appear here."
-        data-icod-id="src_pages_workspacepage_tsx_8040" />
+      {/* Sheets list */}
+      <SheetListTable
+        sheets={sheets}
+        loading={sheetsLoading}
+        userRole={currentUserRole}
+        workspaceId={workspace.id}
+        onCreateClick={() => setCreateSheetOpen(true)}
+        favoritesMap={favoritesMap}
+        data-icod-id="src_pages_workspacepage_tsx_b9a7" />
       {/* Modals */}
+      <CreateSheetModal
+        open={createSheetOpen}
+        onClose={() => setCreateSheetOpen(false)}
+        workspaceId={workspace.id}
+        data-icod-id="src_pages_workspacepage_tsx_9213" />
       <ShareModal
         open={shareOpen}
         onClose={() => setShareOpen(false)}

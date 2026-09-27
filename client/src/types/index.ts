@@ -73,3 +73,35 @@ export interface Workspace {
   updatedAt: string;
 }
 
+// ─── Sheet Types ──────────────────────────────────────────────────────────────
+
+export interface SheetCreatedBy {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
+export interface Sheet {
+  id: string;
+  workspaceId: string;
+  name: string;
+  createdBy: SheetCreatedBy;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SheetMetaItem {
+  sheet: {
+    id: string;
+    name: string;
+    updatedAt: string;
+    workspaceId: string;
+  };
+  workspace: {
+    id: string;
+    name: string;
+  };
+  lastOpenedAt: string | null;
+  isFavorite: boolean;
+}
+
