@@ -85,6 +85,7 @@ export interface Sheet {
   id: string;
   workspaceId: string;
   name: string;
+  description?: string;
   createdBy: SheetCreatedBy;
   createdAt: string;
   updatedAt: string;

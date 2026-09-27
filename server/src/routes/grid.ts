@@ -38,6 +38,17 @@ router.post(
   gridController.addColumn,
 );
 
+// PATCH /api/sheets/:sheetId/grid/columns/reorder — reorder columns
+// MUST be registered BEFORE /columns/:columnId to avoid "reorder" being treated as a columnId
+router.patch(
+  '/columns/reorder',
+  validate([
+    mongoId('sheetId'),
+    body('orderedIds').isArray({ min: 1 }).withMessage('orderedIds must be a non-empty array'),
+  ]),
+  gridController.reorderColumns,
+);
+
 // PATCH /api/sheets/:sheetId/grid/columns/:columnId — update column
 router.patch(
   '/columns/:columnId',
@@ -60,21 +71,32 @@ router.delete(
   gridController.deleteColumn,
 );
 
-// PATCH /api/sheets/:sheetId/grid/columns/reorder — reorder columns
-router.patch(
-  '/columns/reorder',
-  validate([
-    mongoId('sheetId'),
-    body('orderedIds').isArray({ min: 1 }).withMessage('orderedIds must be a non-empty array'),
-  ]),
-  gridController.reorderColumns,
-);
-
 // POST /api/sheets/:sheetId/grid/rows — add row
 router.post(
   '/rows',
   validate([mongoId('sheetId')]),
   gridController.addRow,
+);
+
+// PATCH /api/sheets/:sheetId/grid/rows/reorder — reorder rows
+// MUST be registered BEFORE /rows/:rowId to avoid "reorder" being treated as a rowId
+router.patch(
+  '/rows/reorder',
+  validate([
+    mongoId('sheetId'),
+    body('orderedIds').isArray({ min: 1 }).withMessage('orderedIds must be a non-empty array'),
+  ]),
+  gridController.reorderRows,
+);
+
+// DELETE /api/sheets/:sheetId/grid/rows — delete rows (bulk)
+router.delete(
+  '/rows',
+  validate([
+    mongoId('sheetId'),
+    body('rowIds').isArray({ min: 1 }).withMessage('rowIds must be a non-empty array'),
+  ]),
+  gridController.deleteRows,
 );
 
 // PATCH /api/sheets/:sheetId/grid/rows/:rowId/cells/:columnId — update cell
@@ -86,26 +108,6 @@ router.patch(
     param('columnId').notEmpty().withMessage('Column ID is required'),
   ]),
   gridController.updateCell,
-);
-
-// DELETE /api/sheets/:sheetId/grid/rows — delete rows
-router.delete(
-  '/rows',
-  validate([
-    mongoId('sheetId'),
-    body('rowIds').isArray({ min: 1 }).withMessage('rowIds must be a non-empty array'),
-  ]),
-  gridController.deleteRows,
-);
-
-// PATCH /api/sheets/:sheetId/grid/rows/reorder — reorder rows
-router.patch(
-  '/rows/reorder',
-  validate([
-    mongoId('sheetId'),
-    body('orderedIds').isArray({ min: 1 }).withMessage('orderedIds must be a non-empty array'),
-  ]),
-  gridController.reorderRows,
 );
 
 export default router;

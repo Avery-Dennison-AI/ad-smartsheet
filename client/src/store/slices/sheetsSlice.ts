@@ -62,8 +62,8 @@ export const createSheet = createAsyncThunk(
 
 export const renameSheet = createAsyncThunk(
   'sheets/rename',
-  async ({ sheetId, name }: { sheetId: string; name: string }) => {
-    const res = await sheetService.renameSheet(sheetId, name);
+  async ({ sheetId, name, description }: { sheetId: string; name?: string; description?: string }) => {
+    const res = await sheetService.renameSheet(sheetId, { name, description });
     return res.data.data as Sheet;
   },
 );

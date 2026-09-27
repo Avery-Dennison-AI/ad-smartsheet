@@ -185,18 +185,31 @@ export async function createSheet(workspaceId: string, name: string, userId: str
   return formatSheet(populated);
 }
 
-/** Renames a sheet. Requires editor+ membership. */
-export async function renameSheet(sheetId: string, name: string, userId: string) {
+/** Updates sheet details (name and/or description). Requires editor+ membership. */
+export async function updateSheetDetails(
+  sheetId: string,
+  patch: { name?: string; description?: string },
+  userId: string,
+) {
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
+
+  const updates: Record<string, unknown> = {};
+  if (patch.name !== undefined) updates.name = patch.name;
+  if (patch.description !== undefined) updates.description = patch.description || undefined;
 
   const updated = await Sheet.findByIdAndUpdate(
     sheet._id,
-    { $set: { name } },
+    { $set: updates },
     { new: true, runValidators: true },
   ).populate('createdBy', CREATED_BY_POPULATE);
 
   if (!updated) throw new AppError('Sheet not found', 404);
   return formatSheet(updated);
+}
+
+/** Renames a sheet. Requires editor+ membership. (Legacy — prefer updateSheetDetails.) */
+export async function renameSheet(sheetId: string, name: string, userId: string) {
+  return updateSheetDetails(sheetId, { name }, userId);
 }
 
 /** Duplicates a sheet within the same workspace. Requires editor+ membership. */

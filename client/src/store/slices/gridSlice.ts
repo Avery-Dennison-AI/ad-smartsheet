@@ -47,7 +47,8 @@ export const addColumn = createAsyncThunk(
   ) => {
     try {
       const res = await gridService.addColumn(sheetId, data);
-      return res.data.data as Column;
+      // Server now returns the full sorted column list
+      return res.data.data as Column[];
     } catch (err: unknown) {
       return rejectWithValue(parseApiError(err).message);
     }
@@ -205,8 +206,8 @@ const gridSlice = createSlice({
       .addCase(addColumn.pending, (state) => { state.saving = true; state.saveError = null; })
       .addCase(addColumn.fulfilled, (state, action) => {
         state.saving = false;
-        state.columns.push(action.payload);
-        state.columns.sort((a, b) => a.order - b.order);
+        // Replace with full server-returned column list (already sorted by order)
+        state.columns = action.payload;
       })
       .addCase(addColumn.rejected, (state, action) => {
         state.saving = false;

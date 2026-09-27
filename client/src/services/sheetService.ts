@@ -13,8 +13,8 @@ export function createSheet(workspaceId: string, name: string) {
   return apiClient.post(`/api/workspaces/${workspaceId}/sheets`, { name });
 }
 
-export function renameSheet(sheetId: string, name: string) {
-  return apiClient.patch(`/api/sheets/${sheetId}/rename`, { name });
+export function renameSheet(sheetId: string, data: { name?: string; description?: string }) {
+  return apiClient.patch(`/api/sheets/${sheetId}/rename`, data);
 }
 
 export function duplicateSheet(sheetId: string) {

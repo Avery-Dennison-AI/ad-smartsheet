@@ -186,7 +186,8 @@ export async function addColumn(
   existingColumns.sort((a, b) => a.order - b.order);
 
   await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: existingColumns } });
-  return newCol;
+  // Return the full sorted column list so the client can replace its state
+  return existingColumns;
 }
 
 /** Updates a column (rename, type change, reorder, edit options). Requires editor+. */

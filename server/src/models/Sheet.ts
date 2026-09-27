@@ -19,6 +19,7 @@ export interface ColumnDef {
 export interface ISheet extends Document {
   workspaceId: mongoose.Types.ObjectId;
   name: string;
+  description?: string;
   createdBy: mongoose.Types.ObjectId;
   columns: ColumnDef[];
   createdAt: Date;
@@ -53,6 +54,7 @@ const sheetSchema = new Schema<ISheet>(
   {
     workspaceId: { type: Schema.Types.ObjectId, ref: 'Workspace', required: true, index: true },
     name: { type: String, required: true, maxlength: 100, trim: true },
+    description: { type: String, maxlength: 300, trim: true, default: undefined },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     columns: { type: [columnDefSchema], default: [] },
   },

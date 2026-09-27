@@ -10,11 +10,12 @@ import RenameSheetModal from './RenameSheetModal';
 interface SheetActionsMenuProps {
   sheetId: string;
   sheetName: string;
+  sheetDescription?: string;
   userRole: WorkspaceRole;
   hideOpen?: boolean;
 }
 
-export default function SheetActionsMenu({ sheetId, sheetName, userRole, hideOpen = false }: SheetActionsMenuProps) {
+export default function SheetActionsMenu({ sheetId, sheetName, sheetDescription, userRole, hideOpen = false }: SheetActionsMenuProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [renameOpen, setRenameOpen] = useState(false);
@@ -55,7 +56,7 @@ export default function SheetActionsMenu({ sheetId, sheetName, userRole, hideOpe
 
   if (canEdit) {
     items.push({
-      label: 'Rename',
+      label: 'Edit details',
       icon: <Pencil
         className="h-4 w-4"
         data-icod-id="src_features_sheets_components_sheetactionsmenu_tsx_090a" />,
@@ -102,6 +103,7 @@ export default function SheetActionsMenu({ sheetId, sheetName, userRole, hideOpe
         onClose={() => setRenameOpen(false)}
         sheetId={sheetId}
         currentName={sheetName}
+        currentDescription={sheetDescription}
         data-icod-id="src_features_sheets_components_sheetactionsmenu_tsx_41e1" />
       <ConfirmDialog
         open={deleteOpen}

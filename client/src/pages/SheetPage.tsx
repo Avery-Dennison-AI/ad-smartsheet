@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
-import { PageContainer, Button, EmptyState, Spinner, SheetIcon, FavoritesStar, SaveIndicator } from '@/components/ui';
+import { PageContainer, Button, EmptyState, Spinner } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSheet, selectCurrentSheet, selectSheetsLoading, selectSheetsError, selectSheetsErrorStatus, clearCurrentSheet } from '@/store/slices/sheetsSlice';
 import { setFavoriteMeta, selectRecents, selectFavorites } from '@/store/slices/userMetaSlice';
 import { fetchWorkspace, selectCurrentWorkspace } from '@/store/slices/workspaceSlice';
 import { selectGridSaving, selectGridSaveError, clearGrid } from '@/store/slices/gridSlice';
 import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
-import SheetActionsMenu from '@/features/sheets/components/SheetActionsMenu';
 import SheetGrid from '@/features/sheets/grid/SheetGrid';
+import SheetToolbar from '@/features/sheets/grid/SheetToolbar';
 
 export default function SheetPage() {
   const { sheetId } = useParams<{ sheetId: string }>();
@@ -112,56 +112,21 @@ export default function SheetPage() {
     );
   }
 
-  const headerActions = (
-    <div
-      className="flex items-center gap-2"
-      data-icod-id="src_pages_sheetpage_tsx_40ba">
-      <SaveIndicator
-        saving={saving}
-        error={saveError}
-        data-icod-id="src_pages_sheetpage_tsx_712e" />
-      <FavoritesStar
-        isFavorite={isFavorite}
-        onToggle={() => dispatch(setFavoriteMeta({ sheetId: sheet.id, starred: !isFavorite }))}
-        data-icod-id="src_pages_sheetpage_tsx_e1c1" />
-      {sheet.userRole && (
-        <SheetActionsMenu
-          sheetId={sheet.id}
-          sheetName={sheet.name}
-          userRole={sheet.userRole}
-          hideOpen
-          data-icod-id="src_pages_sheetpage_tsx_29a1" />
-      )}
-    </div>
-  );
-
   return (
     <div className="flex h-full flex-col overflow-hidden" data-icod-id="src_pages_sheetpage_tsx_ffe8">
+      <SheetToolbar
+        sheetId={sheet.id}
+        sheetName={sheet.name}
+        description={sheet.description}
+        userRole={sheet.userRole || 'viewer'}
+        isFavorite={isFavorite}
+        onToggleFavorite={() => dispatch(setFavoriteMeta({ sheetId: sheet.id, starred: !isFavorite }))}
+        saving={saving}
+        saveError={saveError}
+        data-icod-id="src_pages_sheetpage_tsx_toolbar" />
       <div
-        className="shrink-0 px-6 pt-4 pb-2"
-        data-icod-id="src_pages_sheetpage_tsx_0556">
-        <div
-          className="flex items-start justify-between gap-4"
-          data-icod-id="src_pages_sheetpage_tsx_65dd">
-          <div
-            className="flex items-center gap-3 min-w-0"
-            data-icod-id="src_pages_sheetpage_tsx_2f46">
-            <SheetIcon className="h-6 w-6 shrink-0" data-icod-id="src_pages_sheetpage_tsx_c2ef" />
-            <div className="min-w-0" data-icod-id="src_pages_sheetpage_tsx_7366">
-              <h1
-                className="truncate text-lg font-semibold text-foreground"
-                data-icod-id="src_pages_sheetpage_tsx_1115">{sheet.name}</h1>
-              <p
-                className="truncate text-xs text-muted-foreground"
-                data-icod-id="src_pages_sheetpage_tsx_16df">{sheet.workspaceName || 'Workspace'}</p>
-            </div>
-          </div>
-          <div className="shrink-0" data-icod-id="src_pages_sheetpage_tsx_bf75">{headerActions}</div>
-        </div>
-      </div>
-      <div
-        className="flex-1 overflow-hidden border-t border-border"
-        data-icod-id="src_pages_sheetpage_tsx_4a23">
+        className="flex-1 min-h-0 overflow-hidden"
+        data-icod-id="src_pages_sheetpage_tsx_grid_wrap">
         <SheetGrid
           sheetId={sheet.id}
           userRole={sheet.userRole || 'viewer'}

@@ -35,6 +35,15 @@ export default function GridCell({
   const [contactQuery, setContactQuery] = useState('');
   const [contactOpen, setContactOpen] = useState(false);
   const cellRef = useRef<HTMLDivElement>(null);
+  // Track whether we've already committed in this edit session to prevent double-fire
+  const committedRef = useRef(false);
+
+  // Reset committed flag when entering edit mode
+  useEffect(() => {
+    if (isEditing) {
+      committedRef.current = false;
+    }
+  }, [isEditing]);
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -60,23 +69,10 @@ export default function GridCell({
     if (!readOnly) onStartEdit();
   }, [readOnly, onStartEdit]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        commitEdit();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        onStopEdit();
-      } else if (e.key === 'Tab') {
-        e.preventDefault();
-        commitEdit();
-      }
-    },
-    [],
-  );
-
+  // Safe commit — only fires once per edit session
   const commitEdit = useCallback(() => {
+    if (committedRef.current) return;
+    committedRef.current = true;
     if (column.type === 'number') {
       const num = editValue.trim() === '' ? null : Number(editValue);
       onCommit(num);
@@ -85,6 +81,27 @@ export default function GridCell({
     }
     onStopEdit();
   }, [editValue, column.type, onCommit, onStopEdit]);
+
+  const cancelEdit = useCallback(() => {
+    committedRef.current = true; // prevent onBlur from firing after cancel
+    onStopEdit();
+  }, [onStopEdit]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitEdit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEdit();
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        commitEdit();
+      }
+    },
+    [commitEdit, cancelEdit],
+  );
 
   // Checkbox toggle — single click
   const handleCheckboxClick = useCallback(() => {
@@ -201,7 +218,7 @@ export default function GridCell({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            onBlur={commitEdit}
+            onBlur={() => { if (!committedRef.current) commitEdit(); }}
             data-icod-id="src_features_sheets_grid_gridcell_tsx_f796" />
         );
       case 'number':
@@ -213,7 +230,7 @@ export default function GridCell({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            onBlur={commitEdit}
+            onBlur={() => { if (!committedRef.current) commitEdit(); }}
             data-icod-id="src_features_sheets_grid_gridcell_tsx_5c82" />
         );
       case 'date':
@@ -226,9 +243,19 @@ export default function GridCell({
               type="date"
               className="h-full w-full bg-transparent px-1 text-sm outline-none"
               value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
+              onChange={(e) => {
+                setEditValue(e.target.value);
+                // Date picker fires onChange on selection — commit immediately
+                if (e.target.value) {
+                  if (!committedRef.current) {
+                    committedRef.current = true;
+                    onCommit(e.target.value);
+                    onStopEdit();
+                  }
+                }
+              }}
               onKeyDown={handleKeyDown}
-              onBlur={commitEdit}
+              onBlur={() => { if (!committedRef.current) commitEdit(); }}
               data-icod-id="src_features_sheets_grid_gridcell_tsx_42f1" />
           </div>
         );
@@ -254,9 +281,12 @@ export default function GridCell({
                     key={opt.label}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
                     onClick={() => {
-                      onCommit(opt.label);
-                      setDropdownOpen(false);
-                      onStopEdit();
+                      if (!committedRef.current) {
+                        committedRef.current = true;
+                        onCommit(opt.label);
+                        setDropdownOpen(false);
+                        onStopEdit();
+                      }
                     }}
                     data-icod-id="src_features_sheets_grid_gridcell_tsx_8c4b">
                     <Pill
@@ -292,13 +322,16 @@ export default function GridCell({
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   setContactOpen(false);
-                  onStopEdit();
+                  cancelEdit();
                 }
               }}
               onBlur={() => {
                 setTimeout(() => {
-                  setContactOpen(false);
-                  onStopEdit();
+                  if (!committedRef.current) {
+                    committedRef.current = true;
+                    setContactOpen(false);
+                    onStopEdit();
+                  }
                 }, 200);
               }}
               data-icod-id="src_features_sheets_grid_gridcell_tsx_0847" />
@@ -319,9 +352,12 @@ export default function GridCell({
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-muted"
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        onCommit(member.id);
-                        setContactOpen(false);
-                        onStopEdit();
+                        if (!committedRef.current) {
+                          committedRef.current = true;
+                          onCommit(member.id);
+                          setContactOpen(false);
+                          onStopEdit();
+                        }
                       }}
                       data-icod-id={`src_features_sheets_grid_gridcell_tsx_c630_${member.id}`}>
                       <Avatar

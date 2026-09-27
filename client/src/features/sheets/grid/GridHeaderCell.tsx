@@ -48,6 +48,13 @@ export default function GridHeaderCell({
   const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
   const canDelete = userRole === 'admin' || userRole === 'owner';
 
+  const startRenaming = useCallback(() => {
+    setRenaming(true);
+    setRenameValue(column.name);
+    // Delay focus so the menu has fully unmounted first
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [column.name]);
+
   const handleRenameSubmit = useCallback(() => {
     const trimmed = renameValue.trim();
     if (trimmed && trimmed !== column.name) {
@@ -62,7 +69,7 @@ export default function GridHeaderCell({
 
   if (canEdit) {
     menuItems.push(
-      { label: 'Rename', onClick: () => { setRenaming(true); setRenameValue(column.name); setTimeout(() => inputRef.current?.focus(), 0); } },
+      { label: 'Rename', onClick: startRenaming },
       { label: 'Change type', onClick: () => onChangeType(column.id) },
     );
 
@@ -116,7 +123,8 @@ export default function GridHeaderCell({
             className="mr-1.5 h-3 w-3 shrink-0 opacity-60"
             data-icod-id="src_features_sheets_grid_gridheadercell_tsx_570e" />
           <span
-            className="truncate"
+            className="truncate cursor-pointer"
+            onDoubleClick={() => { if (canEdit) startRenaming(); }}
             data-icod-id="src_features_sheets_grid_gridheadercell_tsx_d968">{column.name}</span>
         </>
       )}
@@ -136,6 +144,7 @@ export default function GridHeaderCell({
               </button>
             }
             items={menuItems}
+            skipRestoreFocus
             data-icod-id="src_features_sheets_grid_gridheadercell_tsx_cd5c" />
         </div>
       )}

@@ -17,12 +17,14 @@ export interface DropdownMenuProps {
   className?: string;
   /** Non-interactive header rendered above the items list. Skipped in keyboard navigation. */
   header?: ReactNode;
+  /** When true, suppresses restoring focus to the trigger element when the menu closes. */
+  skipRestoreFocus?: boolean;
 }
 
 /** Trigger + floating menu with keyboard navigation (arrow keys, Escape).
  *  Renders the menu via a portal into document.body so it is never clipped
  *  by overflow-hidden or scrollable parent containers. */
-export default function DropdownMenu({ trigger, items, className, header }: DropdownMenuProps) {
+export default function DropdownMenu({ trigger, items, className, header, skipRestoreFocus }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
   const [focusIndex, setFocusIndex] = useState(-1);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -63,6 +65,10 @@ export default function DropdownMenu({ trigger, items, className, header }: Drop
     setOpen(false);
     setFocusIndex(-1);
     setMenuPos(null);
+    if (skipRestoreFocus) {
+      // Blur the trigger so it doesn't steal focus from whatever should be focused next
+      triggerRef.current?.blur();
+    }
   };
 
   // Close on click outside (both trigger and portal menu)

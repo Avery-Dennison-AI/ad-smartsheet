@@ -22,10 +22,10 @@ export const getSheet = asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, sheet);
 });
 
-/** PATCH /api/sheets/:sheetId/rename */
+/** PATCH /api/sheets/:sheetId/rename — edit sheet details (name and/or description) */
 export const renameSheet = asyncHandler(async (req: Request, res: Response) => {
-  const { name } = req.body;
-  const sheet = await sheetService.renameSheet(req.params.sheetId, name, req.user!.id);
+  const { name, description } = req.body;
+  const sheet = await sheetService.updateSheetDetails(req.params.sheetId, { name, description }, req.user!.id);
   sendSuccess(res, sheet);
 });
 

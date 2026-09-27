@@ -21,15 +21,13 @@ router.get(
   sheetController.getSheet,
 );
 
-// PATCH /api/sheets/:sheetId/rename — rename a sheet
+// PATCH /api/sheets/:sheetId/rename — edit sheet details (name and/or description)
 router.patch(
   '/:sheetId/rename',
   validate([
     mongoId('sheetId'),
-    body('name')
-      .trim()
-      .notEmpty().withMessage('Sheet name is required')
-      .isLength({ min: 1, max: 100 }).withMessage('Name must be between 1 and 100 characters'),
+    body('name').optional().trim().isLength({ min: 1, max: 100 }).withMessage('Name must be between 1 and 100 characters'),
+    body('description').optional().trim().isLength({ max: 300 }).withMessage('Description must be at most 300 characters'),
   ]),
   sheetController.renameSheet,
 );

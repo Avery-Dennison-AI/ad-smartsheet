@@ -335,7 +335,7 @@ export default function AppShell({ children }: AppShellProps) {
 
         {/* Main content */}
         <main
-          className="flex-1 overflow-y-auto"
+          className="flex-1 min-h-0 overflow-hidden"
           data-icod-id="src_components_layout_appshell_tsx_ad68">{children}</main>
       </div>
       {/* Create workspace modal */}

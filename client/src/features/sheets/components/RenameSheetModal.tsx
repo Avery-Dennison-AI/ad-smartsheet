@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Modal, Button, Field, Input, Alert } from '@/components/ui';
+import { Modal, Button, Field, Input, Alert, inputClass } from '@/components/ui';
 import { useAppDispatch } from '@/store/hooks';
 import { renameSheet } from '@/store/slices/sheetsSlice';
 
@@ -8,43 +8,56 @@ interface RenameSheetModalProps {
   onClose: () => void;
   sheetId: string;
   currentName: string;
+  currentDescription?: string;
 }
 
-export default function RenameSheetModal({ open, onClose, sheetId, currentName }: RenameSheetModalProps) {
+export default function RenameSheetModal({ open, onClose, sheetId, currentName, currentDescription }: RenameSheetModalProps) {
   const dispatch = useAppDispatch();
   const [name, setName] = useState(currentName);
+  const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Reset name when modal opens
+  // Reset values when modal opens
   useEffect(() => {
     if (open) {
       setName(currentName);
+      setDescription(currentDescription || '');
       setError(null);
     }
-  }, [open, currentName]);
+  }, [open, currentName, currentDescription]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const trimmed = name.trim();
-    if (!trimmed) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       setError('Sheet name is required.');
       return;
     }
-    if (trimmed.length > 100) {
+    if (trimmedName.length > 100) {
       setError('Name must be at most 100 characters.');
+      return;
+    }
+
+    const trimmedDesc = description.trim();
+    if (trimmedDesc.length > 300) {
+      setError('Description must be at most 300 characters.');
       return;
     }
 
     setSubmitting(true);
     try {
-      await dispatch(renameSheet({ sheetId, name: trimmed })).unwrap();
+      await dispatch(renameSheet({
+        sheetId,
+        name: trimmedName,
+        description: trimmedDesc || undefined,
+      })).unwrap();
       handleClose();
     } catch (err: unknown) {
       const msg = err as { message?: string } | string;
-      setError(typeof msg === 'string' ? msg : msg?.message || 'Failed to rename sheet.');
+      setError(typeof msg === 'string' ? msg : msg?.message || 'Failed to update sheet details.');
     } finally {
       setSubmitting(false);
     }
@@ -55,11 +68,15 @@ export default function RenameSheetModal({ open, onClose, sheetId, currentName }
     onClose();
   };
 
+  const hasChanges =
+    name.trim() !== currentName ||
+    description.trim() !== (currentDescription || '');
+
   return (
     <Modal
       open={open}
       onClose={handleClose}
-      title="Rename sheet"
+      title="Edit details"
       footer={
         <>
           <Button
@@ -73,7 +90,7 @@ export default function RenameSheetModal({ open, onClose, sheetId, currentName }
             size="sm"
             onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
             loading={submitting}
-            disabled={!name.trim() || name.trim() === currentName}
+            disabled={!hasChanges}
             data-icod-id="src_features_sheets_components_renamesheetmodal_tsx_c78b">
             Save
           </Button>
@@ -101,6 +118,22 @@ export default function RenameSheetModal({ open, onClose, sheetId, currentName }
             maxLength={100}
             autoFocus
             data-icod-id="src_features_sheets_components_renamesheetmodal_tsx_91fc" />
+        </Field>
+        <Field
+          label="Description"
+          htmlFor="edit-sheet-description"
+          hint={`${description.length}/300`}
+          error={undefined}
+          data-icod-id="src_features_sheets_components_renamesheetmodal_tsx_desc_field">
+          <textarea
+            id="edit-sheet-description"
+            className={inputClass('resize-none')}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={300}
+            rows={3}
+            placeholder="Add a description..."
+            data-icod-id="src_features_sheets_components_renamesheetmodal_tsx_desc_input" />
         </Field>
       </form>
     </Modal>

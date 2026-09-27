@@ -253,19 +253,16 @@ export default function SheetGrid({ sheetId, userRole, workspaceMembers }: Sheet
     [sheetId, rows, dispatch],
   );
 
-  // Handle typing into a blank row — creates a new row
-  const handleBlankRowEdit = useCallback(
-    (rowIdx: number, colIdx: number) => {
-      if (rowIdx >= rows.length) {
-        // This is a blank row — create it first
-        dispatch(addRow({ sheetId })).then((result) => {
-          if (result.meta.requestStatus === 'fulfilled') {
-            // The new row was added; selection will need to be updated
-          }
-        });
-      }
+  // Handle committing a value from a blank row — creates a new row with first cell value
+  const handleBlankRowCommit = useCallback(
+    (colIdx: number, value: unknown) => {
+      // Only create a row if the value is non-empty
+      if (value == null || value === '' || value === false) return;
+      const col = columns[colIdx];
+      if (!col) return;
+      dispatch(addRow({ sheetId, data: { cells: { [col.id]: value } } }));
     },
-    [sheetId, rows.length, dispatch],
+    [sheetId, columns, dispatch],
   );
 
   // Column drag-and-drop
@@ -335,6 +332,7 @@ export default function SheetGrid({ sheetId, userRole, workspaceMembers }: Sheet
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-auto"
+        style={{ scrollPaddingTop: HEADER_HEIGHT }}
         onScroll={handleScroll}
         tabIndex={0}
         data-icod-id="src_features_sheets_grid_sheetgrid_tsx_f8f4">
@@ -471,15 +469,12 @@ export default function SheetGrid({ sheetId, userRole, workspaceMembers }: Sheet
                         workspaceMembers={workspaceMembers}
                         onCommit={(val) => {
                           if (isBlankRow) {
-                            handleBlankRowEdit(rowIdx, colIdx);
+                            handleBlankRowCommit(colIdx, val);
                           } else {
                             handleCellCommit(row.id, col.id, val);
                           }
                         }}
                         onStartEdit={() => {
-                          if (isBlankRow) {
-                            handleBlankRowEdit(rowIdx, colIdx);
-                          }
                           selection.startEditing({ rowIdx, colIdx });
                         }}
                         onStopEdit={selection.stopEditing}
