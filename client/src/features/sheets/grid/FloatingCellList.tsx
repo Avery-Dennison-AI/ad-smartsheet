@@ -22,6 +22,8 @@ interface FloatingCellListProps<T> {
   minWidth?: number;
   /** Max height of the scrollable item area in px. */
   maxHeight?: number;
+  /** Additional DOM element to treat as "inside" for outside-click detection. */
+  additionalCloseTarget?: React.RefObject<HTMLElement | null>;
 }
 
 /**
@@ -41,6 +43,7 @@ export default function FloatingCellList<T>({
   onSelect,
   minWidth,
   maxHeight = 220,
+  additionalCloseTarget,
 }: FloatingCellListProps<T>) {
   const [pos, setPos] = useState<{ top: number; left: number; width: number; placement: 'below' | 'above' } | null>(null);
   const [focusIndex, setFocusIndex] = useState(0);
@@ -85,6 +88,8 @@ export default function FloatingCellList<T>({
       if (listRef.current && !listRef.current.contains(target)) {
         // Also check if click was on the anchor itself
         if (anchorRef.current && anchorRef.current.contains(target)) return;
+        // Also check additional close target (e.g. the cell element)
+        if (additionalCloseTarget?.current && additionalCloseTarget.current.contains(target)) return;
         onClose();
       }
     };
@@ -92,7 +97,7 @@ export default function FloatingCellList<T>({
     // Use mousedown so it fires before blur events
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open, onClose, anchorRef]);
+  }, [open, onClose, anchorRef, additionalCloseTarget]);
 
   // Close on Escape
   useEffect(() => {

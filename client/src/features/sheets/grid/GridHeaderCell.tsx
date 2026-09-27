@@ -119,7 +119,7 @@ export default function GridHeaderCell({
         'group relative flex items-center border-b border-r select-none',
         'h-[var(--grid-header-height)] px-[var(--grid-cell-padding-x)]',
         'bg-[var(--grid-header-bg)] text-[var(--grid-header-text)]',
-        'text-xs font-medium',
+        'text-xs font-semibold',
       )}
       style={{
         borderColor: 'var(--grid-line-color)',

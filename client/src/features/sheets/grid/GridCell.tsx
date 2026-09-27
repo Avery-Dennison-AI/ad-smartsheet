@@ -64,12 +64,14 @@ export default function GridCell({
     }
   }, [isEditing]);
 
-  // Focus input when entering edit mode
+  // Focus input when entering edit mode (only for types with an in-cell input)
   useEffect(() => {
     if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      if (column.type === 'text' || column.type === 'number') {
-        inputRef.current.select();
+      if (column.type === 'text' || column.type === 'number' || column.type === 'date') {
+        inputRef.current.focus();
+        if (column.type === 'text' || column.type === 'number') {
+          inputRef.current.select();
+        }
       }
     }
   }, [isEditing, column.type]);
@@ -255,50 +257,17 @@ export default function GridCell({
 
     return (
       <div
-        className="relative h-full w-full"
+        className="relative h-full w-full flex items-center px-1"
         data-icod-id="src_features_sheets_grid_gridcell_tsx_3f46">
-        <input
-          ref={inputRef}
-          className="h-full w-full bg-transparent px-1 text-sm outline-none"
-          value={dropdownSearch}
-          placeholder="Select..."
-          onChange={(e) => setDropdownSearch(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              cancelEdit();
-            } else if (e.key === 'Enter') {
-              e.preventDefault();
-              if (filteredOptions.length > 0) {
-                if (!committedRef.current) {
-                  committedRef.current = true;
-                  onCommit(filteredOptions[0].label);
-                  setDropdownOpen(false);
-                  onStopEdit();
-                }
-              } else if (showAddOption) {
-                if (!committedRef.current) {
-                  committedRef.current = true;
-                  onAddDropdownOption(column.id, dropdownSearch.trim());
-                  onCommit(dropdownSearch.trim());
-                  setDropdownOpen(false);
-                  onStopEdit();
-                }
-              }
-            }
-          }}
-          onFocus={() => setDropdownOpen(true)}
-          onBlur={() => {
-            setTimeout(() => {
-              if (!committedRef.current) {
-                committedRef.current = true;
-                setDropdownOpen(false);
-                onStopEdit();
-              }
-            }, 200);
-          }}
-          data-icod-id="src_features_sheets_grid_gridcell_tsx_2c7e" />
+        {/* Show current value as static text while the list is open */}
+        <span
+          className="truncate text-sm text-muted-foreground/60"
+          data-icod-id="src_features_sheets_grid_gridcell_tsx_dd_static">
+          {value != null && value !== '' ? String(value) : 'Select...'}
+        </span>
         <FloatingCellList
           anchorRef={cellRef}
+          additionalCloseTarget={cellRef}
           open={dropdownOpen}
           onClose={() => {
             setDropdownOpen(false);
@@ -328,6 +297,17 @@ export default function GridCell({
               placeholder="Filter options..."
               value={dropdownSearch}
               onChange={(e) => setDropdownSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Tab') {
+                  e.preventDefault();
+                  if (filteredOptions.length > 0 && !committedRef.current) {
+                    committedRef.current = true;
+                    onCommit(filteredOptions[0].label);
+                  }
+                  setDropdownOpen(false);
+                  onStopEdit();
+                }
+              }}
               autoFocus
               data-icod-id="src_features_sheets_grid_gridcell_tsx_5f71" />
           }
@@ -406,46 +386,20 @@ export default function GridCell({
 
     return (
       <div
-        className="relative h-full w-full"
+        className="relative h-full w-full flex items-center px-1"
         data-icod-id="src_features_sheets_grid_gridcell_tsx_0ee2">
-        <input
-          ref={inputRef}
-          className="h-full w-full bg-transparent px-1 text-sm outline-none"
-          value={contactQuery}
-          placeholder="Search members..."
-          onChange={(e) => setContactQuery(e.target.value)}
-          onFocus={() => setContactOpen(true)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setContactOpen(false);
-              cancelEdit();
-            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-              e.preventDefault();
-              // Keyboard navigation handled by FloatingCellList
-            } else if (e.key === 'Enter') {
-              e.preventDefault();
-              if (filteredMembers.length > 0) {
-                if (!committedRef.current) {
-                  committedRef.current = true;
-                  onCommit(filteredMembers[0].id);
-                  setContactOpen(false);
-                  onStopEdit();
-                }
-              }
-            }
-          }}
-          onBlur={() => {
-            setTimeout(() => {
-              if (!committedRef.current) {
-                committedRef.current = true;
-                setContactOpen(false);
-                onStopEdit();
-              }
-            }, 200);
-          }}
-          data-icod-id="src_features_sheets_grid_gridcell_tsx_7472" />
+        {/* Show current value as static text while the list is open */}
+        <span
+          className="truncate text-sm text-muted-foreground/60"
+          data-icod-id="src_features_sheets_grid_gridcell_tsx_ct_static">
+          {(() => {
+            const member = workspaceMembers?.find((m) => m.id === String(value));
+            return member ? member.fullName : 'Search members...';
+          })()}
+        </span>
         <FloatingCellList
           anchorRef={cellRef}
+          additionalCloseTarget={cellRef}
           open={contactOpen}
           onClose={() => {
             setContactOpen(false);
@@ -487,6 +441,17 @@ export default function GridCell({
               placeholder="Search members..."
               value={contactQuery}
               onChange={(e) => setContactQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Tab') {
+                  e.preventDefault();
+                  if (filteredMembers.length > 0 && !committedRef.current) {
+                    committedRef.current = true;
+                    onCommit(filteredMembers[0].id);
+                  }
+                  setContactOpen(false);
+                  onStopEdit();
+                }
+              }}
               autoFocus
               data-icod-id="src_features_sheets_grid_gridcell_tsx_2b68" />
           }
