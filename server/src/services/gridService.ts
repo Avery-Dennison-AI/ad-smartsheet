@@ -198,38 +198,38 @@ export async function addColumn(
 ) {
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
 
-  // Prevent inserting before the primary column
-  if (data.position !== undefined && data.position <= 0) {
-    throw new AppError('Cannot insert a column before the primary column', 400);
-  }
+  // Sort existing columns by order ascending
+  const sorted = [...(sheet.columns || [])].map(serializeColumn);
+  sorted.sort((a, b) => a.order - b.order);
 
-  const existingColumns = [...(sheet.columns || [])];
-  const requestedPosition = data.position ?? existingColumns.length;
-  // Clamp position to minimum of 1 (after primary column)
-  const insertPosition = Math.max(1, requestedPosition);
+  // Determine insertion index
+  let insertIndex: number;
+  if (data.position !== undefined && data.position !== null) {
+    // Clamp to minimum 1 (after primary column) so we never insert before primary
+    insertIndex = Math.max(1, Math.min(data.position, sorted.length));
+  } else {
+    // No position provided — append to end
+    insertIndex = sorted.length;
+  }
 
   const newCol: ColumnDef = {
     id: crypto.randomUUID(),
     name: data.name.trim(),
     type: data.type,
-    order: insertPosition,
+    order: 0, // will be renumbered below
     isPrimary: false,
     options: data.type === 'dropdown' ? (data.options || []) : undefined,
   };
 
-  // Shift orders for columns at or after the insert position
-  for (const col of existingColumns) {
-    if (col.order >= newCol.order) {
-      col.order += 1;
-    }
-  }
+  // Splice into the sorted array at the target index
+  sorted.splice(insertIndex, 0, newCol);
 
-  existingColumns.push(newCol);
-  existingColumns.sort((a, b) => a.order - b.order);
+  // Renumber all columns sequentially (no gaps)
+  sorted.forEach((c, i) => { c.order = i; });
 
-  await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: existingColumns } });
+  await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: sorted } });
   // Return the full sorted column list so the client can replace its state
-  return existingColumns.map(serializeColumn);
+  return sorted.map(serializeColumn);
 }
 
 /** Updates a column (rename, type change, reorder, edit options). Requires editor+. */
@@ -348,12 +348,14 @@ export async function deleteColumn(
     throw new AppError('Set another column as primary before deleting this one.', 400);
   }
 
-  // Remove the column
-  columns.splice(colIndex, 1);
+  // Remove the column and serialize remaining
+  const remaining = columns
+    .filter((_, i) => i !== colIndex)
+    .map(serializeColumn);
 
-  // Re-number remaining columns
-  columns.sort((a, b) => a.order - b.order);
-  columns.forEach((c, i) => { c.order = i; });
+  // Renumber remaining columns sequentially (no gaps)
+  remaining.sort((a, b) => a.order - b.order);
+  remaining.forEach((c, i) => { c.order = i; });
 
   // Cascade-clear cells for this column
   await Row.updateMany(
@@ -361,7 +363,7 @@ export async function deleteColumn(
     { $unset: { [`cells.${columnId}`]: '' } },
   );
 
-  await Sheet.findByIdAndUpdate(sheetId, { $set: { columns } });
+  await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: remaining } });
   return { deleted: true, columnId };
 }
 

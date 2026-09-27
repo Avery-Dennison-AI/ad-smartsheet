@@ -48,6 +48,7 @@ interface ColumnPropertiesState {
   initialOptions: DropdownOption[];
   isPrimary: boolean;
   existingCellCount: number;
+  insertPosition: number | null;
 }
 
 const defaultColumnPropertiesState: ColumnPropertiesState = {
@@ -58,6 +59,7 @@ const defaultColumnPropertiesState: ColumnPropertiesState = {
   initialOptions: [],
   isPrimary: false,
   existingCellCount: 0,
+  insertPosition: null,
 };
 
 export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
@@ -243,6 +245,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         initialOptions: col.options ?? [],
         isPrimary: !!col.isPrimary,
         existingCellCount: cellCount,
+        insertPosition: null,
       });
     },
     [columns, rows],
@@ -263,19 +266,20 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
           },
         }));
       } else {
-        // Adding new column
+        // Adding new column — include position if set (from insert left/right)
         dispatch(addColumn({
           sheetId,
           data: {
             name: data.name,
             type: data.type,
+            ...(colPropsModal.insertPosition !== null ? { position: colPropsModal.insertPosition } : {}),
             ...(data.type === 'dropdown' ? { options: data.options } : {}),
           },
         }));
       }
       setColPropsModal(defaultColumnPropertiesState);
     },
-    [sheetId, colPropsModal.columnId, dispatch],
+    [sheetId, colPropsModal.columnId, colPropsModal.insertPosition, dispatch],
   );
 
   const handleDeleteColumn = useCallback(
@@ -307,6 +311,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         initialOptions: [],
         isPrimary: false,
         existingCellCount: 0,
+        insertPosition: position,
       });
     },
     [columns],
@@ -557,6 +562,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                       initialOptions: [],
                       isPrimary: false,
                       existingCellCount: 0,
+                      insertPosition: null,
                     });
                   }}
                   data-icod-id="src_features_sheets_grid_sheetgrid_tsx_6c44">
