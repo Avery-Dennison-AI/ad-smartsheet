@@ -93,8 +93,9 @@ export default function ColorSwatchPicker({
   const portalContent = (
     <div
       ref={panelRef}
-      className="fixed z-[210] w-64 rounded-md border border-border bg-card p-2 shadow-lg"
+      className="fixed w-64 rounded-md border border-border bg-card p-2 shadow-lg"
       style={{
+        zIndex: 'var(--z-dropdown)',
         top: pos.placement === 'below' ? pos.top : undefined,
         bottom: pos.placement === 'above' ? window.innerHeight - pos.top : undefined,
         left: pos.left,

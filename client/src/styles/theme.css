@@ -150,6 +150,17 @@
   --sidebar-width: 240px;
   --sidebar-collapsed-width: 56px;
   --topbar-height: 48px;
+
+  /* ─── Z-index stacking layers ─────────────────────────────────────── */
+  --z-grid-cell: 1;
+  --z-grid-sticky: 2;       /* sticky row numbers and frozen column */
+  --z-grid-header: 3;       /* column header row */
+  --z-toolbar: 10;
+  --z-dropdown: 50;         /* DropdownMenu, FloatingCellList, popovers */
+  --z-modal-overlay: 100;
+  --z-modal: 101;
+  --z-toast: 200;
+  --z-tooltip: 300;
 }
 
 /* ─── Keyframes ───────────────────────────────────────────────────────────── */

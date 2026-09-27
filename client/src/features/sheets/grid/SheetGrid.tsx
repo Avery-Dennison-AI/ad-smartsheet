@@ -141,9 +141,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [pendingDeleteColId, setPendingDeleteColId] = useState<string | null>(null);
 
-  // Row delete confirmation state
-  const [rowDeleteConfirmOpen, setRowDeleteConfirmOpen] = useState(false);
-  const [pendingDeleteRowIds, setPendingDeleteRowIds] = useState<string[]>([]);
+  // Row delete confirmation state — null means dialog is closed
+  const [pendingDeleteRowIds, setPendingDeleteRowIds] = useState<string[] | null>(null);
 
   // Context menu state
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number; rowIndex: number } | null>(null);
@@ -527,7 +526,6 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         }
         if (rowIds.length > 0) {
           setPendingDeleteRowIds(rowIds);
-          setRowDeleteConfirmOpen(true);
         }
       }
     };
@@ -538,7 +536,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   // ─── Row delete confirmation ───────────────────────────────────────────
 
   const confirmDeleteRows = useCallback(() => {
-    if (pendingDeleteRowIds.length > 0) {
+    if (pendingDeleteRowIds && pendingDeleteRowIds.length > 0) {
       dispatch(deleteRows({ sheetId, rowIds: pendingDeleteRowIds }));
       // Move selection to the next row after deleted range, or last remaining row
       const maxDeletedIdx = Math.max(
@@ -552,8 +550,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         selection.clearRowColumnSelection();
       }
     }
-    setRowDeleteConfirmOpen(false);
-    setPendingDeleteRowIds([]);
+    setPendingDeleteRowIds(null);
   }, [sheetId, pendingDeleteRowIds, rows, dispatch, selection]);
 
   // ─── Cell operations ────────────────────────────────────────────────────
@@ -826,16 +823,17 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
           data-icod-id="src_features_sheets_grid_sheetgrid_tsx_d24c">
           {/* Sticky header row */}
           <div
-            className="sticky top-0 z-20 flex"
-            style={{ height: HEADER_HEIGHT }}
+            className="sticky top-0 flex"
+            style={{ height: HEADER_HEIGHT, zIndex: 'var(--z-grid-header)' }}
             data-icod-id="src_features_sheets_grid_sheetgrid_tsx_abaf">
             {/* Top-left corner cell */}
             <div
-              className="sticky left-0 z-[22] flex items-center justify-center border-b border-r bg-[var(--grid-header-bg)]"
+              className="sticky left-0 flex items-center justify-center border-b border-r bg-[var(--grid-header-bg)]"
               style={{
                 width: 'var(--grid-row-num-width)',
                 height: HEADER_HEIGHT,
                 borderColor: 'var(--grid-line-color)',
+                zIndex: 'calc(var(--z-grid-header) + 2)',
               }}
               data-icod-id="src_features_sheets_grid_sheetgrid_tsx_9515" />
 
@@ -850,7 +848,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                     minWidth: colW,
                     position: col.isPrimary ? 'sticky' : undefined,
                     left: col.isPrimary ? 'var(--grid-row-num-width)' : undefined,
-                    zIndex: col.isPrimary ? 21 : undefined,
+                    zIndex: col.isPrimary ? 'calc(var(--z-grid-header) + 1)' : undefined,
                   }}
                   data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_dc1c_${col.id}`}>
                   <GridHeaderCell
@@ -934,8 +932,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                 data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_a4d5_${rowIdx}`}>
                 {/* Row number cell */}
                 <div
-                  className="sticky left-0 z-[12]"
-                  style={{ width: 'var(--grid-row-num-width)' }}
+                  className="sticky left-0"
+                  style={{ width: 'var(--grid-row-num-width)', zIndex: 'calc(var(--z-grid-sticky) + 10)' }}
                   data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_3381_${rowIdx}`}>
                   <GridRowNumCell
                     rowNumber={rowIdx + 1}
@@ -946,7 +944,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                     onSelectRow={selection.selectRow}
                     onInsertAbove={handleInsertRowAbove}
                     onInsertBelow={handleInsertRowBelow}
-                    onDeleteRows={handleDeleteRows}
+                    onRequestDeleteRows={setPendingDeleteRowIds}
                     onDragStart={handleRowDragStart}
                     onDragOver={() => {}}
                     onDrop={handleRowDrop}
@@ -971,7 +969,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                         minWidth: colW,
                         position: col.isPrimary ? 'sticky' : undefined,
                         left: col.isPrimary ? 'var(--grid-row-num-width)' : undefined,
-                        zIndex: col.isPrimary ? 11 : undefined,
+                        zIndex: col.isPrimary ? 'calc(var(--z-grid-sticky) + 9)' : undefined,
                       }}
                       data-icod-id={`src_features_sheets_grid_sheetgrid_tsx_41f3_${rowIdx}_${col.id}`}>
                       <GridCell
@@ -1081,12 +1079,9 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         data-icod-id="src_features_sheets_grid_sheetgrid_tsx_b261" />
       {/* Row delete confirmation dialog */}
       <ConfirmDialog
-        open={rowDeleteConfirmOpen}
-        onClose={() => {
-          setRowDeleteConfirmOpen(false);
-          setPendingDeleteRowIds([]);
-        }}
-        title={`Delete ${pendingDeleteRowIds.length} row${pendingDeleteRowIds.length !== 1 ? 's' : ''}?`}
+        open={pendingDeleteRowIds !== null}
+        onClose={() => setPendingDeleteRowIds(null)}
+        title={`Delete ${pendingDeleteRowIds?.length ?? 0} row${(pendingDeleteRowIds?.length ?? 0) !== 1 ? 's' : ''}?`}
         description="This can't be undone."
         confirmLabel="Delete"
         onConfirm={confirmDeleteRows}
@@ -1117,7 +1112,6 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                   ids.push(ctxRow.id);
                 }
                 setPendingDeleteRowIds(ids);
-                setRowDeleteConfirmOpen(true);
               },
             },
           );
@@ -1135,8 +1129,8 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
 
         return ReactDOM.createPortal(
           <div
-            className="fixed z-[9999] min-w-[180px] rounded-[var(--radius-md)] border border-border bg-card py-1 shadow-[var(--shadow-md)]"
-            style={{ left, top }}
+            className="fixed min-w-[180px] rounded-[var(--radius-md)] border border-border bg-card py-1 shadow-[var(--shadow-md)]"
+            style={{ zIndex: 'var(--z-dropdown)', left, top }}
             onMouseDown={(e) => e.stopPropagation()}
             data-icod-id="src_features_sheets_grid_sheetgrid_tsx_ctx_menu">
             {ctxItems.map((item, index) => {

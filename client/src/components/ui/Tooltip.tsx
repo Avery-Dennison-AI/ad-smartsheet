@@ -56,11 +56,12 @@ export default function Tooltip({ content, children, className }: TooltipProps) 
         <div
           role="tooltip"
           className={cn(
-            'fixed z-[9999] whitespace-nowrap',
+            'fixed whitespace-nowrap',
             'rounded-[var(--radius-sm)] bg-foreground px-2 py-1 text-xs text-card',
             'shadow-[var(--shadow-sm)] pointer-events-none',
           )}
           style={{
+            zIndex: 'var(--z-tooltip)',
             top: pos.placement === 'above' ? pos.top : pos.top,
             left: pos.left,
             transform: pos.placement === 'above'

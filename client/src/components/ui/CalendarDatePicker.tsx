@@ -228,8 +228,9 @@ export default function CalendarDatePicker({
   const portalContent = (
     <div
       ref={panelRef}
-      className="fixed z-[200] w-[260px] rounded-md border border-border bg-card shadow-lg"
+      className="fixed w-[260px] rounded-md border border-border bg-card shadow-lg"
       style={{
+        zIndex: 'var(--z-dropdown)',
         top: pos.placement === 'below' ? pos.top : undefined,
         bottom: pos.placement === 'above' ? window.innerHeight - pos.top : undefined,
         left: pos.left,

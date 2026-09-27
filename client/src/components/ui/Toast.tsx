@@ -72,7 +72,8 @@ export function ToastContainer({ toasts, onDismiss }: { toasts: ToastData[]; onD
   if (toasts.length === 0) return null;
   return (
     <div
-      className="fixed right-4 top-4 z-[100] flex flex-col gap-2 max-w-sm"
+      className="fixed right-4 top-4 flex flex-col gap-2 max-w-sm"
+      style={{ zIndex: 'var(--z-toast)' }}
       data-icod-id="src_components_ui_toast_tsx_d2e2">
       {toasts.map((t) => (
         <ToastItem

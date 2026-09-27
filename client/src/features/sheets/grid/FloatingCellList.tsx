@@ -144,8 +144,9 @@ export default function FloatingCellList<T>({
   const portalContent = (
     <div
       ref={listRef}
-      className="fixed z-[200] overflow-hidden rounded-md border border-border bg-card shadow-md"
+      className="fixed overflow-hidden rounded-md border border-border bg-card shadow-md"
       style={{
+        zIndex: 'var(--z-dropdown)',
         top: pos.placement === 'below' ? pos.top : undefined,
         bottom: pos.placement === 'above' ? window.innerHeight - pos.top : undefined,
         left: pos.left,

@@ -159,8 +159,8 @@ export default function DropdownMenu({ trigger, items, className, header, skipRe
         <div
           ref={menuRef}
           role="menu"
-          className="fixed z-[9999] min-w-[180px] rounded-[var(--radius-md)] border border-border bg-card py-1 shadow-[var(--shadow-md)]"
-          style={{ top: menuPos.top, left: menuPos.left, transform: 'translateX(-100%)' }}
+          className="fixed min-w-[180px] rounded-[var(--radius-md)] border border-border bg-card py-1 shadow-[var(--shadow-md)]"
+          style={{ zIndex: 'var(--z-dropdown)', top: menuPos.top, left: menuPos.left, transform: 'translateX(-100%)' }}
           data-icod-id="src_components_ui_dropdownmenu_tsx_a5ea">
           {header && (
             <>

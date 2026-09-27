@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import ReactDOM from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import Button from './Button';
@@ -102,9 +103,10 @@ export default function Modal({
 
   if (!open) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: 'var(--z-modal-overlay)' }}
       data-icod-id="src_components_ui_modal_tsx_f869">
       {/* Backdrop */}
       <div
@@ -124,6 +126,7 @@ export default function Modal({
           modalSizeClass[size],
           className,
         )}
+        style={{ zIndex: 'var(--z-modal)' }}
         data-icod-id="src_components_ui_modal_tsx_77d7">
         {title && (
           <div
@@ -148,6 +151,7 @@ export default function Modal({
           className="flex justify-end gap-3 pt-1"
           data-icod-id="src_components_ui_modal_tsx_d6f1">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

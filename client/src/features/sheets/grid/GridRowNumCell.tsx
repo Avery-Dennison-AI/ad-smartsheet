@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
-import { DropdownMenu, IconButton, ConfirmDialog, ResizeHandle } from '@/components/ui';
+import { DropdownMenu, IconButton, ResizeHandle } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
 import type { WorkspaceRole } from '@/types';
@@ -19,7 +19,7 @@ interface GridRowNumCellProps {
   onSelectRow: (rowIndex: number, modifiers: SelectionModifiers) => void;
   onInsertAbove: (rowId: string) => void;
   onInsertBelow: (rowId: string) => void;
-  onDeleteRows: (rowIds: string[]) => void;
+  onRequestDeleteRows: (rowIds: string[]) => void;
   onDragStart?: (rowIndex: number) => void;
   onDragOver?: (rowIndex: number) => void;
   onDrop?: (rowIndex: number) => void;
@@ -37,7 +37,7 @@ export default function GridRowNumCell({
   onSelectRow,
   onInsertAbove,
   onInsertBelow,
-  onDeleteRows,
+  onRequestDeleteRows,
   onDragStart,
   onDragOver,
   onDrop,
@@ -47,8 +47,6 @@ export default function GridRowNumCell({
 }: GridRowNumCellProps) {
   const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
   const isData = !!rowId;
-
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const menuItems: DropdownMenuItem[] = [];
 
@@ -60,7 +58,7 @@ export default function GridRowNumCell({
       {
         label: 'Delete row',
         danger: true,
-        onClick: () => setDeleteConfirmOpen(true),
+        onClick: () => onRequestDeleteRows([rowId!]),
       },
     );
   }
@@ -80,12 +78,6 @@ export default function GridRowNumCell({
     }
     onRowContextMenu?.(rowIndex, e.clientX, e.clientY);
   }, [isData, canEdit, isSelected, onSelectRow, rowIndex, onRowContextMenu]);
-
-  const handleConfirmDelete = useCallback(() => {
-    if (rowId) {
-      onDeleteRows([rowId]);
-    }
-  }, [rowId, onDeleteRows]);
 
   return (
     <div
@@ -140,15 +132,6 @@ export default function GridRowNumCell({
         disabled={!canEdit}
         onDragStart={(e) => onRowResizeStart?.(e, rowIndex)}
         data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_e0f2" />
-      {/* Delete confirmation dialog */}
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-        title="Delete 1 row?"
-        description="This can't be undone."
-        confirmLabel="Delete"
-        onConfirm={handleConfirmDelete}
-        data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_confirm" />
     </div>
   );
 }
