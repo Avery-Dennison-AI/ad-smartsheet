@@ -1,21 +1,5 @@
 import { clsx, type ClassValue } from 'clsx';
-import { extendTailwindMerge } from 'tailwind-merge';
-
-const twMerge = extendTailwindMerge({
-  extend: {
-    classGroups: {
-      'font-size': [
-        'text-token-2xs',
-        'text-token-xs',
-        'text-token-sm',
-        'text-token-base',
-        'text-token-md',
-        'text-token-lg',
-        'text-token-xl',
-      ],
-    },
-  },
-});
+import { twMerge } from 'tailwind-merge';
 
 /**
  * Merge Tailwind class strings, resolving conflicts in favour of the LAST one:

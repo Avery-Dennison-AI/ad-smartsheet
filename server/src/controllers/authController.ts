@@ -2,14 +2,14 @@ import type { Request, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import * as authService from '../services/authService';
-import { COOKIE_NAME, cookieLoginOptions, cookieLogoutOptions } from '../config/cookies';
+import { COOKIE_NAME, cookieLogoutOptions, setSessionCookie } from '../config/cookies';
 
 /** POST /api/auth/login */
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
   const result = await authService.loginUser(email, password, req.ip);
 
-  res.cookie(COOKIE_NAME, result.token, cookieLoginOptions);
+  setSessionCookie(res, result.token);
   sendSuccess(res, { user: result.user });
 });
 

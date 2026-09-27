@@ -35,7 +35,7 @@ export default function EmptyState({
           className="h-5 w-5 shrink-0 text-[var(--color-gray-400)]"
           data-icod-id="src_components_ui_emptystate_tsx_compact_icon" />
         <span
-          className="font-normal text-token-sm text-[var(--color-gray-600)]"
+          className="font-normal text-sm text-[var(--color-gray-600)]"
           data-icod-id="src_components_ui_emptystate_tsx_compact_title">{title}</span>
       </div>
     );
@@ -56,11 +56,11 @@ export default function EmptyState({
           data-icod-id="src_components_ui_emptystate_tsx_c1bd" />
       </div>
       <h3
-        className="font-medium text-[var(--color-gray-600)] text-token-md"
+        className="font-medium text-[var(--color-gray-600)] text-md"
         data-icod-id="src_components_ui_emptystate_tsx_67d7">{title}</h3>
       {description && (
         <p
-          className="mt-1 max-w-sm text-token-sm text-[var(--color-gray-400)]"
+          className="mt-1 max-w-sm text-sm text-[var(--color-gray-400)]"
           data-icod-id="src_components_ui_emptystate_tsx_d55a">{description}</p>
       )}
       {action && <div className="mt-5" data-icod-id="src_components_ui_emptystate_tsx_0732">{action}</div>}

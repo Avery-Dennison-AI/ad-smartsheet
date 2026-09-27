@@ -1,10 +1,8 @@
 import jwt from 'jsonwebtoken';
-import type { Response } from 'express';
 import User from '../models/User';
 import { env } from '../config/env';
 import { AppError } from '../utils/AppError';
 import { hashPassword, verifyPassword } from '../utils/password';
-import { COOKIE_NAME, cookieLoginOptions } from '../config/cookies';
 
 // Lazy-initialised dummy hash for timing-safe rejection.
 // When no user is found or the user is inactive, we compare against this
@@ -40,11 +38,7 @@ export async function loginUser(email: string, password: string, _ip?: string): 
     throw new AppError('Invalid email or password', 401);
   }
 
-  const token = jwt.sign(
-    { id: user._id.toString(), email: user.email, role: user.role },
-    env.JWT_SECRET,
-    { algorithm: 'HS256', expiresIn: '1d' },
-  );
+  const token = createSessionToken(user);
 
   // Update lastLoginAt
   user.lastLoginAt = new Date();
@@ -62,20 +56,27 @@ export async function loginUser(email: string, password: string, _ip?: string): 
 }
 
 /**
- * Creates a session for an already-verified user (e.g. after invitation acceptance).
- * Signs a JWT, sets the httpOnly cookie, and updates lastLoginAt.
+ * Creates a session token for an already-verified user (e.g. after invitation acceptance).
+ * Signs a JWT and updates lastLoginAt. Returns the token string.
  */
-export async function createSessionForUser(user: typeof User.prototype, res: Response): Promise<void> {
-  const token = jwt.sign(
+export async function createSessionForUser(user: typeof User.prototype): Promise<string> {
+  const token = createSessionToken(user);
+
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  return token;
+}
+
+/**
+ * Signs a JWT for the given user document.
+ */
+function createSessionToken(user: typeof User.prototype): string {
+  return jwt.sign(
     { id: user._id.toString(), email: user.email, role: user.role },
     env.JWT_SECRET,
     { algorithm: 'HS256', expiresIn: '1d' },
   );
-
-  res.cookie(COOKIE_NAME, token, cookieLoginOptions);
-
-  user.lastLoginAt = new Date();
-  await user.save();
 }
 
 /**

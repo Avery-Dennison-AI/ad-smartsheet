@@ -44,7 +44,7 @@ export default function Tabs({ tabs, activeTab, onChange, className }: TabsProps
             {tab.label}
             {tab.badge !== undefined && (
               <span
-                className="ml-1 rounded-full bg-muted px-1.5 py-0.5 leading-none text-token-xs text-muted-foreground"
+                className="ml-1 rounded-full bg-muted px-1.5 py-0.5 leading-none text-xs text-muted-foreground"
                 data-icod-id={`src_components_ui_tabs_tsx_badge_${tab.id}`}>
                 {tab.badge}
               </span>

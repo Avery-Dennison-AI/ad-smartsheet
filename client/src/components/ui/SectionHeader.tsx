@@ -11,7 +11,7 @@ export default function SectionHeader({ title, actions }: SectionHeaderProps) {
       className="mb-4 flex items-start justify-between"
       data-icod-id="src_components_ui_sectionheader_tsx_5b5b">
       <h2
-        className="font-semibold text-token-lg text-[var(--color-gray-900)]"
+        className="font-semibold text-lg text-[var(--color-gray-900)]"
         data-icod-id="src_components_ui_sectionheader_tsx_0b35">
         {title}
       </h2>

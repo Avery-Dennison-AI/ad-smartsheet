@@ -16,7 +16,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
       aria-label="Breadcrumb"
       data-icod-id="src_components_ui_breadcrumbs_tsx_4149">
       <ol
-        className="flex items-center gap-1 text-token-sm"
+        className="flex items-center gap-1 text-sm"
         data-icod-id="src_components_ui_breadcrumbs_tsx_aaf9">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;

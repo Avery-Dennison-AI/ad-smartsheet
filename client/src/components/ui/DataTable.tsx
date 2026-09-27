@@ -21,6 +21,12 @@ export interface DataTableProps<T> {
   className?: string;
 }
 
+const alignClass: Record<string, string> = {
+  left: 'text-left',
+  center: 'text-center',
+  right: 'text-right',
+};
+
 /** Generic data table with loading skeleton and empty state support. */
 export default function DataTable<T>({
   columns,
@@ -68,20 +74,19 @@ export default function DataTable<T>({
         data-icod-id="src_components_ui_datatable_tsx_table">
         <thead
           className={cn(
-            'border-b bg-[var(--color-gray-50)]',
+            'border-b border-border bg-muted',
             stickyHeader && 'sticky top-0 z-10',
           )}
-          style={{ borderColor: 'var(--color-gray-200)' }}
           data-icod-id="src_components_ui_datatable_tsx_thead">
           <tr data-icod-id="src_components_ui_datatable_tsx_header_row">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className="px-4 py-3 font-medium text-muted-foreground"
-                style={{
-                  width: col.width,
-                  textAlign: col.align || 'left',
-                }}
+                className={cn(
+                  'px-4 py-3 font-medium text-muted-foreground',
+                  alignClass[col.align || 'left'],
+                )}
+                style={col.width ? { width: col.width } : undefined}
                 data-icod-id={`src_components_ui_datatable_tsx_th_${col.key}`}>
                 {col.header}
               </th>
@@ -89,19 +94,17 @@ export default function DataTable<T>({
           </tr>
         </thead>
         <tbody
-          className="divide-y"
-          style={{ borderColor: 'var(--color-gray-200)' }}
+          className="divide-y divide-border"
           data-icod-id="src_components_ui_datatable_tsx_tbody">
           {rows.map((row) => (
             <tr
               key={rowKey(row)}
-              className="transition-colors hover:bg-[var(--color-gray-50)]"
+              className="transition-colors hover:bg-muted/50"
               data-icod-id={`src_components_ui_datatable_tsx_tr_${rowKey(row)}`}>
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className="px-4 py-3"
-                  style={{ textAlign: col.align || 'left' }}
+                  className={cn('px-4 py-3', alignClass[col.align || 'left'])}
                   data-icod-id={`src_components_ui_datatable_tsx_td_${rowKey(row)}_${col.key}`}>
                   {col.cell(row)}
                 </td>

@@ -22,12 +22,12 @@ export default function HomePage() {
       {/* Greeting header */}
       <div className="mb-8" data-icod-id="src_pages_homepage_tsx_b6b4">
         <h1
-          className="text-token-xl font-bold text-[var(--color-gray-900)]"
+          className="text-xl font-bold text-[var(--color-gray-900)]"
           data-icod-id="src_pages_homepage_tsx_87db">
           {greeting}, {firstName}
         </h1>
         <p
-          className="mt-1 text-token-sm text-[var(--color-gray-600)]"
+          className="mt-1 text-sm text-[var(--color-gray-600)]"
           data-icod-id="src_pages_homepage_tsx_205c">
           Here's what's happening in your workspaces.
         </p>
@@ -59,7 +59,7 @@ export default function HomePage() {
         {/* Your workspaces section */}
         <div data-icod-id="src_pages_homepage_tsx_dd31">
           <h2
-            className="mb-3 text-token-base font-medium text-[var(--color-gray-600)]"
+            className="mb-3 text-base font-medium text-[var(--color-gray-600)]"
             data-icod-id="src_pages_homepage_tsx_c334">
             Your workspaces
           </h2>
@@ -82,7 +82,7 @@ export default function HomePage() {
                       size="sm"
                       data-icod-id={`src_pages_homepage_tsx_e176_${ws.slug}`} />
                     <span
-                      className="truncate text-token-sm font-medium text-[var(--color-gray-900)]"
+                      className="truncate text-sm font-medium text-[var(--color-gray-900)]"
                       data-icod-id={`src_pages_homepage_tsx_e4cc_${ws.slug}`}>{ws.name}</span>
                   </div>
                 </Link>

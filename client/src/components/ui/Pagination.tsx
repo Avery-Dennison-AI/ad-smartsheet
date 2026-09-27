@@ -27,7 +27,7 @@ export default function Pagination({
       className="flex items-center justify-between"
       data-icod-id="src_components_ui_pagination_tsx_root">
       <span
-        className="text-token-sm text-[var(--color-gray-600)]"
+        className="text-sm text-[var(--color-gray-600)]"
         data-icod-id="src_components_ui_pagination_tsx_info">
         Showing {start}&ndash;{end} of {total}
       </span>

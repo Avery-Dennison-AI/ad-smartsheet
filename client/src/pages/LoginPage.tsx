@@ -3,9 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button, Input, Alert, Card, IconButton } from '@/components/ui';
 import AuthLayout from '@/components/layout/AuthLayout';
-import apiClient from '@/services/apiClient';
 import { useAppDispatch } from '@/store/hooks';
-import { fetchMe } from '@/store/slices/authSlice';
+import { login, fetchMe } from '@/store/slices/authSlice';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -43,22 +42,16 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      await apiClient.post('/api/auth/login', { email, password });
-      // Populate Redux auth state after successful login
-      await dispatch(fetchMe());
-      navigate(safeRedirect, { replace: true });
-    } catch (err: unknown) {
-      const error = err as { response?: { status?: number; data?: { error?: { message?: string }; message?: string } } };
-      if (error.response) {
-        const status = error.response.status;
-        if (status && status >= 400 && status < 500) {
-          setError(error.response.data?.error?.message || 'Request failed');
-        } else {
-          setError('Something went wrong. Please try again.');
-        }
+      const result = await dispatch(login({ email, password }));
+      if (result.meta.requestStatus === 'rejected') {
+        setError((result.payload as string) || 'Something went wrong. Please try again.');
       } else {
-        setError('Network error. Please try again.');
+        // Populate Redux auth state after successful login
+        await dispatch(fetchMe());
+        navigate(safeRedirect, { replace: true });
       }
+    } catch {
+      setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }

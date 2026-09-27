@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import * as invitationService from '../services/invitationService';
+import { setSessionCookie } from '../config/cookies';
 
 /** POST /api/admin/invitations */
 export const createInvitation = asyncHandler(async (req: Request, res: Response) => {
@@ -44,10 +45,10 @@ export const getInvitationByToken = asyncHandler(async (req: Request, res: Respo
 /** POST /api/invite/:token/accept — public endpoint to accept an invitation */
 export const acceptInvitation = asyncHandler(async (req: Request, res: Response) => {
   const { fullName, password, confirmPassword } = req.body;
-  const user = await invitationService.acceptInvitation(
+  const result = await invitationService.acceptInvitation(
     req.params.token,
     { fullName, password, confirmPassword },
-    res,
   );
-  sendSuccess(res, { user }, 201);
+  setSessionCookie(res, result.token);
+  sendSuccess(res, { user: result.user }, 201);
 });

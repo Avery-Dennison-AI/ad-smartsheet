@@ -1,3 +1,4 @@
+import type { Response } from 'express';
 import { env } from './env';
 
 /** The name used for the auth cookie across all routes. */
@@ -21,3 +22,8 @@ export const cookieLoginOptions = {
 export const cookieLogoutOptions = {
   ...cookieBaseOptions,
 };
+
+/** Sets the session cookie on the response with the given JWT token. */
+export function setSessionCookie(res: Response, token: string): void {
+  res.cookie(COOKIE_NAME, token, cookieLoginOptions);
+}

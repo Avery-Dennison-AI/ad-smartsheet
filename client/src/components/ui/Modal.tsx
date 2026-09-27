@@ -118,7 +118,7 @@ export default function Modal({
             className="flex items-center justify-between"
             data-icod-id="src_components_ui_modal_tsx_7fac">
             <h2
-              className="text-token-md font-semibold"
+              className="text-md font-semibold"
               data-icod-id="src_components_ui_modal_tsx_f42f">{title}</h2>
             <Button
               variant="ghost"

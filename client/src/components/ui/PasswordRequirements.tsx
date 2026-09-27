@@ -16,7 +16,7 @@ export default function PasswordRequirements({ password }: PasswordRequirementsP
         return (
           <div
             key={rule.id}
-            className="flex items-center gap-2 text-token-sm"
+            className="flex items-center gap-2 text-sm"
             data-icod-id={`src_components_ui_passwordrequirements_tsx_rule_${rule.id}`}>
             {satisfied ? (
               <Check

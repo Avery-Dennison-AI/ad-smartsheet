@@ -16,8 +16,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       data-icod-id="src_components_layout_authlayout_tsx_root">
       {/* Left panel — desktop only */}
       <div
-        className="hidden md:flex w-1/2 flex-col items-center justify-center relative overflow-hidden"
-        style={{ backgroundColor: 'var(--color-primary)' }}
+        className="hidden md:flex w-1/2 flex-col items-center justify-center relative overflow-hidden bg-primary"
         data-icod-id="src_components_layout_authlayout_tsx_left_panel">
         {/* Decorative grid pattern */}
         <div
@@ -34,16 +33,16 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
             className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-[var(--radius-lg)] bg-card/20"
             data-icod-id="src_components_layout_authlayout_tsx_logo_bg">
             <LayoutGrid
-              className="h-6 w-6 text-white"
+              className="h-6 w-6 text-primary-foreground"
               data-icod-id="src_components_layout_authlayout_tsx_logo_icon" />
           </div>
           <h1
-            className="text-2xl font-semibold text-white leading-tight"
+            className="text-2xl font-semibold text-primary-foreground leading-tight"
             data-icod-id="src_components_layout_authlayout_tsx_headline">
             Plan, track, and deliver work in one place
           </h1>
           <p
-            className="mt-3 text-sm text-white/80"
+            className="mt-3 text-sm text-primary-foreground/80"
             data-icod-id="src_components_layout_authlayout_tsx_subheadline">
             GridFlow brings your team's tasks, timelines, and collaboration into a single intuitive workspace.
           </p>
@@ -51,11 +50,10 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       </div>
       {/* Mobile header bar */}
       <div
-        className="md:hidden fixed top-0 left-0 right-0 flex items-center justify-center py-5"
-        style={{ backgroundColor: 'var(--color-primary)', height: '80px' }}
+        className="md:hidden fixed top-0 left-0 right-0 flex h-20 items-center justify-center py-5 bg-primary"
         data-icod-id="src_components_layout_authlayout_tsx_mobile_header">
         <span
-          className="text-lg font-bold text-white"
+          className="text-lg font-bold text-primary-foreground"
           data-icod-id="src_components_layout_authlayout_tsx_mobile_logo">GridFlow</span>
       </div>
       {/* Right panel / form area */}

@@ -34,6 +34,27 @@ export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithVa
   }
 });
 
+/** Authenticates a user with email + password via POST /api/auth/login. */
+export const login = createAsyncThunk(
+  'auth/login',
+  async (credentials: { email: string; password: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await apiClient.post('/api/auth/login', credentials);
+      return data.data as { user: AuthUser };
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number; data?: { error?: { message?: string }; message?: string } } };
+      if (error.response) {
+        const status = error.response.status;
+        if (status && status >= 400 && status < 500) {
+          return rejectWithValue(error.response.data?.error?.message || 'Request failed');
+        }
+        return rejectWithValue('Something went wrong. Please try again.');
+      }
+      return rejectWithValue('Network error. Please try again.');
+    }
+  },
+);
+
 /** Logs out the current user by calling POST /api/auth/logout. */
 export const logoutUser = createAsyncThunk('auth/logout', async (_, { rejectWithValue }) => {
   try {
@@ -68,6 +89,17 @@ const authSlice = createSlice({
         state.status = 'failed';
         state.user = null;
         state.initialized = true;
+      })
+      // login
+      .addCase(login.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(login.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.user = action.payload.user;
+      })
+      .addCase(login.rejected, (state) => {
+        state.status = 'failed';
       })
       // logout
       .addCase(logoutUser.pending, (state) => {

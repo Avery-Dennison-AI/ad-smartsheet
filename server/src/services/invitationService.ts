@@ -1,4 +1,3 @@
-import type { Response } from 'express';
 import mongoose from 'mongoose';
 import Invitation, { IInvitation } from '../models/Invitation';
 import User from '../models/User';
@@ -131,11 +130,15 @@ export async function getInvitationByToken(rawToken: string) {
   return { email: invitation.email, fullName: invitation.fullName, role: invitation.role };
 }
 
+interface AcceptInvitationResult {
+  user: { id: string; fullName: string; email: string; role: string };
+  token: string;
+}
+
 export async function acceptInvitation(
   rawToken: string,
   data: { fullName: string; password: string; confirmPassword: string },
-  res: Response,
-) {
+): Promise<AcceptInvitationResult> {
   if (data.password !== data.confirmPassword) {
     throw new AppError('Passwords do not match', 400);
   }
@@ -178,13 +181,16 @@ export async function acceptInvitation(
 
   await Invitation.findByIdAndUpdate(invitation._id, { acceptedUser: user._id });
 
-  // Create session and set cookie
-  await createSessionForUser(user, res);
+  // Create session token (cookie setting happens in the controller)
+  const token = await createSessionForUser(user);
 
   return {
-    id: user._id.toString(),
-    fullName: user.fullName,
-    email: user.email,
-    role: user.role,
+    user: {
+      id: user._id.toString(),
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+    },
+    token,
   };
 }

@@ -11,7 +11,7 @@ interface WorkspaceIconProps {
 export default function WorkspaceIcon({ name, color, size = 'sm', className }: WorkspaceIconProps) {
   const letter = name.charAt(0).toUpperCase();
 
-  const sizeClasses = size === 'sm' ? 'h-5 w-5 text-[10px]' : 'h-8 w-8 text-token-sm';
+  const sizeClasses = size === 'sm' ? 'h-5 w-5 text-2xs' : 'h-8 w-8 text-sm';
 
   return (
     <div

@@ -15,13 +15,13 @@ export default function PageHeader({ title, description, actions, className }: P
       data-icod-id="src_components_ui_pageheader_tsx_3f45">
       <div data-icod-id="src_components_ui_pageheader_tsx_3ffd">
         <h1
-          className="font-semibold text-token-xl text-[var(--color-gray-900)]"
+          className="font-semibold text-xl text-[var(--color-gray-900)]"
           data-icod-id="src_components_ui_pageheader_tsx_398c">
           {title}
         </h1>
         {description && (
           <p
-            className="mt-1 text-token-base text-[var(--color-gray-600)]"
+            className="mt-1 text-base text-[var(--color-gray-600)]"
             data-icod-id="src_components_ui_pageheader_tsx_48bb">
             {description}
           </p>

@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { Button, Input, Alert, Card, IconButton, Spinner, PasswordRequirements } from '@/components/ui';
 import AuthLayout from '@/components/layout/AuthLayout';
@@ -248,10 +248,10 @@ export default function AcceptInvitePage() {
       <p
         className="mt-6 text-xs text-muted-foreground/70"
         data-icod-id="src_pages_acceptinvitepage_tsx_05b1">
-        Already have an account? <a
-        href="/login"
+        Already have an account? <Link
+        to="/login"
         className="underline hover:text-foreground"
-        data-icod-id="src_pages_acceptinvitepage_tsx_bc35">Log in</a>
+        data-icod-id="src_pages_acceptinvitepage_tsx_bc35">Log in</Link>
       </p>
     </AuthLayout>
   );
