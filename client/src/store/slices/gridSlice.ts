@@ -212,12 +212,26 @@ const gridSlice = createSlice({
         const row = state.rows.find((r) => r.id === entry.rowId);
         if (row) {
           if (!row.formatting) row.formatting = {};
-          if (entry.formatting && Object.keys(entry.formatting).length > 0) {
-            // Merge into existing cell formatting (don't replace)
-            const existing = row.formatting[entry.columnId] ?? {};
-            row.formatting[entry.columnId] = { ...existing, ...entry.formatting };
-          } else {
+
+          if (entry.formatting === null) {
+            // Null formatting = remove all cell-level formatting for this column
             delete row.formatting[entry.columnId];
+          } else {
+            // Merge patch into existing cell formatting; null values delete keys
+            const existing = row.formatting[entry.columnId] ?? {};
+            const merged: Record<string, unknown> = { ...existing };
+            for (const [k, v] of Object.entries(entry.formatting)) {
+              if (v === null) {
+                delete merged[k];
+              } else {
+                merged[k] = v;
+              }
+            }
+            if (Object.keys(merged).length > 0) {
+              row.formatting[entry.columnId] = merged as CellFormatting;
+            } else {
+              delete row.formatting[entry.columnId];
+            }
           }
         }
       }

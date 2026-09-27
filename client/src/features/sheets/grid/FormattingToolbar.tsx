@@ -183,13 +183,19 @@ export default function FormattingToolbar({
         for (const colIdx of selectedColumns) {
           const col = columns[colIdx];
           if (col) {
-            // Merge patch into existing column formatting
+            // For optimistic UI: merge patch into existing column formatting; null values delete keys
             const existing = col.formatting ?? {};
-            const merged = { ...existing, ...patch };
-            // Remove undefined values
+            const merged: Record<string, unknown> = { ...existing };
+            for (const [k, v] of Object.entries(patch)) {
+              if (v === null) {
+                delete merged[k];
+              } else {
+                merged[k] = v;
+              }
+            }
             const cleaned: CellFormatting = {};
             for (const [k, v] of Object.entries(merged)) {
-              if (v !== undefined) (cleaned as Record<string, unknown>)[k] = v;
+              if (v != null) (cleaned as Record<string, unknown>)[k] = v;
             }
             columnTargets.push({
               columnId: col.id,
@@ -212,22 +218,13 @@ export default function FormattingToolbar({
       const targets = getTargetCells();
       if (targets.length === 0) return;
 
-      // For each target cell, merge the patch into its existing cell formatting
-      const cellPatches = targets.map((c) => {
-        const row = rows.find((r) => r.id === c.rowId);
-        const existingCellFmt = row?.formatting?.[c.columnId] ?? {};
-        const merged = { ...existingCellFmt, ...patch };
-        // Remove undefined values
-        const cleaned: CellFormatting = {};
-        for (const [k, v] of Object.entries(merged)) {
-          if (v !== undefined) (cleaned as Record<string, unknown>)[k] = v;
-        }
-        return {
-          rowId: c.rowId,
-          columnId: c.columnId,
-          formatting: Object.keys(cleaned).length > 0 ? cleaned : null,
-        };
-      });
+      // Send the raw patch (with null values) so the server can distinguish $set from $unset.
+      // The optimistic reducer handles merging locally.
+      const cellPatches = targets.map((c) => ({
+        rowId: c.rowId,
+        columnId: c.columnId,
+        formatting: patch,
+      }));
 
       dispatch(applyFormatting({ sheetId, cells: cellPatches }))
         .unwrap()
@@ -251,7 +248,7 @@ export default function FormattingToolbar({
   const handleFontFamily = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const val = e.target.value;
-      applyFormatPatch({ fontFamily: val === 'default' ? undefined : val });
+      applyFormatPatch({ fontFamily: val === 'default' ? null : val });
     },
     [applyFormatPatch],
   );
@@ -260,21 +257,21 @@ export default function FormattingToolbar({
   const handleFontSize = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const val = Number(e.target.value);
-      applyFormatPatch({ fontSize: isNaN(val) ? undefined : val });
+      applyFormatPatch({ fontSize: isNaN(val) ? null : val });
     },
     [applyFormatPatch],
   );
 
   // Clear all formatting
   const handleClearFormatting = useCallback(() => {
-    // To clear, set all known properties to undefined
+    // To clear, set all known properties to null (null = reset/delete)
     const clearPatch: CellFormatting = {
-      fontFamily: undefined,
-      fontSize: undefined,
-      bold: false,
-      italic: false,
-      underline: false,
-      strikethrough: false,
+      fontFamily: null,
+      fontSize: null,
+      bold: null,
+      italic: null,
+      underline: null,
+      strikethrough: null,
     };
     applyFormatPatch(clearPatch);
   }, [applyFormatPatch]);

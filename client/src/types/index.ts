@@ -137,12 +137,12 @@ export interface GridRow {
 }
 
 export interface CellFormatting {
-  fontFamily?: string;
-  fontSize?: number;
-  bold?: boolean;
-  italic?: boolean;
-  underline?: boolean;
-  strikethrough?: boolean;
+  fontFamily?: string | null;
+  fontSize?: number | null;
+  bold?: boolean | null;
+  italic?: boolean | null;
+  underline?: boolean | null;
+  strikethrough?: boolean | null;
 }
 
 export interface GridState {

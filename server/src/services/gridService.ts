@@ -555,7 +555,8 @@ export async function deleteRowsByWorkspace(workspaceId: string): Promise<void> 
 }
 
 /** Updates cell formatting for multiple cells across rows. Requires editor+.
- *  Merges the incoming patch into existing cell formatting (does not overwrite). */
+ *  Merges the incoming patch into existing cell formatting (does not overwrite).
+ *  Null values in the patch mean "unset this property". */
 export async function updateFormatting(
   sheetId: string,
   userId: string,
@@ -584,23 +585,7 @@ export async function updateFormatting(
   for (const entry of cells) {
     if (!validRowIdSet.has(entry.rowId)) continue;
 
-    if (entry.formatting && Object.keys(entry.formatting).length > 0) {
-      // Build $set with dot-notation paths for each field
-      const setFields: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(entry.formatting)) {
-        if (value !== undefined) {
-          setFields[`formatting.${entry.columnId}.${key}`] = value;
-        }
-      }
-      if (Object.keys(setFields).length > 0) {
-        ops.push({
-          updateOne: {
-            filter: { _id: new mongoose.Types.ObjectId(entry.rowId) },
-            update: { $set: setFields },
-          },
-        });
-      }
-    } else {
+    if (entry.formatting === null) {
       // Null formatting = remove all cell-level formatting for this column
       ops.push({
         updateOne: {
@@ -608,6 +593,36 @@ export async function updateFormatting(
           update: { $unset: { [`formatting.${entry.columnId}`]: '' } },
         },
       });
+    } else if (Object.keys(entry.formatting).length > 0) {
+      // Build $set and $unset maps based on null vs non-null values
+      const setFields: Record<string, unknown> = {};
+      const unsetFields: Record<string, string> = {};
+
+      for (const [key, value] of Object.entries(entry.formatting)) {
+        if (value === null) {
+          unsetFields[`formatting.${entry.columnId}.${key}`] = '';
+        } else if (value !== undefined) {
+          setFields[`formatting.${entry.columnId}.${key}`] = value;
+        }
+      }
+
+      // Build the update object with both $set and $unset if needed
+      const update: Record<string, unknown> = {};
+      if (Object.keys(setFields).length > 0) {
+        update.$set = setFields;
+      }
+      if (Object.keys(unsetFields).length > 0) {
+        update.$unset = unsetFields;
+      }
+
+      if (Object.keys(update).length > 0) {
+        ops.push({
+          updateOne: {
+            filter: { _id: new mongoose.Types.ObjectId(entry.rowId) },
+            update,
+          },
+        });
+      }
     }
   }
 
@@ -619,7 +634,8 @@ export async function updateFormatting(
 }
 
 /** Updates column-level formatting for one or more columns. Requires editor+.
- *  If cascadePatch is provided, also clears matching cell-level overrides so the column setting takes effect. */
+ *  If cascadePatch is provided, also clears matching cell-level overrides so the column setting takes effect.
+ *  Null values in the formatting patch mean "unset this property". */
 export async function updateColumnFormatting(
   sheetId: string,
   userId: string,
@@ -636,17 +652,25 @@ export async function updateColumnFormatting(
     if (colIndex === -1) continue;
 
     const col = serializeColumn(sheetColumns[colIndex]);
-    if (entry.formatting && Object.keys(entry.formatting).length > 0) {
-      // Merge into existing column formatting
-      const existing = col.formatting ?? {};
-      col.formatting = { ...existing, ...entry.formatting };
-      // Clean up undefined values
-      for (const [k, v] of Object.entries(col.formatting)) {
-        if (v === undefined) delete col.formatting[k];
-      }
-      if (Object.keys(col.formatting).length === 0) col.formatting = undefined;
-    } else {
+    if (entry.formatting === null) {
+      // Null formatting = remove all column-level formatting
       col.formatting = undefined;
+    } else if (Object.keys(entry.formatting).length > 0) {
+      // Merge into existing column formatting; null values delete keys
+      const existing = col.formatting ?? {};
+      const merged: Record<string, unknown> = { ...existing };
+      for (const [k, v] of Object.entries(entry.formatting)) {
+        if (v === null) {
+          delete merged[k];
+        } else if (v !== undefined) {
+          merged[k] = v;
+        }
+      }
+      if (Object.keys(merged).length === 0) {
+        col.formatting = undefined;
+      } else {
+        col.formatting = merged as Record<string, unknown>;
+      }
     }
     sheetColumns[colIndex] = col;
     updatedCount++;
