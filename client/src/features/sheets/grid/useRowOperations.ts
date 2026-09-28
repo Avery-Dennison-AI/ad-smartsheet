@@ -8,8 +8,8 @@ import {
   resizeRows,
   selectGridRows,
 } from '@/store/slices/gridSlice';
+import { getRowHeight, DEFAULT_ROW_HEIGHT } from './gridHelpers';
 
-const DEFAULT_ROW_HEIGHT = 34;
 const MIN_ROW_HEIGHT = 34;
 const MAX_ROW_HEIGHT = 400;
 
@@ -34,10 +34,6 @@ interface UseRowOperationsResult {
   handleRowDrop: (targetRowIdx: number) => void;
   handleRowResizeStart: (e: React.MouseEvent, rowIndex: number, selectedRowIndices: Set<number>) => void;
   handleRowResizeDoubleClick: (rowIndex: number) => void;
-}
-
-function getRowHeight(row: { height?: number } | undefined): number {
-  return row?.height ?? DEFAULT_ROW_HEIGHT;
 }
 
 export function useRowOperations(

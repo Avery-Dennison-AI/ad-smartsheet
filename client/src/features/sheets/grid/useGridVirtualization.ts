@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 
-const HEADER_HEIGHT = 36;
 const OVERSCAN = 5;
 
 interface UseGridVirtualizationOptions {
@@ -30,7 +29,7 @@ function buildRowPositions(
   const dataCount = rows.length;
   const totalCount = dataCount + blankRowCount;
   const tops: number[] = new Array(totalCount);
-  let top = HEADER_HEIGHT;
+  let top = 0;
 
   for (let i = 0; i < dataCount; i++) {
     tops[i] = top;

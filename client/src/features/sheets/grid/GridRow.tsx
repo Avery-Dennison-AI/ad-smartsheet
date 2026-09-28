@@ -1,18 +1,7 @@
 import GridRowNumCell from './GridRowNumCell';
 import GridCell from './GridCell';
+import { getColWidth, getRowHeight } from './gridHelpers';
 import type { Column, GridRow as GridRowType, WorkspaceRole } from '@/types';
-
-const DEFAULT_ROW_HEIGHT = 34;
-const DEFAULT_COL_WIDTH = 160;
-const PRIMARY_COL_WIDTH = 240;
-
-function getColWidth(col: { isPrimary?: boolean; width?: number }): number {
-  return col.width ?? (col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH);
-}
-
-function getRowHeight(row: { height?: number } | undefined): number {
-  return row?.height ?? DEFAULT_ROW_HEIGHT;
-}
 
 interface GridMember {
   id: string;

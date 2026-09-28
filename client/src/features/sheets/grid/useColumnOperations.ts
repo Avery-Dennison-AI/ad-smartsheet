@@ -10,10 +10,9 @@ import {
   selectGridColumns,
   selectGridRows,
 } from '@/store/slices/gridSlice';
+import { getColWidth, PRIMARY_COL_WIDTH, DEFAULT_COL_WIDTH } from './gridHelpers';
 import type { ColumnType, DropdownOption } from '@/types';
 
-const DEFAULT_COL_WIDTH = 160;
-const PRIMARY_COL_WIDTH = 240;
 const MIN_COL_WIDTH = 60;
 const MAX_COL_WIDTH = 800;
 
@@ -66,10 +65,6 @@ interface UseColumnOperationsResult {
   handleColumnResizeStart: (e: React.MouseEvent, columnId: string) => void;
   handleColumnResizeDoubleClick: (columnId: string) => void;
   handleAddDropdownOption: (columnId: string, label: string) => void;
-}
-
-function getColWidth(col: { isPrimary?: boolean; width?: number }): number {
-  return col.width ?? (col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH);
 }
 
 export function useColumnOperations(

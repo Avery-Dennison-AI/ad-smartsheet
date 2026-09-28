@@ -22,20 +22,14 @@ import GridHeaderRow from './GridHeaderRow';
 import GridBody from './GridBody';
 import GridDialogs from './GridDialogs';
 import FormattingToolbar from './FormattingToolbar';
+import { getColWidth, DEFAULT_ROW_HEIGHT, HEADER_HEIGHT } from './gridHelpers';
 import type { WorkspaceRole } from '@/types';
 
-const DEFAULT_ROW_HEIGHT = 34;
 const MIN_BLANK_ROWS = 50;
-const DEFAULT_COL_WIDTH = 160;
-const PRIMARY_COL_WIDTH = 240;
 
 interface SheetGridProps {
   sheetId: string;
   userRole: WorkspaceRole;
-}
-
-function getColWidth(col: { isPrimary?: boolean; width?: number }): number {
-  return col.width ?? (col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH);
 }
 
 export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
@@ -256,75 +250,85 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         onReturnFocus={() => virtualization.scrollNodeRef.current?.focus()}
         data-icod-id="src_features_sheets_grid_sheetgrid_tsx_fb36" />
       {/* Scrollable grid container */}
-      <GridHeaderRow
-        columns={columns}
-        liveColumnWidths={liveColumnWidths}
-        userRole={userRole}
-        isScrolled={virtualization.isScrolled}
-        canEdit={canEdit}
-        isColSelected={selection.isColSelected}
-        onRename={colOps.handleRenameColumn}
-        onEditProperties={colOps.handleEditColumnProperties}
-        onDelete={colOps.handleDeleteColumn}
-        onInsertLeft={(id) => colOps.handleInsertColumn(id, 'left')}
-        onInsertRight={(id) => colOps.handleInsertColumn(id, 'right')}
-        onSelectColumn={selection.selectColumn}
-        onDragStart={colOps.handleColDragStart}
-        onDrop={colOps.handleColDrop}
-        onSetPrimary={colOps.handleSetPrimaryColumn}
-        onColumnResizeStart={colOps.handleColumnResizeStart}
-        onColumnResizeDoubleClick={colOps.handleColumnResizeDoubleClick}
-        onAddColumn={() => colOps.setColPropsModal({
-          open: true,
-          columnId: null,
-          initialName: '',
-          initialType: 'text',
-          initialOptions: [],
-          isPrimary: false,
-          existingCellCount: 0,
-          insertPosition: null,
-        })}
-        colResizeDrag={colOps.colResizeDrag}
-        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_5930" />
-      <GridBody
-        visibleRows={virtualization.visibleRows}
-        rows={rows}
-        columns={columns}
-        liveColumnWidths={liveColumnWidths}
-        rowPositions={virtualization.rowPositions}
-        liveRowHeights={liveRowHeights}
-        userRole={userRole}
-        canEdit={canEdit}
-        workspaceMembers={workspaceMembers}
-        hoveredRowIndex={hoveredRowIndex}
-        setHoveredRowIndex={setHoveredRowIndex}
-        isScrolled={virtualization.isScrolled}
-        isActiveCell={selection.isActiveCell}
-        isCellSelected={selection.isCellSelected}
-        isRowSelected={selection.isRowSelected}
-        isColSelected={selection.isColSelected}
-        editingCell={selection.editingCell}
-        onCellCommit={handleCellCommit}
-        onBlankRowCommit={handleBlankRowCommit}
-        onStartEditing={selection.startEditing}
-        onStopEditing={selection.stopEditing}
-        onCellClick={(rowIdx, colIdx, e) => selection.handleCellClick(rowIdx, colIdx, e.shiftKey)}
-        onSelectRow={selection.selectRow}
-        onInsertRowAbove={rowOps.handleInsertRowAbove}
-        onInsertRowBelow={rowOps.handleInsertRowBelow}
-        onRequestDeleteRows={rowOps.setPendingDeleteRowIds}
-        onRowDragStart={rowOps.handleRowDragStart}
-        onRowDrop={rowOps.handleRowDrop}
-        onRowResizeStart={handleRowResizeStartWrapper}
-        onRowResizeDoubleClick={rowOps.handleRowResizeDoubleClick}
-        onRowContextMenu={handleRowContextMenu}
-        onAddDropdownOption={colOps.handleAddDropdownOption}
-        scrollNodeRef={virtualization.scrollNodeRef}
-        rowResizeDrag={rowOps.rowResizeDrag}
-        scrollContainerRef={virtualization.scrollContainerRef}
+      <div
+        ref={virtualization.scrollContainerRef}
+        className="flex-1 overflow-auto"
         onScroll={virtualization.onScroll}
-        totalHeight={virtualization.rowPositions.total}
-        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_a98f" />
+        onContextMenu={(e) => e.preventDefault()}
+        tabIndex={0}
+        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_scroll">
+        <div
+          style={{ minWidth: 'max-content' }}
+          data-icod-id="src_features_sheets_grid_sheetgrid_tsx_333a">
+          <GridHeaderRow
+            columns={columns}
+            liveColumnWidths={liveColumnWidths}
+            userRole={userRole}
+            isScrolled={virtualization.isScrolled}
+            canEdit={canEdit}
+            isColSelected={selection.isColSelected}
+            onRename={colOps.handleRenameColumn}
+            onEditProperties={colOps.handleEditColumnProperties}
+            onDelete={colOps.handleDeleteColumn}
+            onInsertLeft={(id) => colOps.handleInsertColumn(id, 'left')}
+            onInsertRight={(id) => colOps.handleInsertColumn(id, 'right')}
+            onSelectColumn={selection.selectColumn}
+            onDragStart={colOps.handleColDragStart}
+            onDrop={colOps.handleColDrop}
+            onSetPrimary={colOps.handleSetPrimaryColumn}
+            onColumnResizeStart={colOps.handleColumnResizeStart}
+            onColumnResizeDoubleClick={colOps.handleColumnResizeDoubleClick}
+            onAddColumn={() => colOps.setColPropsModal({
+              open: true,
+              columnId: null,
+              initialName: '',
+              initialType: 'text',
+              initialOptions: [],
+              isPrimary: false,
+              existingCellCount: 0,
+              insertPosition: null,
+            })}
+            colResizeDrag={colOps.colResizeDrag}
+            data-icod-id="src_features_sheets_grid_sheetgrid_tsx_5930" />
+          <GridBody
+            visibleRows={virtualization.visibleRows}
+            rows={rows}
+            columns={columns}
+            liveColumnWidths={liveColumnWidths}
+            rowPositions={virtualization.rowPositions}
+            liveRowHeights={liveRowHeights}
+            userRole={userRole}
+            canEdit={canEdit}
+            workspaceMembers={workspaceMembers}
+            hoveredRowIndex={hoveredRowIndex}
+            setHoveredRowIndex={setHoveredRowIndex}
+            isScrolled={virtualization.isScrolled}
+            isActiveCell={selection.isActiveCell}
+            isCellSelected={selection.isCellSelected}
+            isRowSelected={selection.isRowSelected}
+            isColSelected={selection.isColSelected}
+            editingCell={selection.editingCell}
+            onCellCommit={handleCellCommit}
+            onBlankRowCommit={handleBlankRowCommit}
+            onStartEditing={selection.startEditing}
+            onStopEditing={selection.stopEditing}
+            onCellClick={(rowIdx, colIdx, e) => selection.handleCellClick(rowIdx, colIdx, e.shiftKey)}
+            onSelectRow={selection.selectRow}
+            onInsertRowAbove={rowOps.handleInsertRowAbove}
+            onInsertRowBelow={rowOps.handleInsertRowBelow}
+            onRequestDeleteRows={rowOps.setPendingDeleteRowIds}
+            onRowDragStart={rowOps.handleRowDragStart}
+            onRowDrop={rowOps.handleRowDrop}
+            onRowResizeStart={handleRowResizeStartWrapper}
+            onRowResizeDoubleClick={rowOps.handleRowResizeDoubleClick}
+            onRowContextMenu={handleRowContextMenu}
+            onAddDropdownOption={colOps.handleAddDropdownOption}
+            scrollNodeRef={virtualization.scrollNodeRef}
+            rowResizeDrag={rowOps.rowResizeDrag}
+            totalHeight={virtualization.rowPositions.total}
+            data-icod-id="src_features_sheets_grid_sheetgrid_tsx_a98f" />
+        </div>
+      </div>
       {/* Dialogs */}
       <GridDialogs
         colPropsModal={colOps.colPropsModal}

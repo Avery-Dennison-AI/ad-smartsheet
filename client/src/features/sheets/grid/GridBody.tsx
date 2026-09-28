@@ -1,13 +1,6 @@
 import GridRow from './GridRow';
+import { DEFAULT_ROW_HEIGHT } from './gridHelpers';
 import type { Column, GridRow as GridRowType, WorkspaceRole } from '@/types';
-
-const DEFAULT_ROW_HEIGHT = 34;
-const PRIMARY_COL_WIDTH = 240;
-const DEFAULT_COL_WIDTH = 160;
-
-function getColWidth(col: { isPrimary?: boolean; width?: number }): number {
-  return col.width ?? (col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH);
-}
 
 interface GridMember {
   id: string;
@@ -52,8 +45,6 @@ interface GridBodyProps {
   onAddDropdownOption?: (columnId: string, label: string) => void;
   scrollNodeRef: React.MutableRefObject<HTMLDivElement | null>;
   rowResizeDrag: { rowIds: string[]; currentDelta: number; startHeights: Record<string, number> } | null;
-  scrollContainerRef: (node: HTMLDivElement | null) => void;
-  onScroll: () => void;
   totalHeight: number;
 }
 
@@ -92,81 +83,70 @@ export default function GridBody({
   onAddDropdownOption,
   scrollNodeRef,
   rowResizeDrag,
-  scrollContainerRef,
-  onScroll,
   totalHeight,
 }: GridBodyProps) {
   return (
     <div
-      ref={scrollContainerRef}
-      className="flex-1 overflow-auto"
-      style={{ scrollPaddingTop: 36 }}
-      onScroll={onScroll}
-      onContextMenu={(e) => e.preventDefault()}
-      tabIndex={0}
-      data-icod-id="src_features_sheets_grid_gridbody_tsx_25e5">
-      <div
-        style={{ height: totalHeight, minWidth: 'max-content' }}
-        className="relative"
-        data-icod-id="src_features_sheets_grid_gridbody_tsx_1fd1">
-        {visibleRows.map((rowIdx) => (
-          <GridRow
-            key={rowIdx}
-            rowIdx={rowIdx}
-            row={rows[rowIdx]}
-            columns={columns}
-            liveColumnWidths={liveColumnWidths}
-            rowPositions={rowPositions}
-            liveRowHeights={liveRowHeights}
-            userRole={userRole}
-            canEdit={canEdit}
-            workspaceMembers={workspaceMembers}
-            hoveredRowIndex={hoveredRowIndex}
-            setHoveredRowIndex={setHoveredRowIndex}
-            isScrolled={isScrolled}
-            isActiveCell={isActiveCell}
-            isCellSelected={isCellSelected}
-            isRowSelected={isRowSelected}
-            isColSelected={isColSelected}
-            editingCell={editingCell}
-            onCellCommit={onCellCommit}
-            onBlankRowCommit={onBlankRowCommit}
-            onStartEditing={onStartEditing}
-            onStopEditing={onStopEditing}
-            onCellClick={onCellClick}
-            onSelectRow={onSelectRow}
-            onInsertRowAbove={onInsertRowAbove}
-            onInsertRowBelow={onInsertRowBelow}
-            onRequestDeleteRows={onRequestDeleteRows}
-            onRowDragStart={onRowDragStart}
-            onRowDrop={onRowDrop}
-            onRowResizeStart={onRowResizeStart}
-            onRowResizeDoubleClick={onRowResizeDoubleClick}
-            onRowContextMenu={onRowContextMenu}
-            onAddDropdownOption={onAddDropdownOption}
-            scrollNodeRef={scrollNodeRef}
-            data-icod-id={`src_features_sheets_grid_gridbody_tsx_4447_${rowIdx}`} />
-        ))}
+      style={{ height: totalHeight, minWidth: 'max-content' }}
+      className="relative"
+      data-icod-id="src_features_sheets_grid_gridbody_tsx_1fd1">
+      {visibleRows.map((rowIdx) => (
+        <GridRow
+          key={rowIdx}
+          rowIdx={rowIdx}
+          row={rows[rowIdx]}
+          columns={columns}
+          liveColumnWidths={liveColumnWidths}
+          rowPositions={rowPositions}
+          liveRowHeights={liveRowHeights}
+          userRole={userRole}
+          canEdit={canEdit}
+          workspaceMembers={workspaceMembers}
+          hoveredRowIndex={hoveredRowIndex}
+          setHoveredRowIndex={setHoveredRowIndex}
+          isScrolled={isScrolled}
+          isActiveCell={isActiveCell}
+          isCellSelected={isCellSelected}
+          isRowSelected={isRowSelected}
+          isColSelected={isColSelected}
+          editingCell={editingCell}
+          onCellCommit={onCellCommit}
+          onBlankRowCommit={onBlankRowCommit}
+          onStartEditing={onStartEditing}
+          onStopEditing={onStopEditing}
+          onCellClick={onCellClick}
+          onSelectRow={onSelectRow}
+          onInsertRowAbove={onInsertRowAbove}
+          onInsertRowBelow={onInsertRowBelow}
+          onRequestDeleteRows={onRequestDeleteRows}
+          onRowDragStart={onRowDragStart}
+          onRowDrop={onRowDrop}
+          onRowResizeStart={onRowResizeStart}
+          onRowResizeDoubleClick={onRowResizeDoubleClick}
+          onRowContextMenu={onRowContextMenu}
+          onAddDropdownOption={onAddDropdownOption}
+          scrollNodeRef={scrollNodeRef}
+          data-icod-id={`src_features_sheets_grid_gridbody_tsx_4447_${rowIdx}`} />
+      ))}
 
-        {/* Row resize guide line */}
-        {rowResizeDrag && (
-          <div
-            className="pointer-events-none absolute left-0 right-0 h-px bg-primary"
-            style={{
-              zIndex: 'var(--z-dropdown)',
-              top: (() => {
-                if (rowResizeDrag.rowIds.length === 0) return 0;
-                const lastRowId = rowResizeDrag.rowIds[rowResizeDrag.rowIds.length - 1];
-                const rowIdx = rows.findIndex((r) => r.id === lastRowId);
-                if (rowIdx === -1) return 0;
-                const rowTop = rowPositions.tops[rowIdx] ?? 0;
-                const rowH = liveRowHeights?.[lastRowId] ?? (rows[rowIdx]?.height ?? DEFAULT_ROW_HEIGHT);
-                return rowTop + rowH;
-              })(),
-            }}
-            data-icod-id="src_features_sheets_grid_gridbody_tsx_7a0e" />
-        )}
-      </div>
+      {/* Row resize guide line */}
+      {rowResizeDrag && (
+        <div
+          className="pointer-events-none absolute left-0 right-0 h-px bg-primary"
+          style={{
+            zIndex: 'var(--z-dropdown)',
+            top: (() => {
+              if (rowResizeDrag.rowIds.length === 0) return 0;
+              const lastRowId = rowResizeDrag.rowIds[rowResizeDrag.rowIds.length - 1];
+              const rowIdx = rows.findIndex((r) => r.id === lastRowId);
+              if (rowIdx === -1) return 0;
+              const rowTop = rowPositions.tops[rowIdx] ?? 0;
+              const rowH = liveRowHeights?.[lastRowId] ?? (rows[rowIdx]?.height ?? DEFAULT_ROW_HEIGHT);
+              return rowTop + rowH;
+            })(),
+          }}
+          data-icod-id="src_features_sheets_grid_gridbody_tsx_7a0e" />
+      )}
     </div>
   );
 }

@@ -1,15 +1,8 @@
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui';
 import GridHeaderCell from './GridHeaderCell';
+import { getColWidth, HEADER_HEIGHT } from './gridHelpers';
 import type { Column, WorkspaceRole } from '@/types';
-
-const HEADER_HEIGHT = 36;
-const DEFAULT_COL_WIDTH = 160;
-const PRIMARY_COL_WIDTH = 240;
-
-function getColWidth(col: { isPrimary?: boolean; width?: number }): number {
-  return col.width ?? (col.isPrimary ? PRIMARY_COL_WIDTH : DEFAULT_COL_WIDTH);
-}
 
 interface GridHeaderRowProps {
   columns: Column[];
