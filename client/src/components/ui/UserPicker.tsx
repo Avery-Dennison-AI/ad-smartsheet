@@ -184,8 +184,8 @@ export default function UserPicker({
     ? ReactDOM.createPortal(
         <div
           ref={panelRef}
-          className="fixed z-[9999] rounded-[var(--radius-md)] border border-border bg-card shadow-[var(--shadow-md)]"
-          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width }}
+          className="fixed rounded-[var(--radius-md)] border border-border bg-card shadow-[var(--shadow-md)]"
+          style={{ zIndex: 'var(--z-dropdown)', top: panelPos.top, left: panelPos.left, width: panelPos.width }}
           data-icod-id="src_components_ui_userpicker_tsx_panel">
           {query.trim().length < 2 ? (
             <div
