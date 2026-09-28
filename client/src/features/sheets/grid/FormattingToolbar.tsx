@@ -5,6 +5,7 @@ import FontGroup from './toolbar/FontGroup';
 import TextStyleGroup from './toolbar/TextStyleGroup';
 import ColorGroup from './toolbar/ColorGroup';
 import AlignmentGroup from './toolbar/AlignmentGroup';
+import WrapTextButton from './toolbar/WrapTextButton';
 import ClearFormattingButton from './toolbar/ClearFormattingButton';
 import type { CellFormatting, Column, GridRow, WorkspaceRole } from '@/types';
 
@@ -56,6 +57,7 @@ export default function FormattingToolbar({
       verticalAlign: null,
       textColor: null,
       fillColor: null,
+      wrapText: null,
     };
     applyFormatPatch(clearPatch);
   }, [applyFormatPatch]);
@@ -88,6 +90,13 @@ export default function FormattingToolbar({
           aggregated={aggregated}
           onApply={applyFormatPatch}
           data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_ec34" />
+      </ToolbarGroup>
+      <ToolbarGroup data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_wrap">
+        <WrapTextButton
+          pressed={aggregated._mixedWrapText ? 'mixed' : !!aggregated.wrapText}
+          onToggle={() => toggleProp('wrapText')}
+          disabled={isViewer}
+          data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_f9ed" />
       </ToolbarGroup>
       <ToolbarGroup data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_8c9e">
         <ClearFormattingButton

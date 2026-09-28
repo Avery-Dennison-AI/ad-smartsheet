@@ -149,6 +149,7 @@ export interface CellFormatting {
   verticalAlign?: 'top' | 'middle' | 'bottom' | null;
   textColor?: string | null;
   fillColor?: string | null;
+  wrapText?: boolean | null;
 }
 
 export interface GridState {

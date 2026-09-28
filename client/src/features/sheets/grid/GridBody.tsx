@@ -15,6 +15,7 @@ interface GridBodyProps {
   liveColumnWidths: Record<string, number>;
   rowPositions: { tops: number[]; total: number };
   liveRowHeights: Record<string, number> | null;
+  wrapRowHeights: Record<string, number>;
   userRole: WorkspaceRole;
   canEdit: boolean;
   workspaceMembers?: GridMember[];
@@ -55,6 +56,7 @@ export default function GridBody({
   liveColumnWidths,
   rowPositions,
   liveRowHeights,
+  wrapRowHeights,
   userRole,
   canEdit,
   workspaceMembers,
@@ -99,6 +101,7 @@ export default function GridBody({
           liveColumnWidths={liveColumnWidths}
           rowPositions={rowPositions}
           liveRowHeights={liveRowHeights}
+          wrapRowHeights={wrapRowHeights}
           userRole={userRole}
           canEdit={canEdit}
           workspaceMembers={workspaceMembers}

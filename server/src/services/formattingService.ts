@@ -8,7 +8,7 @@ import { AppError } from '../utils/AppError';
 
 const ALLOWED_FORMAT_KEYS = new Set([
   'fontFamily', 'fontSize', 'bold', 'italic', 'underline', 'strikethrough',
-  'textAlign', 'verticalAlign', 'textColor', 'fillColor',
+  'textAlign', 'verticalAlign', 'textColor', 'fillColor', 'wrapText',
 ]);
 const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
 const TEXT_ALIGN_VALUES = new Set(['left', 'center', 'right']);
@@ -28,6 +28,9 @@ function validateFormattingPatch(formatting: Record<string, unknown>): void {
     }
     if (key === 'verticalAlign' && !VERTICAL_ALIGN_VALUES.has(String(value))) {
       throw new AppError(`Invalid verticalAlign value: ${value}`, 400);
+    }
+    if (key === 'wrapText' && typeof value !== 'boolean') {
+      throw new AppError(`Invalid wrapText value: ${value} (must be boolean)`, 400);
     }
   }
 }

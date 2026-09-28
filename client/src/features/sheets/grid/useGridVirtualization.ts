@@ -3,9 +3,11 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 const OVERSCAN = 5;
 
 interface UseGridVirtualizationOptions {
-  rows: Array<{ height?: number }>;
+  rows: Array<{ id?: string; height?: number }>;
   blankRowCount: number;
   defaultRowHeight: number;
+  /** Map of rowId → effective height (from wrap text measurement). Overrides stored/default heights. */
+  effectiveRowHeights?: Record<string, number>;
 }
 
 interface UseGridVirtualizationResult {
@@ -22,9 +24,10 @@ interface UseGridVirtualizationResult {
 }
 
 function buildRowPositions(
-  rows: Array<{ height?: number }>,
+  rows: Array<{ id?: string; height?: number }>,
   blankRowCount: number,
   defaultHeight: number,
+  effectiveRowHeights?: Record<string, number>,
 ): { tops: number[]; total: number } {
   const dataCount = rows.length;
   const totalCount = dataCount + blankRowCount;
@@ -33,7 +36,10 @@ function buildRowPositions(
 
   for (let i = 0; i < dataCount; i++) {
     tops[i] = top;
-    top += rows[i]?.height ?? defaultHeight;
+    const rowId = rows[i]?.id;
+    const effectiveH = rowId ? effectiveRowHeights?.[rowId] : undefined;
+    const h = effectiveH ?? rows[i]?.height ?? defaultHeight;
+    top += h;
   }
   for (let i = dataCount; i < totalCount; i++) {
     tops[i] = top;
@@ -61,6 +67,7 @@ export function useGridVirtualization({
   rows,
   blankRowCount,
   defaultRowHeight,
+  effectiveRowHeights,
 }: UseGridVirtualizationOptions): UseGridVirtualizationResult {
   const [scrollTop, setScrollTop] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -121,8 +128,8 @@ export function useGridVirtualization({
   }, []);
 
   const rowPositions = useMemo(
-    () => buildRowPositions(rows, blankRowCount, defaultRowHeight),
-    [rows, blankRowCount, defaultRowHeight],
+    () => buildRowPositions(rows, blankRowCount, defaultRowHeight, effectiveRowHeights),
+    [rows, blankRowCount, defaultRowHeight, effectiveRowHeights],
   );
 
   const totalRows = rows.length + blankRowCount;

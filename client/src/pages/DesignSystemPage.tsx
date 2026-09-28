@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Search, Settings, Trash2, Copy, Plus, Home, Clock, Bold, Italic, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight, ChevronDown, PaintBucket, Type } from 'lucide-react';
+import { Search, Settings, Trash2, Copy, Plus, Home, Clock, Bold, Italic, Underline, Strikethrough, Eraser, AlignLeft, AlignCenter, AlignRight, ChevronDown, PaintBucket, Type, WrapText } from 'lucide-react';
 import {
   Button,
   IconButton,
@@ -1503,6 +1503,7 @@ function ToolbarDemo() {
   const [fillColor, setFillColor] = useState<string | null>(null);
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right' | null>(null);
   const [verticalAlign, setVerticalAlign] = useState<'top' | 'middle' | 'bottom' | null>(null);
+  const [wrapText, setWrapText] = useState(false);
   const textColorBtnRef = useRef<HTMLButtonElement>(null);
   const fillColorBtnRef = useRef<HTMLButtonElement>(null);
   const [textColorOpen, setTextColorOpen] = useState(false);
@@ -1712,11 +1713,23 @@ function ToolbarDemo() {
           ] as DropdownMenuItem[]}
           data-icod-id="src_pages_designsystempage_tsx_82db" />
       </ToolbarGroup>
+      {/* Group D: Wrap text */}
+      <ToolbarGroup data-icod-id="ds_toolbar_wraptext">
+        <ToggleButton
+          pressed={wrapText}
+          onToggle={() => setWrapText(!wrapText)}
+          tooltip="Wrap text"
+          icon={<WrapText
+            className="h-3.5 w-3.5"
+            data-icod-id="src_pages_designsystempage_tsx_4152" />}
+          size="sm"
+          data-icod-id="ds_wraptext_btn" />
+      </ToolbarGroup>
       <ToolbarGroup data-icod-id="src_pages_designsystempage_tsx_96d0">
         <IconButton
           size="sm"
           tooltip="Clear formatting"
-          onClick={() => { setBold(false); setItalic(false); setUnderline(false); setStrikethrough(false); setFontFamily('default'); setFontSize(''); setTextColor(null); setFillColor(null); setTextAlign(null); setVerticalAlign(null); }}
+          onClick={() => { setBold(false); setItalic(false); setUnderline(false); setStrikethrough(false); setFontFamily('default'); setFontSize(''); setTextColor(null); setFillColor(null); setTextAlign(null); setVerticalAlign(null); setWrapText(false); }}
           data-icod-id="src_pages_designsystempage_tsx_63be"><Eraser
           className="h-3.5 w-3.5"
           data-icod-id="src_pages_designsystempage_tsx_8803" /></IconButton>

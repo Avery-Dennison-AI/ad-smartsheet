@@ -16,6 +16,7 @@ import {
 } from '@/store/slices/gridSlice';
 import { useGridSelection } from './useGridSelection';
 import { useGridVirtualization } from './useGridVirtualization';
+import { useWrapRowHeights } from './useWrapRowHeights';
 import { useColumnOperations, defaultColumnPropertiesState } from './useColumnOperations';
 import { useRowOperations } from './useRowOperations';
 import GridHeaderRow from './GridHeaderRow';
@@ -51,14 +52,36 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
 
   // ─── Hooks ──────────────────────────────────────────────────────────────
 
+  const colOps = useColumnOperations(sheetId);
+  const rowOps = useRowOperations(sheetId);
+
+  // ─── Column widths (needed before virtualization for wrap height calc) ──
+
+  const liveColumnWidths = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const col of columns) {
+      map[col.id] = getColWidth(col);
+    }
+    if (colOps.colResizeDrag) {
+      map[colOps.colResizeDrag.columnId] = colOps.colResizeDrag.currentWidth;
+    }
+    return map;
+  }, [columns, colOps.colResizeDrag]);
+
+  // ─── Wrap text row heights ──────────────────────────────────────────────
+
+  const wrapRowHeights = useWrapRowHeights({
+    rows,
+    columns,
+    liveColWidths: liveColumnWidths,
+  });
+
   const virtualization = useGridVirtualization({
     rows,
     blankRowCount: MIN_BLANK_ROWS,
     defaultRowHeight: DEFAULT_ROW_HEIGHT,
+    effectiveRowHeights: wrapRowHeights,
   });
-
-  const colOps = useColumnOperations(sheetId);
-  const rowOps = useRowOperations(sheetId);
 
   // Selection hook
   const selection = useGridSelection({
@@ -108,19 +131,6 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
       })
       .filter(Boolean) as Array<{ rowId: string; columnId: string }>;
   }, [selection, rows, columns]);
-
-  // ─── Column widths ──────────────────────────────────────────────────────
-
-  const liveColumnWidths = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const col of columns) {
-      map[col.id] = getColWidth(col);
-    }
-    if (colOps.colResizeDrag) {
-      map[colOps.colResizeDrag.columnId] = colOps.colResizeDrag.currentWidth;
-    }
-    return map;
-  }, [columns, colOps.colResizeDrag]);
 
   // ─── Live row heights during resize ─────────────────────────────────────
 
@@ -297,6 +307,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
             liveColumnWidths={liveColumnWidths}
             rowPositions={virtualization.rowPositions}
             liveRowHeights={liveRowHeights}
+            wrapRowHeights={wrapRowHeights}
             userRole={userRole}
             canEdit={canEdit}
             workspaceMembers={workspaceMembers}

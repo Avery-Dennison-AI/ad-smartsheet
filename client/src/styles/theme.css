@@ -105,6 +105,7 @@
   /* ─── Shadows ─────────────────────────────────────────────────────── */
   --shadow-sm: 0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.05);
   --shadow-md: 0 4px 16px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06);
+  --focus-ring-danger: 0 0 0 3px rgb(var(--destructive) / 0.3);
 
   /* ─── Grid tokens ─────────────────────────────────────────────────── */
   --grid-row-height: 34px;
@@ -116,8 +117,8 @@
   --grid-header-text: var(--color-gray-600);
   --grid-row-hover: var(--color-gray-50);
   --grid-selected-border: rgb(var(--primary));
-  --grid-selected-bg: rgba(var(--primary), 0.06);
-  --grid-range-bg: rgba(var(--primary), 0.10);
+  --grid-selected-bg: rgb(var(--primary) / 0.06);
+  --grid-range-bg: rgb(var(--primary) / 0.10);
   --grid-row-height-compact: 32px;
   --grid-row-height-comfortable: 40px;
   --grid-cell-padding: 0 8px;
@@ -126,7 +127,7 @@
   --grid-line-color: var(--color-gray-200);
   --grid-bg: var(--color-bg-surface);
   --grid-row-hover-bg: var(--color-gray-50);
-  --grid-selection-bg: rgba(var(--primary), 0.06);
+  --grid-selection-bg: rgb(var(--primary) / 0.06);
 
   /* ─── Shell ───────────────────────────────────────────────────────── */
   --sidebar-width: 240px;

@@ -142,6 +142,7 @@ export default function GridCell({
             formattingStyle={formattingStyle}
             textColor={fmt.textColor ?? undefined}
             fillColor={fmt.fillColor ?? undefined}
+            wrapText={!!fmt.wrapText}
             data-icod-id="src_features_sheets_grid_gridcell_tsx_ce36" />
         );
       case 'number':
@@ -155,6 +156,7 @@ export default function GridCell({
             formattingStyle={formattingStyle}
             textColor={fmt.textColor ?? undefined}
             fillColor={fmt.fillColor ?? undefined}
+            wrapText={!!fmt.wrapText}
             data-icod-id="src_features_sheets_grid_gridcell_tsx_f097" />
         );
       case 'date':
@@ -242,7 +244,7 @@ export default function GridCell({
       data-icod-id="src_features_sheets_grid_gridcell_tsx_d537">
       {isEditing && column.type !== 'checkbox' ? renderEditMode() : (
         <div
-          className="flex w-full h-full overflow-hidden"
+          className={cn('flex w-full h-full', fmt.wrapText && (column.type === 'text' || column.type === 'number') ? '' : 'overflow-hidden')}
           style={formattingStyle}
           data-icod-id="src_features_sheets_grid_gridcell_tsx_d409">{renderDisplay()}</div>
       )}

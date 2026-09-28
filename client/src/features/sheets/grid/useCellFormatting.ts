@@ -35,6 +35,9 @@ export function useCellFormatting(
 
   const formattingStyle = useMemo((): React.CSSProperties => {
     const effectiveTextAlign = fmt.textAlign ?? (columnType === 'number' ? 'right' : undefined);
+    const isWrappable = columnType === 'text' || columnType === 'number';
+    const shouldWrap = isWrappable && !!fmt.wrapText;
+
     return {
       fontFamily: fmt.fontFamily && fmt.fontFamily !== 'default' ? fmt.fontFamily : undefined,
       fontSize: fmt.fontSize ? `${fmt.fontSize}px` : undefined,
@@ -58,6 +61,10 @@ export function useCellFormatting(
             ? 'flex-end'
             : 'center',
       textAlign: effectiveTextAlign ?? undefined,
+      whiteSpace: shouldWrap ? 'pre-wrap' : 'nowrap',
+      wordBreak: shouldWrap ? 'break-word' : undefined,
+      overflow: shouldWrap ? undefined : 'hidden',
+      textOverflow: shouldWrap ? undefined : 'ellipsis',
     };
   }, [fmt, columnType]);
 

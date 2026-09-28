@@ -3,7 +3,7 @@ import { cn } from '@/utils/cn';
 import Tooltip from './Tooltip';
 
 export interface ToggleButtonProps {
-  pressed: boolean;
+  pressed: boolean | 'mixed';
   onToggle: () => void;
   tooltip: string;
   icon: ReactNode;
@@ -30,12 +30,15 @@ export default function ToggleButton({
   disabled = false,
   size = 'md',
 }: ToggleButtonProps) {
+  const isPressed = pressed === true;
+  const isMixed = pressed === 'mixed';
+
   return (
     <Tooltip content={tooltip} data-icod-id="src_components_ui_togglebutton_tsx_5896">
       <button
         type="button"
         role="button"
-        aria-pressed={pressed}
+        aria-pressed={isMixed ? 'mixed' : isPressed}
         disabled={disabled}
         onMouseDown={(e) => e.preventDefault()}
         onClick={onToggle}
@@ -43,11 +46,14 @@ export default function ToggleButton({
           'inline-flex items-center justify-center rounded-[var(--radius-sm)] transition-colors duration-150 ease-in-out',
           'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
           'disabled:pointer-events-none disabled:opacity-50',
-          pressed
+          isPressed
             ? 'bg-primary/10 text-primary border border-primary/20'
-            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            : isMixed
+              ? 'bg-primary/5 text-primary/70 border border-primary/10 opacity-75'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
           sizeClass[size],
         )}
+        data-mixed={isMixed || undefined}
         data-icod-id="src_components_ui_togglebutton_tsx_91f4">
         <span
           className={iconSizeClass[size]}

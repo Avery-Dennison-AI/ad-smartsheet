@@ -22,13 +22,14 @@ interface AggregatedFormatting extends CellFormatting {
   _mixedFillColor?: boolean;
   _mixedTextAlign?: boolean;
   _mixedVerticalAlign?: boolean;
+  _mixedWrapText?: boolean;
 }
 
 interface UseSelectionFormattingResult {
   aggregated: AggregatedFormatting;
   isViewer: boolean;
   applyFormatPatch: (patch: CellFormatting) => void;
-  toggleProp: (prop: 'bold' | 'italic' | 'underline' | 'strikethrough') => void;
+  toggleProp: (prop: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'wrapText') => void;
 }
 
 function getEffectiveFormatting(cellFmt: CellFormatting, colFmt: CellFormatting): CellFormatting {
@@ -100,9 +101,14 @@ export function useSelectionFormatting({
 
     const result: AggregatedFormatting = {};
 
-    const boolProps: Array<'bold' | 'italic' | 'underline' | 'strikethrough'> = ['bold', 'italic', 'underline', 'strikethrough'];
+    const boolProps: Array<'bold' | 'italic' | 'underline' | 'strikethrough' | 'wrapText'> = ['bold', 'italic', 'underline', 'strikethrough', 'wrapText'];
     for (const prop of boolProps) {
-      result[prop] = allEffectiveFmts.every((f) => !!f[prop]);
+      const values = allEffectiveFmts.map((f) => !!f[prop]);
+      const allSame = values.every((v) => v === values[0]);
+      result[prop] = values[0];
+      if (!allSame && prop === 'wrapText') {
+        result._mixedWrapText = true;
+      }
     }
 
     const families = new Set(allEffectiveFmts.map((f) => f.fontFamily ?? 'default'));
@@ -206,7 +212,7 @@ export function useSelectionFormatting({
   );
 
   const toggleProp = useCallback(
-    (prop: 'bold' | 'italic' | 'underline' | 'strikethrough') => {
+    (prop: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'wrapText') => {
       const allOn = !!aggregated[prop];
       applyFormatPatch({ [prop]: !allOn });
     },

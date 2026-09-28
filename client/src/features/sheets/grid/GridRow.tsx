@@ -16,6 +16,7 @@ interface GridRowProps {
   liveColumnWidths: Record<string, number>;
   rowPositions: { tops: number[] };
   liveRowHeights: Record<string, number> | null;
+  wrapRowHeights: Record<string, number>;
   userRole: WorkspaceRole;
   canEdit: boolean;
   workspaceMembers?: GridMember[];
@@ -54,6 +55,7 @@ export default function GridRow({
   liveColumnWidths,
   rowPositions,
   liveRowHeights,
+  wrapRowHeights,
   userRole,
   canEdit,
   workspaceMembers,
@@ -85,7 +87,9 @@ export default function GridRow({
   const isBlankRow = !row;
   const rowH = liveRowHeights && row && liveRowHeights[row.id] !== undefined
     ? liveRowHeights[row.id]
-    : getRowHeight(row);
+    : (row && wrapRowHeights[row.id] !== undefined)
+      ? wrapRowHeights[row.id]
+      : getRowHeight(row);
   const top = rowPositions.tops[rowIdx];
   const isRowHovered = hoveredRowIndex === rowIdx;
 
