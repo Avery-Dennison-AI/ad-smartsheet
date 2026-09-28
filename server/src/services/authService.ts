@@ -50,7 +50,7 @@ export async function loginUser(email: string, password: string, _ip?: string): 
       fullName: user.fullName,
       email: user.email,
       role: user.role,
-      accentColor: user.accentColor || 'teal',
+      accentColor: user.accentColor || 'avery',
     },
     token,
   };
@@ -95,6 +95,6 @@ export async function getCurrentUser(userId: string) {
     fullName: user.fullName,
     email: user.email,
     role: user.role,
-    accentColor: user.accentColor || 'teal',
+    accentColor: user.accentColor || 'avery',
   };
 }

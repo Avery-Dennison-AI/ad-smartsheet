@@ -13,7 +13,6 @@ import DesignSystemPage from '@/pages/DesignSystemPage';
 import WorkspacePage from '@/pages/WorkspacePage';
 import SheetPage from '@/pages/SheetPage';
 import AcceptInvitePage from '@/pages/AcceptInvitePage';
-import AdminUsersPage from '@/pages/AdminUsersPage';
 import SettingsPage from '@/pages/SettingsPage';
 
 /** Shows a full-page centered spinner while auth is initializing. */
@@ -89,7 +88,7 @@ function AppRoutes() {
       <Route path="/design-system" element={<ProtectedRoute data-icod-id="src_app_tsx_22ed"><AppShell data-icod-id="src_app_tsx_5e50"><DesignSystemPage data-icod-id="src_app_tsx_0ba9" /></AppShell></ProtectedRoute>} />
       <Route path="/workspaces/:id" element={<ProtectedRoute data-icod-id="src_app_tsx_157a"><AppShell data-icod-id="src_app_tsx_66f4"><WorkspacePage data-icod-id="src_app_tsx_e7d0" /></AppShell></ProtectedRoute>} />
       <Route path="/sheets/:sheetId" element={<ProtectedRoute data-icod-id="src_app_tsx_4746"><AppShell data-icod-id="src_app_tsx_b0b1"><SheetPage data-icod-id="src_app_tsx_1376" /></AppShell></ProtectedRoute>} />
-      <Route path="/admin/users" element={<AdminOnlyRoute data-icod-id="src_app_tsx_c855"><AppShell data-icod-id="src_app_tsx_a0a1"><AdminUsersPage data-icod-id="src_app_tsx_4c46" /></AppShell></AdminOnlyRoute>} />
+      <Route path="/admin/users" element={<Navigate to="/settings?section=users" replace />} />
       <Route path="/settings" element={<ProtectedRoute data-icod-id="src_app_tsx_1e13"><AppShell data-icod-id="src_app_tsx_e9f2"><SettingsPage data-icod-id="src_app_tsx_9f17" /></AppShell></ProtectedRoute>} />
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />

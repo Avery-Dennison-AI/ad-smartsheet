@@ -114,12 +114,12 @@ const authSlice = createSlice({
       .addCase(logoutUser.fulfilled, (state) => {
         state.status = 'idle';
         state.user = null;
-        applyAccent('teal');
+        applyAccent('avery');
       })
       .addCase(logoutUser.rejected, (state) => {
         state.status = 'idle';
         state.user = null;
-        applyAccent('teal');
+        applyAccent('avery');
       });
   },
 });

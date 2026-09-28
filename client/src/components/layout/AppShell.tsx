@@ -11,7 +11,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Users,
   Settings,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
@@ -251,11 +250,11 @@ export default function AppShell({ children }: AppShellProps) {
 
         {/* Footer area */}
         <div
-          className="mt-auto px-2 pb-2"
+          className="mt-auto shrink-0 px-2 pb-2 border-t border-border"
           data-icod-id="src_components_layout_appshell_tsx_4dec">
-          {/* Settings nav item */}
+          {/* Settings nav item — pinned to bottom */}
           <div
-            className="border-t border-border my-3 pt-2"
+            className="pt-2"
             data-icod-id="src_components_layout_appshell_tsx_8396">
             <SidebarNavItem
               icon={<Settings
@@ -267,35 +266,6 @@ export default function AppShell({ children }: AppShellProps) {
               to="/settings"
               data-icod-id="src_components_layout_appshell_tsx_2379" />
           </div>
-          {/* Admin section — only visible to admins */}
-          {user?.role === 'admin' && (
-            <>
-              <div
-                className="border-t border-border my-3 pt-2"
-                data-icod-id="src_components_layout_appshell_tsx_a363">
-                {!collapsed && (
-                  <div
-                    className="mb-1 px-1"
-                    data-icod-id="src_components_layout_appshell_tsx_b8e7">
-                    <span
-                      className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
-                      data-icod-id="src_components_layout_appshell_tsx_e57e">
-                      Admin
-                    </span>
-                  </div>
-                )}
-                <SidebarNavItem
-                  icon={<Users
-                    className="h-4 w-4"
-                    data-icod-id="src_components_layout_appshell_tsx_1805" />}
-                  label="Users"
-                  active={location.pathname === '/admin/users'}
-                  collapsed={collapsed}
-                  to="/admin/users"
-                  data-icod-id="src_components_layout_appshell_tsx_63ac" />
-              </div>
-            </>
-          )}
         </div>
       </aside>
       {/* ─── Right panel ──────────────────────────────────────────────────── */}

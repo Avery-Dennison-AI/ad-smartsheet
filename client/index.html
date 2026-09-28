@@ -1401,11 +1401,11 @@
   </head>
   <body>
     <script>
-      // Apply saved accent color before React renders to prevent flash of default teal.
+      // Apply saved accent color before React renders to prevent flash of default.
       (function() {
-        var accents = ['teal','blue','indigo','purple','rose','orange'];
+        var accents = ['avery','teal','blue','indigo','purple','rose','orange'];
         var stored = localStorage.getItem('ads_accent');
-        var accent = (stored && accents.indexOf(stored) !== -1) ? stored : 'teal';
+        var accent = (stored && accents.indexOf(stored) !== -1) ? stored : 'avery';
         document.documentElement.setAttribute('data-accent', accent);
       })();
     </script>

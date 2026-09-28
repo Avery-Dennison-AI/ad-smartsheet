@@ -178,7 +178,31 @@
 /* Each block sets the primary channel-triplet tokens consumed by Tailwind and
    the raw hex tokens used in direct CSS / inline styles.                       */
 
-/* Teal (default) */
+/* Avery Dennison (default) — brand red #D80024 (Pantone 2035 C).
+   NOTE: Because the primary IS a red, the destructive/danger token must be
+   visually distinct. We use #991B1B (a darker, cooler crimson) for destructive
+   actions so users can clearly differentiate primary CTAs from danger actions. */
+[data-accent="avery"] {
+  --primary: 216 0 36;
+  --primary-foreground: 255 255 255;
+  --accent: 255 240 242;
+  --accent-foreground: 216 0 36;
+  --ring: 216 0 36;
+  --color-primary: #D80024;
+  --color-primary-hover: #B8001F;
+  --color-primary-pressed: #96001A;
+  --color-primary-bg: #FFF0F2;
+  --color-primary-border: #FFD6DA;
+  --color-primary-hex: #D80024;
+  --color-selection-bg: #FFD6DA;
+  --color-selection-border: #D80024;
+  --focus-ring: 0 0 0 2px #FFFFFF, 0 0 0 4px #D80024;
+  /* Destructive is a distinctly different darker crimson to avoid confusion with brand red */
+  --destructive: 153 27 27;
+  --color-danger: #991B1B;
+}
+
+/* Teal */
 [data-accent="teal"] {
   --primary: 20 184 166;
   --primary-foreground: 255 255 255;

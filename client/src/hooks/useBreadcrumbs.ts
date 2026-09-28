@@ -49,7 +49,11 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
   }
 
   if (pathname === '/admin/users') {
-    return [{ label: 'Admin' }, { label: 'Users' }];
+    return [{ label: 'Settings', to: '/settings' }, { label: 'Users' }];
+  }
+
+  if (pathname === '/settings') {
+    return [{ label: 'Settings' }];
   }
 
   if (pathname === '/design-system') {

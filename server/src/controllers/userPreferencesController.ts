@@ -47,7 +47,7 @@ export async function updatePreferences(
       fullName: user.fullName,
       email: user.email,
       role: user.role,
-      accentColor: user.accentColor || 'teal',
+      accentColor: user.accentColor || 'avery',
     });
   } catch (err) {
     next(err);
