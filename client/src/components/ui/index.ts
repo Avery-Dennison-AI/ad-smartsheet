@@ -1,5 +1,5 @@
 /**
- * GridFlow UI primitives — import from here, never from individual files.
+ * AD Smartsheet UI primitives — import from here, never from individual files.
  */
 export { default as Alert, type AlertProps, type AlertVariant } from './Alert';
 export {

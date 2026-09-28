@@ -39,7 +39,7 @@ export default function LandingPage() {
             data-icod-id="src_pages_landingpage_tsx_2970" />
           <span
             className="text-md font-bold text-primary"
-            data-icod-id="src_pages_landingpage_tsx_fae4">GridFlow</span>
+             data-icod-id="src_pages_landingpage_tsx_fae4">AD Smartsheet</span>
         </div>
         <div data-icod-id="landing_nav_action">
           {user ? (
@@ -72,14 +72,14 @@ export default function LandingPage() {
             <p
               className="mt-4 max-w-lg text-base text-muted-foreground"
               data-icod-id="landing_hero_description">
-              GridFlow combines the flexibility of spreadsheets with powerful project management tools. Plan, track, and deliver work — all in one place.
+               AD Smartsheet combines the flexibility of spreadsheets with powerful project management tools. Plan, track, and deliver work — all in one place.
             </p>
             <div className="mt-8" data-icod-id="landing_hero_cta">
               <Link
                 to="/login"
                 className={buttonClass({ variant: 'primary', size: 'lg' })}
                 data-icod-id="src_pages_landingpage_tsx_fa34">
-                Log in to GridFlow
+                 Log in to AD Smartsheet
               </Link>
             </div>
           </div>
@@ -199,14 +199,14 @@ export default function LandingPage() {
             Ready to get organized?
           </h2>
           <p className="mt-2 text-sm text-muted-foreground" data-icod-id="landing_cta_subtext">
-            Join teams who use GridFlow to ship faster and stay aligned.
+             Join teams who use AD Smartsheet to ship faster and stay aligned.
           </p>
           <div className="mt-6" data-icod-id="landing_cta_button">
             <Link
               to="/login"
               className={buttonClass({ variant: 'primary', size: 'lg' })}
               data-icod-id="src_pages_landingpage_tsx_13a6">
-              Log in to GridFlow
+                             Log in to AD Smartsheet
             </Link>
           </div>
         </div>
@@ -224,10 +224,10 @@ export default function LandingPage() {
               data-icod-id="src_pages_landingpage_tsx_005c" />
             <span
               className="text-sm font-bold text-primary"
-              data-icod-id="src_pages_landingpage_tsx_fffb">GridFlow</span>
+               data-icod-id="src_pages_landingpage_tsx_fffb">AD Smartsheet</span>
           </div>
           <p className="text-xs text-muted-foreground" data-icod-id="landing_footer_copy">
-            &copy; 2026 GridFlow. All rights reserved.
+             &copy; 2026 AD Smartsheet. All rights reserved.
           </p>
         </div>
       </footer>

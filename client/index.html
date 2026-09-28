@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>App</title>
+    <title>AD Smartsheet</title>
        <!-- Enhanced Error Monitor Script with Response Body -->
     <script>
       // Send message to parent
@@ -1400,6 +1400,15 @@
 </script>
   </head>
   <body>
+    <script>
+      // Apply saved accent color before React renders to prevent flash of default teal.
+      (function() {
+        var accents = ['teal','blue','indigo','purple','rose','orange'];
+        var stored = localStorage.getItem('ads_accent');
+        var accent = (stored && accents.indexOf(stored) !== -1) ? stored : 'teal';
+        document.documentElement.setAttribute('data-accent', accent);
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

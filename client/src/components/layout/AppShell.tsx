@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -67,6 +68,13 @@ export default function AppShell({ children }: AppShellProps) {
   }
 
   const userDropdownItems = [
+    {
+      label: 'Settings',
+      icon: <Settings
+        className="h-4 w-4"
+        data-icod-id="src_components_layout_appshell_tsx_e8f2" />,
+      onClick: () => navigate('/settings'),
+    },
     { type: 'divider' as const },
     {
       label: 'Log out',
@@ -108,11 +116,11 @@ export default function AppShell({ children }: AppShellProps) {
             <div
               className="flex w-full flex-col items-center gap-1"
               data-icod-id="src_components_layout_appshell_tsx_6aaf">
-              <Tooltip content="GridFlow" data-icod-id="src_components_layout_appshell_tsx_b053">
+              <Tooltip content="AD Smartsheet" data-icod-id="src_components_layout_appshell_tsx_b053">
                 <div
                   className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-primary text-sm font-bold text-primary-foreground"
                   data-icod-id="src_components_layout_appshell_tsx_e6ea">
-                  GF
+                  AD
                 </div>
               </Tooltip>
               <IconButton
@@ -133,11 +141,11 @@ export default function AppShell({ children }: AppShellProps) {
                 <div
                   className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-primary text-sm font-bold text-primary-foreground"
                   data-icod-id="src_components_layout_appshell_tsx_e5ea">
-                  GF
+                  AD
                 </div>
                 <span
                   className="text-sm font-semibold text-foreground"
-                  data-icod-id="src_components_layout_appshell_tsx_2cd4">GridFlow</span>
+                  data-icod-id="src_components_layout_appshell_tsx_2cd4">AD Smartsheet</span>
               </div>
               <IconButton
                 size="sm"
@@ -245,6 +253,20 @@ export default function AppShell({ children }: AppShellProps) {
         <div
           className="mt-auto px-2 pb-2"
           data-icod-id="src_components_layout_appshell_tsx_4dec">
+          {/* Settings nav item */}
+          <div
+            className="border-t border-border my-3 pt-2"
+            data-icod-id="src_components_layout_appshell_tsx_8396">
+            <SidebarNavItem
+              icon={<Settings
+                className="h-4 w-4"
+                data-icod-id="src_components_layout_appshell_tsx_2c36" />}
+              label="Settings"
+              active={location.pathname === '/settings'}
+              collapsed={collapsed}
+              to="/settings"
+              data-icod-id="src_components_layout_appshell_tsx_2379" />
+          </div>
           {/* Admin section — only visible to admins */}
           {user?.role === 'admin' && (
             <>

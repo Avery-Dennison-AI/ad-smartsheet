@@ -16,6 +16,7 @@ import workspaceSheetsRouter from './routes/workspaceSheets';
 import sheetsRouter from './routes/sheets';
 import userSheetsRouter from './routes/userSheets';
 import gridRouter from './routes/grid';
+import userPreferencesRouter from './routes/userPreferences';
 import { seedAdmin } from './config/seedAdmin';
 import { migrateWorkspaceColors, repairBrokenColumns, repairPrimaryColumnOrder } from './config/migrations';
 import { sendSuccess } from './utils/response';
@@ -73,6 +74,7 @@ app.use('/api/workspaces', workspaceSheetsRouter);
 app.use('/api/sheets', sheetsRouter);
 app.use('/api/sheets/:sheetId/grid', gridRouter);
 app.use('/api/user', userSheetsRouter);
+app.use('/api/user', userPreferencesRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use(errorHandler);

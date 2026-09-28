@@ -1,12 +1,15 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import apiClient from '../../services/apiClient';
 import { parseApiError } from '../../utils/parseApiError';
+import { applyAccent } from '../../utils/theme';
+import type { Accent } from '../../utils/theme';
 
 export interface AuthUser {
   id: string;
   fullName: string;
   email: string;
   role: string;
+  accentColor?: Accent;
 }
 
 interface AuthState {
@@ -81,6 +84,9 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         state.user = action.payload;
         state.initialized = true;
+        if (action.payload.accentColor) {
+          applyAccent(action.payload.accentColor);
+        }
       })
       .addCase(fetchMe.rejected, (state) => {
         state.status = 'failed';
@@ -94,6 +100,9 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.user = action.payload.user;
+        if (action.payload.user.accentColor) {
+          applyAccent(action.payload.user.accentColor);
+        }
       })
       .addCase(login.rejected, (state) => {
         state.status = 'failed';
@@ -105,10 +114,12 @@ const authSlice = createSlice({
       .addCase(logoutUser.fulfilled, (state) => {
         state.status = 'idle';
         state.user = null;
+        applyAccent('teal');
       })
       .addCase(logoutUser.rejected, (state) => {
         state.status = 'idle';
         state.user = null;
+        applyAccent('teal');
       });
   },
 });

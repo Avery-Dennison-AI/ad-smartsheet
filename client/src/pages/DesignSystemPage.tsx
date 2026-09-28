@@ -1095,7 +1095,7 @@ export default function DesignSystemPage() {
       <Section title="CopyField" data-icod-id="ds_copyfield_section">
         <div className="max-w-md" data-icod-id="ds_copyfield_wrap">
           <CopyField
-            value="https://app.gridflow.com/invite/abc123xyz"
+             value="https://app.adsmartsheet.com/invite/abc123xyz"
             label="Invitation link"
             data-icod-id="ds_copyfield_instance" />
         </div>
