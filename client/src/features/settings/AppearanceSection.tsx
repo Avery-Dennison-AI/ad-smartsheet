@@ -1,35 +1,49 @@
-import { useState } from 'react';
-import { SaveIndicator, useToast, ThemeOptionCard } from '@/components/ui';
+import { useState, useEffect } from 'react';
+import { Check } from 'lucide-react';
+import { ColorSwatchGroup } from '@/components/ui';
+import type { ColorSwatchOption } from '@/components/ui';
 import { ACCENTS, ACCENT_META, applyAccent, getStoredAccent, type Accent } from '@/utils/theme';
 import { updateUserPreferences } from '@/services/userService';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectCurrentUser, fetchMe } from '@/store/slices/authSlice';
 
+const swatchOptions: ColorSwatchOption[] = ACCENTS.map((accent) => ({
+  value: accent,
+  label: ACCENT_META[accent].label,
+  primaryColor: ACCENT_META[accent].color,
+}));
+
 /** Appearance settings section — accent color picker. */
 export default function AppearanceSection() {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectCurrentUser);
-  const { addToast } = useToast();
   const [currentAccent, setCurrentAccent] = useState<Accent>(getStoredAccent());
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
-  async function handleAccentChange(accent: Accent) {
+  // Fade out "Saved" indicator after 2 seconds
+  useEffect(() => {
+    if (saveStatus === 'saved') {
+      const timer = setTimeout(() => setSaveStatus('idle'), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [saveStatus]);
+
+  async function handleAccentChange(value: string) {
+    const accent = value as Accent;
     setCurrentAccent(accent);
     applyAccent(accent);
-    setSaveError(null);
 
     if (user) {
-      setSaving(true);
+      setSaveStatus('saving');
       try {
         await updateUserPreferences({ accentColor: accent });
         await dispatch(fetchMe());
-        setSaving(false);
-        addToast('success', 'Accent color updated');
+        setSaveStatus('saved');
       } catch {
-        setSaving(false);
-        setSaveError('Failed to save preference');
+        setSaveStatus('error');
       }
+    } else {
+      setSaveStatus('saved');
     }
   }
 
@@ -41,30 +55,28 @@ export default function AppearanceSection() {
       <p
         className="mt-1 text-sm text-muted-foreground"
         data-icod-id="appearance_desc">Choose your app's primary color.</p>
-
-      <div
-        className="grid grid-cols-3 sm:grid-cols-6 gap-3 mt-6"
-        data-icod-id="appearance_grid">
-        {ACCENTS.map((accent) => {
-          const meta = ACCENT_META[accent];
-          return (
-            <ThemeOptionCard
-              key={accent}
-              accent={accent}
-              label={meta.label}
-              primaryColor={meta.color}
-              selected={currentAccent === accent}
-              onSelect={() => handleAccentChange(accent)}
-              data-icod-id={`appearance_card_${accent}`} />
-          );
-        })}
+      <div className="mt-6" data-icod-id="appearance_swatch_group">
+        <ColorSwatchGroup
+          options={swatchOptions}
+          value={currentAccent}
+          onChange={handleAccentChange}
+          data-icod-id="appearance_swatches" />
       </div>
-
-      <div className="mt-4" data-icod-id="appearance_save_indicator">
-        <SaveIndicator
-          saving={saving}
-          error={saveError}
-          data-icod-id="appearance_save" />
+      {/* Inline save indicator */}
+      <div className="mt-3 h-5" data-icod-id="appearance_save_indicator">
+        {saveStatus === 'saving' && (
+          <span className="text-xs text-muted-foreground" data-icod-id="appearance_saving">Saving...</span>
+        )}
+        {saveStatus === 'saved' && (
+          <span className="flex items-center gap-1 text-xs text-success" data-icod-id="appearance_saved">
+            <Check
+              className="h-3 w-3"
+              data-icod-id="src_features_settings_appearancesection_tsx_9447" /> Saved
+          </span>
+        )}
+        {saveStatus === 'error' && (
+          <span className="text-xs text-destructive" data-icod-id="appearance_error">Failed to save preference</span>
+        )}
       </div>
     </div>
   );

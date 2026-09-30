@@ -78,8 +78,8 @@ export default function SidebarNavItem({
           'flex h-8 w-full items-center justify-center',
           baseClasses,
           active
-            ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-            : 'text-[var(--color-gray-600)] hover:bg-[var(--color-gray-100)] hover:text-foreground',
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
         )}
         data-icod-id="src_components_layout_sidebarnavitem_tsx_a1c8">
         {collapsedVisual}
@@ -114,8 +114,8 @@ export default function SidebarNavItem({
 
   // Expanded mode
   const activeStyle = active
-    ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium'
-    : 'text-[var(--color-gray-600)] hover:bg-[var(--color-gray-100)] hover:text-foreground';
+    ? 'bg-primary/10 text-primary font-medium'
+    : 'text-muted-foreground hover:bg-muted hover:text-foreground';
 
   const inner = (
     <span

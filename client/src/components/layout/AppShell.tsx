@@ -118,7 +118,7 @@ export default function AppShell({ children }: AppShellProps) {
               data-icod-id="src_components_layout_appshell_tsx_6aaf">
               <Tooltip content="AD Smartsheet" data-icod-id="src_components_layout_appshell_tsx_b053">
                 <span
-                  className="font-bold text-sm text-[var(--primary)]"
+                  className="font-bold text-sm text-primary"
                   data-icod-id="src_components_layout_appshell_tsx_e6ea">
                   AD
                 </span>

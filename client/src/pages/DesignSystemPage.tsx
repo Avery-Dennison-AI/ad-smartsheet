@@ -48,6 +48,7 @@ import {
   ColorSwatchPicker,
   ResizeHandle,
   ThemeOptionCard,
+  ColorSwatchGroup,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
@@ -1367,10 +1368,10 @@ export default function DesignSystemPage() {
       {/* ─── Settings Components ───────────────────────────────────────────── */}
       <Section title="Settings Components" data-icod-id="ds_settings_components_section">
         <div className="space-y-6" data-icod-id="ds_settings_components_wrap">
-          {/* ThemeOptionCard demo */}
-          <div data-icod-id="ds_themeoptioncard_demo">
-            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_themeoptioncard_label">ThemeOptionCard — accent color selection cards</span>
-            <ThemeOptionCardDemo data-icod-id="ds_themeoptioncard_instance" />
+          {/* ColorSwatchGroup demo */}
+          <div data-icod-id="ds_colorswatchgroup_demo">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_colorswatchgroup_label">ColorSwatchGroup — accent color selection swatches</span>
+            <ColorSwatchGroupDemo data-icod-id="ds_colorswatchgroup_instance" />
           </div>
           {/* SettingsLayout structure demo */}
           <div data-icod-id="ds_settingslayout_demo">
@@ -1984,24 +1985,20 @@ function PaletteTokenSwatches() {
   );
 }
 
-/* ─── ThemeOptionCard interactive demo ───────────────────────────────────── */
-function ThemeOptionCardDemo() {
-  const [selected, setSelected] = useState<Accent>('avery');
+/* ─── ColorSwatchGroup interactive demo ───────────────────────────────────── */
+const COLOR_SWATCH_OPTIONS = ACCENTS.map((accent) => ({
+  value: accent,
+  label: ACCENT_META[accent].label,
+  primaryColor: ACCENT_META[accent].color,
+}));
+
+function ColorSwatchGroupDemo() {
+  const [selected, setSelected] = useState<string>('avery');
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3" data-icod-id="ds_themeoptioncard_grid">
-      {ACCENTS.map((accent) => {
-        const meta = ACCENT_META[accent];
-        return (
-          <ThemeOptionCard
-            key={accent}
-            accent={accent}
-            label={meta.label}
-            primaryColor={meta.color}
-            selected={selected === accent}
-            onSelect={() => setSelected(accent)}
-            data-icod-id={`ds_themeoptioncard_${accent}`} />
-        );
-      })}
-    </div>
+    <ColorSwatchGroup
+      options={COLOR_SWATCH_OPTIONS}
+      value={selected}
+      onChange={setSelected}
+      data-icod-id="ds_colorswatchgroup_demo_instance" />
   );
 }

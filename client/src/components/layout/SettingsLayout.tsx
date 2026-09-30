@@ -27,16 +27,16 @@ export default function SettingsLayout({ navGroups, children, ...rest }: Setting
     <div className="flex h-full w-full overflow-hidden" {...rest} data-icod-id="settings_layout">
       {/* Left nav panel */}
       <nav
-        className="w-60 shrink-0 border-r border-[var(--border)] flex flex-col gap-1 p-4 overflow-y-auto"
+        className="w-60 shrink-0 border-r border-border flex flex-col gap-1 p-4 overflow-y-auto"
         data-icod-id="settings_layout_nav">
         <h2
-          className="text-sm font-semibold text-[var(--text)] mb-2"
+          className="text-sm font-semibold text-foreground mb-2"
           data-icod-id="settings_layout_title">Settings</h2>
         {navGroups.map((group, gi) => (
           <div key={gi} data-icod-id={`settings_layout_group_${gi}`}>
             {group.groupLabel && (
               <span
-                className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-1 mt-3 first:mt-0 block px-2"
+                className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1 mt-3 first:mt-0 block px-2"
                 data-icod-id={`settings_layout_grouplabel_${gi}`}>
                 {group.groupLabel}
               </span>
@@ -80,8 +80,8 @@ function SettingsNavLink({ label, to }: SettingsNavLinkProps) {
         'flex items-center rounded-[var(--radius-md)] px-2 py-2 text-sm transition-colors duration-150',
         focusRingClasses,
         active
-          ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)] font-medium'
-          : 'text-[var(--color-gray-600)] hover:bg-[var(--color-gray-100)] hover:text-foreground',
+          ? 'bg-primary/10 text-primary font-medium'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
       data-icod-id="settings_nav_link">
       <span className="truncate" data-icod-id="settings_nav_label">{label}</span>
