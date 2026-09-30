@@ -14,7 +14,7 @@ export default function PageContainer({ children, className, fullWidth = false }
     <div
       className={cn(
         'w-full px-6 py-6 md:px-8 md:py-8',
-        !fullWidth && 'mx-auto max-w-[1440px]',
+        !fullWidth && 'max-w-[1440px]',
         className,
       )}
       data-icod-id="src_components_ui_pagecontainer_tsx_8bc5">

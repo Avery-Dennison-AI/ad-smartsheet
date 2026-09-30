@@ -11,6 +11,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  PanelLeftOpen,
   Settings,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
@@ -72,7 +73,7 @@ export default function AppShell({ children }: AppShellProps) {
       icon: <Settings
         className="h-4 w-4"
         data-icod-id="src_components_layout_appshell_tsx_e8f2" />,
-      onClick: () => navigate('/settings'),
+      onClick: () => navigate('/settings/appearance'),
     },
     { type: 'divider' as const },
     {
@@ -113,21 +114,21 @@ export default function AppShell({ children }: AppShellProps) {
           data-icod-id="src_components_layout_appshell_tsx_bc76">
           {collapsed ? (
             <div
-              className="flex w-full flex-col items-center gap-1"
+              className="flex flex-col items-center gap-1 px-2 pt-3 pb-2"
               data-icod-id="src_components_layout_appshell_tsx_6aaf">
               <Tooltip content="AD Smartsheet" data-icod-id="src_components_layout_appshell_tsx_b053">
-                <div
-                  className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-primary text-sm font-bold text-primary-foreground"
+                <span
+                  className="font-bold text-sm text-[var(--primary)]"
                   data-icod-id="src_components_layout_appshell_tsx_e6ea">
                   AD
-                </div>
+                </span>
               </Tooltip>
               <IconButton
                 size="sm"
                 tooltip="Expand sidebar"
                 onClick={() => dispatch(toggleSidebar())}
                 data-icod-id="src_components_layout_appshell_tsx_a462">
-                <ChevronRight
+                <PanelLeftOpen
                   className="h-4 w-4"
                   data-icod-id="src_components_layout_appshell_tsx_7469" />
               </IconButton>
@@ -258,12 +259,12 @@ export default function AppShell({ children }: AppShellProps) {
             data-icod-id="src_components_layout_appshell_tsx_8396">
             <SidebarNavItem
               icon={<Settings
-                className="h-4 w-4"
+                className="h-5 w-5"
                 data-icod-id="src_components_layout_appshell_tsx_2c36" />}
               label="Settings"
-              active={location.pathname === '/settings'}
+              active={location.pathname.startsWith('/settings')}
               collapsed={collapsed}
-              to="/settings"
+              to="/settings/appearance"
               data-icod-id="src_components_layout_appshell_tsx_2379" />
           </div>
         </div>

@@ -53,3 +53,4 @@ export { default as ToggleButton, type ToggleButtonProps } from './ToggleButton'
 export { Toolbar, ToolbarGroup, type ToolbarProps, type ToolbarGroupProps } from './Toolbar';
 export { default as ColorSwatchPicker, type ColorSwatchPickerProps } from './ColorSwatchPicker';
 export { default as ResizeHandle } from './ResizeHandle';
+export { default as ThemeOptionCard, type ThemeOptionCardProps } from './ThemeOptionCard';

@@ -88,8 +88,10 @@ function AppRoutes() {
       <Route path="/design-system" element={<ProtectedRoute data-icod-id="src_app_tsx_22ed"><AppShell data-icod-id="src_app_tsx_5e50"><DesignSystemPage data-icod-id="src_app_tsx_0ba9" /></AppShell></ProtectedRoute>} />
       <Route path="/workspaces/:id" element={<ProtectedRoute data-icod-id="src_app_tsx_157a"><AppShell data-icod-id="src_app_tsx_66f4"><WorkspacePage data-icod-id="src_app_tsx_e7d0" /></AppShell></ProtectedRoute>} />
       <Route path="/sheets/:sheetId" element={<ProtectedRoute data-icod-id="src_app_tsx_4746"><AppShell data-icod-id="src_app_tsx_b0b1"><SheetPage data-icod-id="src_app_tsx_1376" /></AppShell></ProtectedRoute>} />
-      <Route path="/admin/users" element={<Navigate to="/settings?section=users" replace />} />
-      <Route path="/settings" element={<ProtectedRoute data-icod-id="src_app_tsx_1e13"><AppShell data-icod-id="src_app_tsx_e9f2"><SettingsPage data-icod-id="src_app_tsx_9f17" /></AppShell></ProtectedRoute>} />
+      <Route path="/admin/users" element={<Navigate to="/settings/users" replace />} />
+      <Route path="/settings" element={<Navigate to="/settings/appearance" replace />} />
+      <Route path="/settings/appearance" element={<ProtectedRoute data-icod-id="src_app_tsx_1e13"><AppShell data-icod-id="src_app_tsx_e9f2"><SettingsPage section="appearance" data-icod-id="src_app_tsx_9f17" /></AppShell></ProtectedRoute>} />
+      <Route path="/settings/users" element={<AdminOnlyRoute data-icod-id="src_app_tsx_c097"><ProtectedRoute data-icod-id="src_app_tsx_settings_users_protected"><AppShell data-icod-id="src_app_tsx_settings_users_shell"><SettingsPage section="users" data-icod-id="src_app_tsx_settings_users_page" /></AppShell></ProtectedRoute></AdminOnlyRoute>} />
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

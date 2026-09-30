@@ -98,8 +98,18 @@ export default function UsersTab() {
       ),
     },
     {
+      key: 'email',
+      header: 'Email',
+      className: 'max-w-[260px]',
+      noWrap: true,
+      cell: (user) => (
+        <span className="text-muted-foreground" data-icod-id={`admin_users_email_col_${user.id}`}>{user.email}</span>
+      ),
+    },
+    {
       key: 'role',
       header: 'Role',
+      noWrap: true,
       cell: (user) => (
         <Badge variant={roleBadgeVariant(user.role)} data-icod-id={`admin_users_role_${user.id}`}>{capitalize(user.role)}</Badge>
       ),
@@ -107,6 +117,7 @@ export default function UsersTab() {
     {
       key: 'status',
       header: 'Status',
+      noWrap: true,
       cell: (user) => (
         <Badge
           variant={user.isActive ? 'status-green' : 'status-gray'}
@@ -118,6 +129,7 @@ export default function UsersTab() {
     {
       key: 'lastLogin',
       header: 'Last login',
+      noWrap: true,
       cell: (user) => (
         <span className="text-muted-foreground" data-icod-id={`admin_users_login_${user.id}`}>
           {formatRelativeTime(user.lastLoginAt)}
@@ -128,6 +140,7 @@ export default function UsersTab() {
       key: 'actions',
       header: '',
       align: 'right',
+      noWrap: true,
       cell: (user) => {
         if (isCurrentUser(user)) return null;
         return (

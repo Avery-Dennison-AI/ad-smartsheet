@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import Skeleton from './Skeleton';
 import EmptyState from './EmptyState';
+import Tooltip from './Tooltip';
 
 export interface DataTableColumn<T> {
   key: string;
@@ -10,6 +11,10 @@ export interface DataTableColumn<T> {
   cell: (row: T) => ReactNode;
   width?: string;
   align?: 'left' | 'center' | 'right';
+  /** Additional CSS classes applied to the <td> element. */
+  className?: string;
+  /** When true, truncates cell content with ellipsis and shows full value in a Tooltip. */
+  noWrap?: boolean;
 }
 
 export interface DataTableProps<T> {
@@ -148,20 +153,36 @@ export default function DataTable<T>({
                 {columns.map((col, colIdx) => {
                   const cellContent = col.cell(row);
                   const isPrimary = colIdx === primaryColIndex && !!href;
+                  const rendered = isPrimary ? (
+                    <Link
+                      to={href!}
+                      className="text-primary hover:underline"
+                      data-icod-id={`src_components_ui_datatable_tsx_e9c8_${__icodIdx0}_${col.key}`}>
+                      {cellContent}
+                    </Link>
+                  ) : (
+                    cellContent
+                  );
                   return (
                     <td
                       key={col.key}
-                      className={cn('px-4 py-3', alignClass[col.align || 'left'])}
+                      className={cn(
+                        'px-4 py-3',
+                        alignClass[col.align || 'left'],
+                        col.className,
+                        col.noWrap && 'max-w-0 truncate whitespace-nowrap overflow-hidden',
+                      )}
                       data-icod-id={`src_components_ui_datatable_tsx_td_${rowKey(row)}_${col.key}`}>
-                      {isPrimary ? (
-                        <Link
-                          to={href!}
-                          className="text-primary hover:underline"
-                          data-icod-id={`src_components_ui_datatable_tsx_e9c8_${__icodIdx0}_${col.key}`}>
-                          {cellContent}
-                        </Link>
+                      {col.noWrap ? (
+                        <Tooltip
+                          content={String(cellContent)}
+                          data-icod-id={`src_components_ui_datatable_tsx_aa59_${__icodIdx0}_${col.key}`}>
+                          <span
+                            className="block truncate"
+                            data-icod-id={`src_components_ui_datatable_tsx_8478_${__icodIdx0}_${col.key}`}>{rendered}</span>
+                        </Tooltip>
                       ) : (
-                        cellContent
+                        rendered
                       )}
                     </td>
                   );

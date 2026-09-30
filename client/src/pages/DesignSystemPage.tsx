@@ -47,13 +47,18 @@ import {
   ToolbarGroup,
   ColorSwatchPicker,
   ResizeHandle,
+  ThemeOptionCard,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import type { RoleValue } from '@/components/ui/RoleMenu';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
+import SettingsLayout from '@/components/layout/SettingsLayout';
+import type { SettingsNavGroup } from '@/components/layout/SettingsLayout';
 import ColumnPropertiesModal from '@/features/sheets/grid/ColumnPropertiesModal';
 import type { DropdownOption } from '@/types';
+import { ACCENTS, ACCENT_META } from '@/utils/theme';
+import type { Accent } from '@/utils/theme';
 
 /* ─── Section wrapper ─────────────────────────────────────────────────────── */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -1359,6 +1364,34 @@ export default function DesignSystemPage() {
           </div>
         </div>
       </Section>
+      {/* ─── Settings Components ───────────────────────────────────────────── */}
+      <Section title="Settings Components" data-icod-id="ds_settings_components_section">
+        <div className="space-y-6" data-icod-id="ds_settings_components_wrap">
+          {/* ThemeOptionCard demo */}
+          <div data-icod-id="ds_themeoptioncard_demo">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_themeoptioncard_label">ThemeOptionCard — accent color selection cards</span>
+            <ThemeOptionCardDemo data-icod-id="ds_themeoptioncard_instance" />
+          </div>
+          {/* SettingsLayout structure demo */}
+          <div data-icod-id="ds_settingslayout_demo">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_settingslayout_label">SettingsLayout — two-panel settings shell (static demo)</span>
+            <div
+              className="h-64 overflow-hidden rounded-[var(--radius-lg)] border border-border"
+              data-icod-id="ds_settingslayout_container">
+              <SettingsLayout
+                navGroups={[
+                  { groupLabel: 'Preferences', items: [{ label: 'Appearance', route: '#' }] },
+                  { groupLabel: 'Administration', items: [{ label: 'Users', route: '#' }] },
+                ] as SettingsNavGroup[]}
+                data-icod-id="ds_settingslayout_instance">
+                <div className="text-sm text-muted-foreground" data-icod-id="ds_settingslayout_content">
+                  Content area renders here.
+                </div>
+              </SettingsLayout>
+            </div>
+          </div>
+        </div>
+      </Section>
     </div>
   );
 }
@@ -1947,6 +1980,28 @@ function PaletteTokenSwatches() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ─── ThemeOptionCard interactive demo ───────────────────────────────────── */
+function ThemeOptionCardDemo() {
+  const [selected, setSelected] = useState<Accent>('avery');
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3" data-icod-id="ds_themeoptioncard_grid">
+      {ACCENTS.map((accent) => {
+        const meta = ACCENT_META[accent];
+        return (
+          <ThemeOptionCard
+            key={accent}
+            accent={accent}
+            label={meta.label}
+            primaryColor={meta.color}
+            selected={selected === accent}
+            onSelect={() => setSelected(accent)}
+            data-icod-id={`ds_themeoptioncard_${accent}`} />
+        );
+      })}
     </div>
   );
 }

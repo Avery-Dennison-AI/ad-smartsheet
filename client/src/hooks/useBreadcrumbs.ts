@@ -52,6 +52,14 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
     return [{ label: 'Settings', to: '/settings' }, { label: 'Users' }];
   }
 
+  if (pathname === '/settings/appearance') {
+    return [{ label: 'Settings', to: '/settings' }, { label: 'Appearance' }];
+  }
+
+  if (pathname === '/settings/users') {
+    return [{ label: 'Settings', to: '/settings' }, { label: 'Users' }];
+  }
+
   if (pathname === '/settings') {
     return [{ label: 'Settings' }];
   }
