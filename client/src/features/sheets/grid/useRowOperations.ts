@@ -6,9 +6,12 @@ import {
   deleteRows,
   reorderRows,
   resizeRows,
+  indentSelectedRows,
+  outdentSelectedRows,
   selectGridRows,
 } from '@/store/slices/gridSlice';
 import { getRowHeight, DEFAULT_ROW_HEIGHT } from './gridHelpers';
+import { getDescendantIds, canIndent as canIndentRow, canOutdent as canOutdentRow } from './hierarchyHelpers';
 
 const MIN_ROW_HEIGHT = 34;
 const MAX_ROW_HEIGHT = 400;
@@ -28,8 +31,12 @@ interface UseRowOperationsResult {
   handleAddRow: (afterRowId?: string) => void;
   handleInsertRowAbove: (rowId: string) => void;
   handleInsertRowBelow: (rowId: string) => void;
-  handleDeleteRows: (rowIds: string[]) => void;
-  confirmDeleteRows: (selectedRowIndices: Set<number>, selectionClearFn: () => void, selectionSelectRowFn: (idx: number, opts: { shift: boolean; meta: boolean }) => void) => void;
+  handleDeleteRows: (rowIds: string[], includeDescendants?: boolean) => void;
+  confirmDeleteRows: (selectedRowIndices: Set<number>, selectionClearFn: () => void, selectionSelectRowFn: (idx: number, opts: { shift: boolean; meta: boolean }) => void, includeDescendants?: boolean) => void;
+  indentRows: (rowIds: string[]) => void;
+  outdentRows: (rowIds: string[]) => void;
+  canIndentSelection: (rowIds: string[]) => boolean;
+  canOutdentSelection: (rowIds: string[]) => boolean;
   handleRowDragStart: (rowIdx: number) => void;
   handleRowDrop: (targetRowIdx: number) => void;
   handleRowResizeStart: (e: React.MouseEvent, rowIndex: number, selectedRowIndices: Set<number>) => void;
@@ -68,9 +75,9 @@ export function useRowOperations(
   );
 
   const handleDeleteRows = useCallback(
-    (rowIds: string[]) => {
+    (rowIds: string[], includeDescendants = false) => {
       if (rowIds.length > 0) {
-        dispatch(deleteRows({ sheetId, rowIds }));
+        dispatch(deleteRows({ sheetId, rowIds, includeDescendants }));
       }
     },
     [sheetId, dispatch],
@@ -81,9 +88,10 @@ export function useRowOperations(
       selectedRowIndices: Set<number>,
       selectionClearFn: () => void,
       selectionSelectRowFn: (idx: number, opts: { shift: boolean; meta: boolean }) => void,
+      includeDescendants = false,
     ) => {
       if (pendingDeleteRowIds && pendingDeleteRowIds.length > 0) {
-        dispatch(deleteRows({ sheetId, rowIds: pendingDeleteRowIds }));
+        dispatch(deleteRows({ sheetId, rowIds: pendingDeleteRowIds, includeDescendants }));
         const maxDeletedIdx = Math.max(
           ...pendingDeleteRowIds.map((id) => rows.findIndex((r) => r.id === id)),
         );
@@ -100,6 +108,38 @@ export function useRowOperations(
     [sheetId, pendingDeleteRowIds, rows, dispatch],
   );
 
+  const indentRowsHandler = useCallback(
+    (rowIds: string[]) => {
+      if (rowIds.length > 0) {
+        dispatch(indentSelectedRows({ sheetId, rowIds }));
+      }
+    },
+    [sheetId, dispatch],
+  );
+
+  const outdentRowsHandler = useCallback(
+    (rowIds: string[]) => {
+      if (rowIds.length > 0) {
+        dispatch(outdentSelectedRows({ sheetId, rowIds }));
+      }
+    },
+    [sheetId, dispatch],
+  );
+
+  const canIndentSelection = useCallback(
+    (rowIds: string[]): boolean => {
+      return rowIds.some((id) => canIndentRow(rows, id));
+    },
+    [rows],
+  );
+
+  const canOutdentSelection = useCallback(
+    (rowIds: string[]): boolean => {
+      return rowIds.some((id) => canOutdentRow(rows, id));
+    },
+    [rows],
+  );
+
   const handleRowDragStart = useCallback((rowIdx: number) => {
     setDragRowIndex(rowIdx);
   }, []);
@@ -110,9 +150,27 @@ export function useRowOperations(
         const ids = rows.map((r) => r.id);
         if (dragRowIndex < ids.length && targetRowIdx < ids.length) {
           const draggedId = ids[dragRowIndex];
-          ids.splice(dragRowIndex, 1);
-          ids.splice(targetRowIdx, 0, draggedId);
-          dispatch(reorderRows({ sheetId, orderedIds: ids }));
+          // Get descendants to drag as a group
+          const descendantIds = getDescendantIds(rows, draggedId);
+          const groupIds = [draggedId, ...descendantIds];
+
+          // Remove all group IDs from their current positions
+          const newIds = ids.filter((id) => !groupIds.includes(id));
+
+          // Calculate insert position
+          let insertIdx = targetRowIdx;
+          if (dragRowIndex < targetRowIdx) {
+            // Adjust for removed items before target
+            const removedBefore = groupIds.filter((gid) => {
+              const gidIdx = ids.indexOf(gid);
+              return gidIdx < targetRowIdx;
+            }).length;
+            insertIdx = targetRowIdx - removedBefore;
+          }
+
+          // Insert group at new position
+          newIds.splice(insertIdx, 0, ...groupIds);
+          dispatch(reorderRows({ sheetId, orderedIds: newIds }));
         }
       }
       setDragRowIndex(null);
@@ -204,6 +262,10 @@ export function useRowOperations(
     handleInsertRowBelow,
     handleDeleteRows,
     confirmDeleteRows,
+    indentRows: indentRowsHandler,
+    outdentRows: outdentRowsHandler,
+    canIndentSelection,
+    canOutdentSelection,
     handleRowDragStart,
     handleRowDrop,
     handleRowResizeStart,

@@ -40,12 +40,20 @@ export function updateCell(sheetId: string, rowId: string, columnId: string, val
   return apiClient.patch(`/api/sheets/${sheetId}/grid/rows/${rowId}/cells/${columnId}`, { value });
 }
 
-export function deleteRows(sheetId: string, rowIds: string[]) {
-  return apiClient.delete(`/api/sheets/${sheetId}/grid/rows`, { data: { rowIds } });
+export function deleteRows(sheetId: string, rowIds: string[], includeDescendants = false) {
+  return apiClient.delete(`/api/sheets/${sheetId}/grid/rows`, { data: { rowIds, includeDescendants } });
 }
 
 export function reorderRows(sheetId: string, orderedIds: string[]) {
   return apiClient.patch(`/api/sheets/${sheetId}/grid/rows/reorder`, { orderedIds });
+}
+
+export function indentRows(sheetId: string, rowIds: string[]) {
+  return apiClient.patch(`/api/sheets/${sheetId}/grid/rows/indent`, { rowIds });
+}
+
+export function outdentRows(sheetId: string, rowIds: string[]) {
+  return apiClient.patch(`/api/sheets/${sheetId}/grid/rows/outdent`, { rowIds });
 }
 
 export function updateFormatting(

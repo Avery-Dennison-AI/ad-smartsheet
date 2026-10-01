@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { GripVertical, MoreHorizontal } from 'lucide-react';
+import { GripVertical, MoreHorizontal, ChevronRight, ChevronDown } from 'lucide-react';
 import { DropdownMenu, IconButton, ResizeHandle } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
@@ -26,6 +26,16 @@ interface GridRowNumCellProps {
   onRowResizeStart?: (e: React.MouseEvent, rowIndex: number) => void;
   onRowResizeDoubleClick?: (rowIndex: number) => void;
   onRowContextMenu?: (rowIndex: number, x: number, y: number) => void;
+  /** Hierarchy props */
+  canIndent?: boolean;
+  canOutdent?: boolean;
+  onIndent?: (rowId: string) => void;
+  onOutdent?: (rowId: string) => void;
+  hasChildren?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: (rowId: string) => void;
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
 }
 
 export default function GridRowNumCell({
@@ -44,6 +54,15 @@ export default function GridRowNumCell({
   onRowResizeStart,
   onRowResizeDoubleClick,
   onRowContextMenu,
+  canIndent,
+  canOutdent,
+  onIndent,
+  onOutdent,
+  hasChildren,
+  isCollapsed,
+  onToggleCollapse,
+  onExpandAll,
+  onCollapseAll,
 }: GridRowNumCellProps) {
   const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
   const isData = !!rowId;
@@ -55,12 +74,23 @@ export default function GridRowNumCell({
       { label: 'Insert row above', onClick: () => onInsertAbove(rowId!) },
       { label: 'Insert row below', onClick: () => onInsertBelow(rowId!) },
       { type: 'divider' },
+      { label: 'Indent', onClick: canIndent ? () => onIndent?.(rowId!) : undefined },
+      { label: 'Outdent', onClick: canOutdent ? () => onOutdent?.(rowId!) : undefined },
+      { type: 'divider' },
       {
         label: 'Delete row',
         danger: true,
         onClick: () => onRequestDeleteRows([rowId!]),
       },
     );
+
+    if (hasChildren) {
+      menuItems.push(
+        { type: 'divider' },
+        { label: 'Expand all', onClick: () => onExpandAll?.() },
+        { label: 'Collapse all', onClick: () => onCollapseAll?.() },
+      );
+    }
   }
 
   const handleClick = useCallback((e: React.MouseEvent) => {

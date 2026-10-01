@@ -42,6 +42,11 @@ interface GridCellProps {
   isColSelected?: boolean;
   onContextMenu?: (rowIndex: number, x: number, y: number) => void;
   rowIndex?: number;
+  /** Hierarchy props */
+  depth?: number;
+  hasChildren?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export default function GridCell({
@@ -49,6 +54,7 @@ export default function GridCell({
   workspaceMembers, onCommit, onStartEdit, onStopEdit, onAddDropdownOption,
   onCellClick, isPrimary, isScrolled, isRowHovered, isRowSelected,
   isColSelected, onContextMenu, rowIndex,
+  depth, hasChildren, isCollapsed, onToggleCollapse,
 }: GridCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -106,7 +112,16 @@ export default function GridCell({
 
   const renderDisplay = () => {
     switch (column.type) {
-      case 'text': return <TextCellDisplay value={value} data-icod-id="src_features_sheets_grid_gridcell_tsx_4216" />;
+      case 'text': return (
+        <TextCellDisplay
+          value={value}
+          isPrimary={isPrimary}
+          depth={depth}
+          hasChildren={hasChildren}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggleCollapse}
+          data-icod-id="src_features_sheets_grid_gridcell_tsx_4216" />
+      );
       case 'number': return <NumberCellDisplay value={value} data-icod-id="src_features_sheets_grid_gridcell_tsx_9cef" />;
       case 'date': return <DateCellDisplay value={value} data-icod-id="src_features_sheets_grid_gridcell_tsx_eace" />;
       case 'dropdown': return (
@@ -123,7 +138,16 @@ export default function GridCell({
           workspaceMembers={workspaceMembers}
           data-icod-id="src_features_sheets_grid_gridcell_tsx_6944" />
       );
-      default: return <TextCellDisplay value={value} data-icod-id="src_features_sheets_grid_gridcell_tsx_c9ed" />;
+      default: return (
+        <TextCellDisplay
+          value={value}
+          isPrimary={isPrimary}
+          depth={depth}
+          hasChildren={hasChildren}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggleCollapse}
+          data-icod-id="src_features_sheets_grid_gridcell_tsx_c9ed" />
+      );
     }
   };
 

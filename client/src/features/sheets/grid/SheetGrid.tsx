@@ -19,6 +19,8 @@ import { useGridVirtualization } from './useGridVirtualization';
 import { useWrapRowHeights } from './useWrapRowHeights';
 import { useColumnOperations, defaultColumnPropertiesState } from './useColumnOperations';
 import { useRowOperations } from './useRowOperations';
+import { useRowCollapse } from './useRowCollapse';
+import { getVisibleRows, getAllParentIds, getDescendantIds } from './hierarchyHelpers';
 import GridHeaderRow from './GridHeaderRow';
 import GridBody from './GridBody';
 import GridDialogs from './GridDialogs';
@@ -45,6 +47,25 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
 
   const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
 
+  // ─── Row collapse state ──────────────────────────────────────────────
+  const { collapsedIds, toggleCollapse, expandAll, collapseAll } = useRowCollapse(sheetId);
+
+  // ─── Hierarchy computations ──────────────────────────────────────────
+  const visibleRows = useMemo(
+    () => getVisibleRows(rows, collapsedIds),
+    [rows, collapsedIds],
+  );
+
+  const parentIds = useMemo(() => new Set(getAllParentIds(rows)), [rows]);
+
+  const rowNumberMap = useMemo(() => {
+    const map = new Map<string, number>();
+    rows.forEach((row, idx) => {
+      map.set(row.id, idx + 1);
+    });
+    return map;
+  }, [rows]);
+
   // Load grid on mount
   useEffect(() => {
     dispatch(fetchGrid(sheetId));
@@ -54,6 +75,16 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
 
   const colOps = useColumnOperations(sheetId);
   const rowOps = useRowOperations(sheetId);
+
+  // Descendant count for delete confirmation dialog
+  const pendingDeleteDescendantCount = useMemo(() => {
+    if (!rowOps.pendingDeleteRowIds) return 0;
+    let count = 0;
+    for (const id of rowOps.pendingDeleteRowIds) {
+      count += getDescendantIds(rows, id).length;
+    }
+    return count;
+  }, [rowOps.pendingDeleteRowIds, rows]);
 
   // ─── Column widths (needed before virtualization for wrap height calc) ──
 
@@ -77,7 +108,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   });
 
   const virtualization = useGridVirtualization({
-    rows,
+    rows: visibleRows,
     blankRowCount: MIN_BLANK_ROWS,
     defaultRowHeight: DEFAULT_ROW_HEIGHT,
     effectiveRowHeights: wrapRowHeights,
@@ -89,7 +120,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     colCount: columns.length,
     onClearCells: (positions) => {
       for (const pos of positions) {
-        const row = rows[pos.rowIdx];
+        const row = visibleRows[pos.rowIdx];
         if (row) {
           const col = columns[pos.colIdx];
           if (col) {
@@ -114,23 +145,23 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   // Derive activeCell and selectedCells for FormattingToolbar
   const fmtActiveCell = useMemo(() => {
     if (!selection.activeCell) return null;
-    const row = rows[selection.activeCell.rowIdx];
+    const row = visibleRows[selection.activeCell.rowIdx];
     const col = columns[selection.activeCell.colIdx];
     if (!row || !col) return null;
     return { rowId: row.id, columnId: col.id };
-  }, [selection.activeCell, rows, columns]);
+  }, [selection.activeCell, visibleRows, columns]);
 
   const fmtSelectedCells = useMemo(() => {
     const cells = selection.getSelectedCells();
     return cells
       .map((pos) => {
-        const row = rows[pos.rowIdx];
+        const row = visibleRows[pos.rowIdx];
         const col = columns[pos.colIdx];
         if (!row || !col) return null;
         return { rowId: row.id, columnId: col.id };
       })
       .filter(Boolean) as Array<{ rowId: string; columnId: string }>;
-  }, [selection, rows, columns]);
+  }, [selection, visibleRows, columns]);
 
   // ─── Live row heights during resize ─────────────────────────────────────
 
@@ -149,7 +180,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
 
   const handleCellCommit = useCallback(
     (rowId: string, columnId: string, value: unknown) => {
-      const row = rows.find((r) => r.id === rowId);
+      const row = visibleRows.find((r) => r.id === rowId);
       const prevValue = row?.cells[columnId] ?? null;
       dispatch(optimisticUpdateCell({ rowId, columnId, value }));
       dispatch(updateCell({ sheetId, rowId, columnId, value }))
@@ -158,7 +189,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
           dispatch(rollbackCell({ rowId, columnId, previousValue: prevValue }));
         });
     },
-    [sheetId, rows, dispatch],
+    [sheetId, visibleRows, dispatch],
   );
 
   const handleBlankRowCommit = useCallback(
@@ -175,11 +206,11 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
 
   const handleRowContextMenu = useCallback(
     (rowIndex: number, x: number, y: number) => {
-      const row = rows[rowIndex];
+      const row = visibleRows[rowIndex];
       if (!row || !canEdit) return;
       setContextMenuPos({ x, y, rowIndex });
     },
-    [rows, canEdit],
+    [visibleRows, canEdit],
   );
 
   // Close context menu on outside click / scroll
@@ -204,17 +235,47 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         e.preventDefault();
         const rowIds: string[] = [];
         for (const idx of selection.selectedRowIndices) {
-          const row = rows[idx];
+          const row = visibleRows[idx];
           if (row) rowIds.push(row.id);
         }
         if (rowIds.length > 0) {
           rowOps.setPendingDeleteRowIds(rowIds);
         }
       }
+      // Ctrl/Cmd+] → indent
+      if (e.key === ']' && (e.ctrlKey || e.metaKey)) {
+        if (!canEdit) return;
+        if (!virtualization.scrollNodeRef.current?.contains(document.activeElement as Node)) return;
+        if (selection.selectedRowIndices.size === 0) return;
+        e.preventDefault();
+        const rowIds: string[] = [];
+        for (const idx of selection.selectedRowIndices) {
+          const row = visibleRows[idx];
+          if (row) rowIds.push(row.id);
+        }
+        if (rowIds.length > 0) {
+          rowOps.indentRows(rowIds);
+        }
+      }
+      // Ctrl/Cmd+[ → outdent
+      if (e.key === '[' && (e.ctrlKey || e.metaKey)) {
+        if (!canEdit) return;
+        if (!virtualization.scrollNodeRef.current?.contains(document.activeElement as Node)) return;
+        if (selection.selectedRowIndices.size === 0) return;
+        e.preventDefault();
+        const rowIds: string[] = [];
+        for (const idx of selection.selectedRowIndices) {
+          const row = visibleRows[idx];
+          if (row) rowIds.push(row.id);
+        }
+        if (rowIds.length > 0) {
+          rowOps.outdentRows(rowIds);
+        }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selection.selectedRowIndices, rows, virtualization.scrollNodeRef, rowOps]);
+  }, [selection.selectedRowIndices, visibleRows, virtualization.scrollNodeRef, rowOps, canEdit]);
 
   // Row resize start wrapper that passes selectedRowIndices
   const handleRowResizeStartWrapper = useCallback(
@@ -225,11 +286,12 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   );
 
   // Confirm delete rows wrapper
-  const handleConfirmDeleteRows = useCallback(() => {
+  const handleConfirmDeleteRows = useCallback((includeDescendants?: boolean) => {
     rowOps.confirmDeleteRows(
       selection.selectedRowIndices,
       selection.clearRowColumnSelection,
       selection.selectRow,
+      includeDescendants,
     );
   }, [rowOps, selection]);
 
@@ -256,8 +318,24 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         selectedRows={selection.selectedRowIndices}
         selectedColumns={selection.selectedColIndices}
         columns={columns}
-        rows={rows}
+        rows={visibleRows}
         onReturnFocus={() => virtualization.scrollNodeRef.current?.focus()}
+        onIndentRows={() => {
+          const rowIds: string[] = [];
+          for (const idx of selection.selectedRowIndices) {
+            const row = visibleRows[idx];
+            if (row) rowIds.push(row.id);
+          }
+          if (rowIds.length > 0) rowOps.indentRows(rowIds);
+        }}
+        onOutdentRows={() => {
+          const rowIds: string[] = [];
+          for (const idx of selection.selectedRowIndices) {
+            const row = visibleRows[idx];
+            if (row) rowIds.push(row.id);
+          }
+          if (rowIds.length > 0) rowOps.outdentRows(rowIds);
+        }}
         data-icod-id="src_features_sheets_grid_sheetgrid_tsx_fb36" />
       {/* Scrollable grid container */}
       <div
@@ -302,7 +380,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
             data-icod-id="src_features_sheets_grid_sheetgrid_tsx_5930" />
           <GridBody
             visibleRows={virtualization.visibleRows}
-            rows={rows}
+            rows={visibleRows}
             columns={columns}
             liveColumnWidths={liveColumnWidths}
             rowPositions={virtualization.rowPositions}
@@ -334,6 +412,14 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
             onRowResizeDoubleClick={rowOps.handleRowResizeDoubleClick}
             onRowContextMenu={handleRowContextMenu}
             onAddDropdownOption={colOps.handleAddDropdownOption}
+            collapsedIds={collapsedIds}
+            parentIds={parentIds}
+            onToggleCollapse={toggleCollapse}
+            onIndentRow={(rowId) => rowOps.indentRows([rowId])}
+            onOutdentRow={(rowId) => rowOps.outdentRows([rowId])}
+            onExpandAll={expandAll}
+            onCollapseAll={() => collapseAll(getAllParentIds(rows))}
+            rowNumberMap={rowNumberMap}
             scrollNodeRef={virtualization.scrollNodeRef}
             rowResizeDrag={rowOps.rowResizeDrag}
             totalHeight={virtualization.rowPositions.total}
@@ -351,10 +437,11 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         pendingDeleteRowIds={rowOps.pendingDeleteRowIds}
         onCloseDeleteRows={() => rowOps.setPendingDeleteRowIds(null)}
         onConfirmDeleteRows={handleConfirmDeleteRows}
+        descendantCount={pendingDeleteDescendantCount}
         data-icod-id="src_features_sheets_grid_sheetgrid_tsx_16d2" />
       {/* Floating context menu for right-click on rows */}
       {contextMenuPos && (() => {
-        const ctxRow = rows[contextMenuPos.rowIndex];
+        const ctxRow = visibleRows[contextMenuPos.rowIndex];
         if (!ctxRow) return null;
 
         const ctxItems: DropdownMenuItem[] = [];
@@ -363,6 +450,9 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
             { label: 'Insert row above', onClick: () => rowOps.handleInsertRowAbove(ctxRow.id) },
             { label: 'Insert row below', onClick: () => rowOps.handleInsertRowBelow(ctxRow.id) },
             { type: 'divider' },
+            { label: 'Indent', onClick: () => rowOps.indentRows([ctxRow.id]) },
+            { label: 'Outdent', onClick: () => rowOps.outdentRows([ctxRow.id]) },
+            { type: 'divider' },
             {
               label: `Delete ${selection.selectedRowIndices.size > 1 ? `${selection.selectedRowIndices.size} rows` : 'row'}`,
               danger: true,
@@ -370,7 +460,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
                 const ids: string[] = [];
                 if (selection.selectedRowIndices.size > 1) {
                   for (const idx of selection.selectedRowIndices) {
-                    const r = rows[idx];
+                    const r = visibleRows[idx];
                     if (r) ids.push(r.id);
                   }
                 } else {

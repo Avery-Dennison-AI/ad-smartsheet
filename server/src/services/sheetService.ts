@@ -231,17 +231,46 @@ export async function duplicateSheet(sheetId: string, userId: string) {
     columns: sheet.columns || [],
   });
 
-  // Copy all rows from the original sheet
+  // Copy all rows from the original sheet, preserving hierarchy
   const sourceRows = await Row.find({ sheetId: sheet._id }).sort({ order: 1 });
   if (sourceRows.length > 0) {
-    const newRows = sourceRows.map((r) => ({
-      sheetId: newSheet._id,
-      order: r.order,
-      cells: r.cells || {},
-      formatting: r.formatting instanceof Map ? Object.fromEntries(r.formatting) : (r.toObject().formatting || {}),
-      height: r.height ?? undefined,
-    }));
-    await Row.insertMany(newRows);
+    // First pass: create new rows and build old→new ID mapping
+    const idMap = new Map<string, mongoose.Types.ObjectId>();
+    const newRows: Array<{
+      sheetId: mongoose.Types.ObjectId;
+      order: number;
+      cells: Record<string, unknown>;
+      formatting: Record<string, unknown>;
+      height?: number;
+      parentId: mongoose.Types.ObjectId | null;
+      depth: number;
+    }> = [];
+
+    for (const r of sourceRows) {
+      const newId = new mongoose.Types.ObjectId();
+      idMap.set(r._id.toString(), newId);
+      newRows.push({
+        _id: newId,
+        sheetId: newSheet._id,
+        order: r.order,
+        cells: r.cells || {},
+        formatting: r.formatting instanceof Map ? Object.fromEntries(r.formatting) : (r.toObject().formatting || {}),
+        height: r.height ?? undefined,
+        parentId: r.parentId ? (idMap.get(r.parentId.toString()) ?? r.parentId) : null,
+        depth: r.depth ?? 0,
+      } as any);
+    }
+
+    // Fix up parentId references to use new IDs
+    for (let i = 0; i < newRows.length; i++) {
+      const srcRow = sourceRows[i];
+      if (srcRow.parentId) {
+        const newParentId = idMap.get(srcRow.parentId.toString());
+        (newRows[i] as any).parentId = newParentId ?? null;
+      }
+    }
+
+    await Row.insertMany(newRows as any[]);
   }
 
   const populated = await Sheet.findById(newSheet._id).populate('createdBy', CREATED_BY_POPULATE);

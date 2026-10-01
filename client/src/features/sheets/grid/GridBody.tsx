@@ -47,6 +47,15 @@ interface GridBodyProps {
   scrollNodeRef: React.MutableRefObject<HTMLDivElement | null>;
   rowResizeDrag: { rowIds: string[]; currentDelta: number; startHeights: Record<string, number> } | null;
   totalHeight: number;
+  /** Hierarchy props */
+  collapsedIds?: Set<string>;
+  parentIds?: Set<string>;
+  onToggleCollapse?: (rowId: string) => void;
+  onIndentRow?: (rowId: string) => void;
+  onOutdentRow?: (rowId: string) => void;
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
+  rowNumberMap?: Map<string, number>;
 }
 
 export default function GridBody({
@@ -86,6 +95,14 @@ export default function GridBody({
   scrollNodeRef,
   rowResizeDrag,
   totalHeight,
+  collapsedIds,
+  parentIds,
+  onToggleCollapse,
+  onIndentRow,
+  onOutdentRow,
+  onExpandAll,
+  onCollapseAll,
+  rowNumberMap,
 }: GridBodyProps) {
   return (
     <div
@@ -129,6 +146,14 @@ export default function GridBody({
           onRowContextMenu={onRowContextMenu}
           onAddDropdownOption={onAddDropdownOption}
           scrollNodeRef={scrollNodeRef}
+          collapsedIds={collapsedIds}
+          parentIds={parentIds}
+          onToggleCollapse={onToggleCollapse}
+          onIndentRow={onIndentRow}
+          onOutdentRow={onOutdentRow}
+          onExpandAll={onExpandAll}
+          onCollapseAll={onCollapseAll}
+          rowNumberMap={rowNumberMap}
           data-icod-id={`src_features_sheets_grid_gridbody_tsx_4447_${rowIdx}`} />
       ))}
 

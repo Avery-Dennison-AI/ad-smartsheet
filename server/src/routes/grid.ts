@@ -133,6 +133,28 @@ router.patch(
   gridController.reorderRows,
 );
 
+// PATCH /api/sheets/:sheetId/grid/rows/indent — indent rows
+// MUST be registered BEFORE /rows/:rowId
+router.patch(
+  '/rows/indent',
+  validate([
+    mongoId('sheetId'),
+    body('rowIds').isArray({ min: 1 }).withMessage('rowIds must be a non-empty array'),
+  ]),
+  gridController.indentRows,
+);
+
+// PATCH /api/sheets/:sheetId/grid/rows/outdent — outdent rows
+// MUST be registered BEFORE /rows/:rowId
+router.patch(
+  '/rows/outdent',
+  validate([
+    mongoId('sheetId'),
+    body('rowIds').isArray({ min: 1 }).withMessage('rowIds must be a non-empty array'),
+  ]),
+  gridController.outdentRows,
+);
+
 // PATCH /api/sheets/:sheetId/grid/rows/heights — resize rows in bulk
 // MUST be registered BEFORE /rows/:rowId to avoid "heights" being treated as a rowId
 router.patch(

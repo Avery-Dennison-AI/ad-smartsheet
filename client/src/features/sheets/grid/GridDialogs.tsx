@@ -1,4 +1,4 @@
-import { ConfirmDialog } from '@/components/ui';
+import { ConfirmDialog, Modal, Button } from '@/components/ui';
 import ColumnPropertiesModal, { type ColumnPropertiesModalProps } from './ColumnPropertiesModal';
 import type { ColumnType, DropdownOption } from '@/types';
 
@@ -22,7 +22,9 @@ interface GridDialogsProps {
   onConfirmDeleteColumn: () => void;
   pendingDeleteRowIds: string[] | null;
   onCloseDeleteRows: () => void;
-  onConfirmDeleteRows: () => void;
+  onConfirmDeleteRows: (includeDescendants?: boolean) => void;
+  /** Number of descendants across all pending-delete rows */
+  descendantCount?: number;
 }
 
 export default function GridDialogs({
@@ -35,7 +37,10 @@ export default function GridDialogs({
   pendingDeleteRowIds,
   onCloseDeleteRows,
   onConfirmDeleteRows,
+  descendantCount = 0,
 }: GridDialogsProps) {
+  const hasDescendants = descendantCount > 0;
+
   return (
     <>
       <ColumnPropertiesModal
@@ -56,14 +61,54 @@ export default function GridDialogs({
         confirmLabel="Delete"
         onConfirm={onConfirmDeleteColumn}
         data-icod-id="src_features_sheets_grid_griddialogs_tsx_a743" />
-      <ConfirmDialog
-        open={pendingDeleteRowIds !== null}
-        onClose={onCloseDeleteRows}
-        title={`Delete ${pendingDeleteRowIds?.length ?? 0} row${(pendingDeleteRowIds?.length ?? 0) !== 1 ? 's' : ''}?`}
-        description="This can't be undone."
-        confirmLabel="Delete"
-        onConfirm={onConfirmDeleteRows}
-        data-icod-id="src_features_sheets_grid_griddialogs_tsx_54db" />
+      {hasDescendants ? (
+        <Modal
+          open={pendingDeleteRowIds !== null}
+          onClose={onCloseDeleteRows}
+          title="Delete rows?"
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onCloseDeleteRows}
+                data-icod-id="src_features_sheets_grid_griddialogs_tsx_cancel">
+                Cancel
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => { onConfirmDeleteRows(false); onCloseDeleteRows(); }}
+                data-icod-id="src_features_sheets_grid_griddialogs_tsx_keep_children">
+                Keep child rows
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => { onConfirmDeleteRows(true); onCloseDeleteRows(); }}
+                data-icod-id="src_features_sheets_grid_griddialogs_tsx_delete_all">
+                Delete row{pendingDeleteRowIds?.length !== 1 ? 's' : ''} and {descendantCount} child row{descendantCount !== 1 ? 's' : ''}
+              </Button>
+            </>
+          }
+          className="max-w-sm"
+          data-icod-id="src_features_sheets_grid_griddialogs_tsx_hierarchical">
+          <p
+            className="text-muted-foreground"
+            data-icod-id="src_features_sheets_grid_griddialogs_tsx_hier_desc">
+            This row has {descendantCount} child row{descendantCount !== 1 ? 's' : ''}. What would you like to do?
+          </p>
+        </Modal>
+      ) : (
+        <ConfirmDialog
+          open={pendingDeleteRowIds !== null}
+          onClose={onCloseDeleteRows}
+          title={`Delete ${pendingDeleteRowIds?.length ?? 0} row${(pendingDeleteRowIds?.length ?? 0) !== 1 ? 's' : ''}?`}
+          description="This can't be undone."
+          confirmLabel="Delete"
+          onConfirm={() => onConfirmDeleteRows(false)}
+          data-icod-id="src_features_sheets_grid_griddialogs_tsx_54db" />
+      )}
     </>
   );
 }

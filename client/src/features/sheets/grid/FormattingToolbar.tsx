@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Toolbar, ToolbarGroup } from '@/components/ui';
 import { useSelectionFormatting } from './toolbar/useSelectionFormatting';
 import FontGroup from './toolbar/FontGroup';
@@ -7,6 +7,8 @@ import ColorGroup from './toolbar/ColorGroup';
 import AlignmentGroup from './toolbar/AlignmentGroup';
 import WrapTextButton from './toolbar/WrapTextButton';
 import ClearFormattingButton from './toolbar/ClearFormattingButton';
+import HierarchyGroup from './toolbar/HierarchyGroup';
+import { canIndent as canIndentRow, canOutdent as canOutdentRow } from './hierarchyHelpers';
 import type { CellFormatting, Column, GridRow, WorkspaceRole } from '@/types';
 
 interface FormattingToolbarProps {
@@ -20,6 +22,9 @@ interface FormattingToolbarProps {
   rows: GridRow[];
   /** Called after a formatting action to return focus to the grid container. */
   onReturnFocus?: () => void;
+  /** Hierarchy callbacks */
+  onIndentRows?: () => void;
+  onOutdentRows?: () => void;
 }
 
 export default function FormattingToolbar({
@@ -32,6 +37,8 @@ export default function FormattingToolbar({
   columns,
   rows,
   onReturnFocus,
+  onIndentRows,
+  onOutdentRows,
 }: FormattingToolbarProps) {
   const { aggregated, isViewer, applyFormatPatch, toggleProp } = useSelectionFormatting({
     sheetId,
@@ -61,6 +68,26 @@ export default function FormattingToolbar({
     };
     applyFormatPatch(clearPatch);
   }, [applyFormatPatch]);
+
+  // Compute whether selected rows can be indented/outdented
+  const selectedRowIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const idx of selectedRows) {
+      const row = rows[idx];
+      if (row) ids.push(row.id);
+    }
+    return ids;
+  }, [selectedRows, rows]);
+
+  const hierarchyCanIndent = useMemo(
+    () => selectedRowIds.some((id) => canIndentRow(rows, id)),
+    [selectedRowIds, rows],
+  );
+
+  const hierarchyCanOutdent = useMemo(
+    () => selectedRowIds.some((id) => canOutdentRow(rows, id)),
+    [selectedRowIds, rows],
+  );
 
   return (
     <Toolbar
@@ -97,6 +124,15 @@ export default function FormattingToolbar({
           onToggle={() => toggleProp('wrapText')}
           disabled={isViewer}
           data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_f9ed" />
+      </ToolbarGroup>
+      <ToolbarGroup data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_hierarchy">
+        <HierarchyGroup
+          canIndent={hierarchyCanIndent}
+          canOutdent={hierarchyCanOutdent}
+          onIndent={() => { onIndentRows?.(); onReturnFocus?.(); }}
+          onOutdent={() => { onOutdentRows?.(); onReturnFocus?.(); }}
+          disabled={isViewer}
+          data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_b8cc" />
       </ToolbarGroup>
       <ToolbarGroup data-icod-id="src_features_sheets_grid_formattingtoolbar_tsx_8c9e">
         <ClearFormattingButton

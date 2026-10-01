@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MoreHorizontal, ExternalLink, Pencil, Copy, Trash2 } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Pencil, Copy, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { DropdownMenu, ConfirmDialog, IconButton } from '@/components/ui';
 import type { WorkspaceRole } from '@/types';
 import { useAppDispatch } from '@/store/hooks';
@@ -13,9 +13,11 @@ interface SheetActionsMenuProps {
   sheetDescription?: string;
   userRole: WorkspaceRole;
   hideOpen?: boolean;
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
 }
 
-export default function SheetActionsMenu({ sheetId, sheetName, sheetDescription, userRole, hideOpen = false }: SheetActionsMenuProps) {
+export default function SheetActionsMenu({ sheetId, sheetName, sheetDescription, userRole, hideOpen = false, onExpandAll, onCollapseAll }: SheetActionsMenuProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [renameOpen, setRenameOpen] = useState(false);
@@ -69,6 +71,25 @@ export default function SheetActionsMenu({ sheetId, sheetName, sheetDescription,
         data-icod-id="src_features_sheets_components_sheetactionsmenu_tsx_4648" />,
       onClick: handleDuplicate,
     });
+    if (onExpandAll && onCollapseAll) {
+      items.push(
+        { type: 'divider' as const },
+        {
+          label: 'Expand all rows',
+          icon: <ChevronDown
+            className="h-4 w-4"
+            data-icod-id="src_features_sheets_components_sheetactionsmenu_tsx_expand" />,
+          onClick: onExpandAll,
+        },
+        {
+          label: 'Collapse all rows',
+          icon: <ChevronRight
+            className="h-4 w-4"
+            data-icod-id="src_features_sheets_components_sheetactionsmenu_tsx_collapse" />,
+          onClick: onCollapseAll,
+        },
+      );
+    }
   }
 
   if (canDelete) {

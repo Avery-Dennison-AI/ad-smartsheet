@@ -11,6 +11,8 @@ interface SheetToolbarProps {
   onToggleFavorite: () => void;
   saving: boolean;
   saveError: string | null;
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
 }
 
 export default function SheetToolbar({
@@ -22,6 +24,8 @@ export default function SheetToolbar({
   onToggleFavorite,
   saving,
   saveError,
+  onExpandAll,
+  onCollapseAll,
 }: SheetToolbarProps) {
   return (
     <div
@@ -62,6 +66,8 @@ export default function SheetToolbar({
           sheetDescription={description}
           userRole={userRole}
           hideOpen
+          onExpandAll={onExpandAll}
+          onCollapseAll={onCollapseAll}
           data-icod-id="src_features_sheets_grid_sheettoolbar_tsx_actions" />
       </div>
     </div>

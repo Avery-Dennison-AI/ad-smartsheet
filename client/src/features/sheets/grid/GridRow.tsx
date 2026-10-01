@@ -46,6 +46,15 @@ interface GridRowProps {
   onRowContextMenu: (rowIndex: number, x: number, y: number) => void;
   onAddDropdownOption?: (columnId: string, label: string) => void;
   scrollNodeRef: React.MutableRefObject<HTMLDivElement | null>;
+  /** Hierarchy props */
+  collapsedIds?: Set<string>;
+  parentIds?: Set<string>;
+  onToggleCollapse?: (rowId: string) => void;
+  onIndentRow?: (rowId: string) => void;
+  onOutdentRow?: (rowId: string) => void;
+  onExpandAll?: () => void;
+  onCollapseAll?: () => void;
+  rowNumberMap?: Map<string, number>;
 }
 
 export default function GridRow({
@@ -83,6 +92,14 @@ export default function GridRow({
   onRowContextMenu,
   onAddDropdownOption,
   scrollNodeRef,
+  collapsedIds,
+  parentIds,
+  onToggleCollapse,
+  onIndentRow,
+  onOutdentRow,
+  onExpandAll,
+  onCollapseAll,
+  rowNumberMap,
 }: GridRowProps) {
   const isBlankRow = !row;
   const rowH = liveRowHeights && row && liveRowHeights[row.id] !== undefined
@@ -92,6 +109,13 @@ export default function GridRow({
       : getRowHeight(row);
   const top = rowPositions.tops[rowIdx];
   const isRowHovered = hoveredRowIndex === rowIdx;
+
+  // Hierarchy metadata for this row
+  const rowDepth = row?.depth ?? 0;
+  const rowParentId = row?.parentId ?? null;
+  const rowIsCollapsed = row ? collapsedIds?.has(row.id) ?? false : false;
+  const visibleRowNumber = row ? rowNumberMap?.get(row.id) : undefined;
+  const rowHasChildren = row ? parentIds?.has(row.id) ?? false : false;
 
   return (
     <div
@@ -107,7 +131,7 @@ export default function GridRow({
         style={{ width: 'var(--grid-row-num-width)', zIndex: 'calc(var(--z-grid-sticky) + 10)' }}
         data-icod-id="src_features_sheets_grid_gridrow_tsx_e176">
         <GridRowNumCell
-          rowNumber={rowIdx + 1}
+          rowNumber={visibleRowNumber ?? (rowIdx + 1)}
           rowIndex={rowIdx}
           rowId={row?.id}
           userRole={userRole}
@@ -122,6 +146,15 @@ export default function GridRow({
           onRowResizeStart={onRowResizeStart}
           onRowResizeDoubleClick={onRowResizeDoubleClick}
           onRowContextMenu={!isBlankRow ? onRowContextMenu : undefined}
+          canIndent={!!row && rowDepth < 10}
+          canOutdent={!!rowParentId}
+          onIndent={!isBlankRow ? onIndentRow : undefined}
+          onOutdent={!isBlankRow ? onOutdentRow : undefined}
+          hasChildren={rowHasChildren}
+          isCollapsed={rowIsCollapsed}
+          onToggleCollapse={!isBlankRow ? onToggleCollapse : undefined}
+          onExpandAll={onExpandAll}
+          onCollapseAll={onCollapseAll}
           data-icod-id="src_features_sheets_grid_gridrow_tsx_994c" />
       </div>
       {/* Data cells */}
@@ -174,6 +207,10 @@ export default function GridRow({
               isColSelected={isColSelected(colIdx)}
               onContextMenu={!isBlankRow ? onRowContextMenu : undefined}
               rowIndex={rowIdx}
+              depth={col.isPrimary ? rowDepth : undefined}
+              hasChildren={col.isPrimary ? rowHasChildren : undefined}
+              isCollapsed={col.isPrimary ? rowIsCollapsed : undefined}
+              onToggleCollapse={col.isPrimary && !isBlankRow && row?.id ? () => onToggleCollapse?.(row.id) : undefined}
               data-icod-id={`src_features_sheets_grid_gridrow_tsx_4e48_${col.id}`} />
           </div>
         );

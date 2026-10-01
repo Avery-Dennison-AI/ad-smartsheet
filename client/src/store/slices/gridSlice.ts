@@ -3,6 +3,7 @@ import * as gridService from '../../services/gridService';
 import { parseApiError } from '../../utils/parseApiError';
 import type { Column, GridRow, CellFormatting } from '../../types';
 import type { RootState } from '../store';
+import { getVisibleRows } from '../../features/sheets/grid/hierarchyHelpers';
 
 interface GridMember {
   id: string;
@@ -162,6 +163,7 @@ export const updateCell = createAsyncThunk(
 );
 
 // deleteRows thunk is defined after the slice so it can reference optimisticDeleteRows/rollbackDeleteRows
+// indentSelectedRows and outdentSelectedRows are also defined after the slice
 
 export const reorderRows = createAsyncThunk(
   'grid/reorderRows',
@@ -362,6 +364,16 @@ const gridSlice = createSlice({
         state.rows.splice(insertIdx, 0, entry.row);
       }
     },
+    optimisticIndentOutdent(
+      state,
+      action: PayloadAction<{ rowId: string; parentId: string | null; depth: number }>,
+    ) {
+      const row = state.rows.find((r) => r.id === action.payload.rowId);
+      if (row) {
+        row.parentId = action.payload.parentId;
+        row.depth = action.payload.depth;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -489,6 +501,24 @@ const gridSlice = createSlice({
         state.saving = false;
         state.saveError = (action.payload as string) || 'Failed to reorder rows';
       })
+      // indentSelectedRows
+      .addCase(indentSelectedRows.pending, (state) => { state.saving = true; state.saveError = null; })
+      .addCase(indentSelectedRows.fulfilled, (state) => {
+        state.saving = false;
+      })
+      .addCase(indentSelectedRows.rejected, (state, action) => {
+        state.saving = false;
+        state.saveError = (action.payload as string) || 'Failed to indent rows';
+      })
+      // outdentSelectedRows
+      .addCase(outdentSelectedRows.pending, (state) => { state.saving = true; state.saveError = null; })
+      .addCase(outdentSelectedRows.fulfilled, (state) => {
+        state.saving = false;
+      })
+      .addCase(outdentSelectedRows.rejected, (state, action) => {
+        state.saving = false;
+        state.saveError = (action.payload as string) || 'Failed to outdent rows';
+      })
       // applyFormatting
       .addCase(applyFormatting.pending, (state) => { state.saving = true; state.saveError = null; })
       .addCase(applyFormatting.fulfilled, (state) => {
@@ -521,13 +551,13 @@ const gridSlice = createSlice({
   },
 });
 
-export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting, optimisticApplyColumnFormatting, rollbackColumnFormatting, clearCellFormattingOverrides, optimisticResizeColumn, rollbackColumnWidth, optimisticResizeRows, rollbackRowHeights, optimisticDeleteRows, rollbackDeleteRows } = gridSlice.actions;
+export const { clearGrid, optimisticUpdateCell, rollbackCell, clearSaveError, optimisticApplyFormatting, rollbackFormatting, optimisticApplyColumnFormatting, rollbackColumnFormatting, clearCellFormattingOverrides, optimisticResizeColumn, rollbackColumnWidth, optimisticResizeRows, rollbackRowHeights, optimisticDeleteRows, rollbackDeleteRows, optimisticIndentOutdent } = gridSlice.actions;
 
 // ─── Thunk: deleteRows (optimistic with rollback, defined after slice) ──
 
 export const deleteRows = createAsyncThunk(
   'grid/deleteRows',
-  async ({ sheetId, rowIds }: { sheetId: string; rowIds: string[] }, { getState, dispatch, rejectWithValue }) => {
+  async ({ sheetId, rowIds, includeDescendants }: { sheetId: string; rowIds: string[]; includeDescendants?: boolean }, { getState, dispatch, rejectWithValue }) => {
     // Optimistic: remove rows immediately, save them for rollback
     const state = getState() as RootState;
     const removedRows: Array<{ row: GridRow; index: number }> = [];
@@ -542,11 +572,101 @@ export const deleteRows = createAsyncThunk(
     dispatch(optimisticDeleteRows(rowIds));
 
     try {
-      await gridService.deleteRows(sheetId, rowIds);
+      await gridService.deleteRows(sheetId, rowIds, !!includeDescendants);
       return rowIds;
     } catch (err: unknown) {
       // Rollback: re-insert removed rows at their original positions
       dispatch(rollbackDeleteRows(removedRows.map((r) => ({ row: r.row, index: r.index }))));
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
+
+// ─── Thunk: indentSelectedRows (optimistic with rollback) ──────────────────
+
+export const indentSelectedRows = createAsyncThunk(
+  'grid/indentRows',
+  async ({ sheetId, rowIds }: { sheetId: string; rowIds: string[] }, { getState, dispatch, rejectWithValue }) => {
+    const state = getState() as RootState;
+    const rows = state.grid.rows;
+
+    const optimisticUpdates: Array<{ rowId: string; prevParentId: string | null; prevDepth: number; newParentId: string | null; newDepth: number }> = [];
+
+    for (const rowId of rowIds) {
+      const idx = rows.findIndex((r) => r.id === rowId);
+      if (idx <= 0) continue;
+      const aboveRow = rows[idx - 1];
+      const currentRow = rows[idx];
+      const aboveDepth = aboveRow.depth ?? 0;
+      const currentDepth = currentRow.depth ?? 0;
+      if (aboveDepth < currentDepth) continue;
+      const newDepth = aboveDepth + 1;
+      if (newDepth > 10) continue;
+
+      optimisticUpdates.push({
+        rowId,
+        prevParentId: currentRow.parentId,
+        prevDepth: currentDepth,
+        newParentId: aboveRow.id,
+        newDepth,
+      });
+    }
+
+    for (const u of optimisticUpdates) {
+      dispatch(optimisticIndentOutdent({ rowId: u.rowId, parentId: u.newParentId, depth: u.newDepth }));
+    }
+
+    try {
+      const res = await gridService.indentRows(sheetId, rowIds);
+      return res.data.data as { updated: number; rows: Record<string, { parentId: string | null; depth: number }> };
+    } catch (err: unknown) {
+      for (const u of optimisticUpdates) {
+        dispatch(optimisticIndentOutdent({ rowId: u.rowId, parentId: u.prevParentId, depth: u.prevDepth }));
+      }
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
+
+// ─── Thunk: outdentSelectedRows (optimistic with rollback) ─────────────────
+
+export const outdentSelectedRows = createAsyncThunk(
+  'grid/outdentRows',
+  async ({ sheetId, rowIds }: { sheetId: string; rowIds: string[] }, { getState, dispatch, rejectWithValue }) => {
+    const state = getState() as RootState;
+    const rows = state.grid.rows;
+    const rowMap = new Map(rows.map((r) => [r.id, r]));
+
+    const optimisticUpdates: Array<{ rowId: string; prevParentId: string | null; prevDepth: number; newParentId: string | null; newDepth: number }> = [];
+
+    for (const rowId of rowIds) {
+      const row = rowMap.get(rowId);
+      if (!row || !row.parentId) continue;
+
+      const parentRow = rowMap.get(row.parentId);
+      const grandparentId = parentRow?.parentId ?? null;
+      const newDepth = Math.max(0, (row.depth ?? 0) - 1);
+
+      optimisticUpdates.push({
+        rowId,
+        prevParentId: row.parentId,
+        prevDepth: row.depth ?? 0,
+        newParentId: grandparentId,
+        newDepth,
+      });
+    }
+
+    for (const u of optimisticUpdates) {
+      dispatch(optimisticIndentOutdent({ rowId: u.rowId, parentId: u.newParentId, depth: u.newDepth }));
+    }
+
+    try {
+      const res = await gridService.outdentRows(sheetId, rowIds);
+      return res.data.data as { updated: number; rows: Record<string, { parentId: string | null; depth: number }> };
+    } catch (err: unknown) {
+      for (const u of optimisticUpdates) {
+        dispatch(optimisticIndentOutdent({ rowId: u.rowId, parentId: u.prevParentId, depth: u.prevDepth }));
+      }
       return rejectWithValue(parseApiError(err).message);
     }
   },
@@ -702,6 +822,11 @@ export function selectCellFormatting(state: RootState, rowId: string, columnId: 
 export function selectColumnFormatting(state: RootState, columnId: string): CellFormatting {
   const col = state.grid.columns.find((c) => c.id === columnId);
   return col?.formatting ?? EMPTY_FORMATTING;
+}
+
+/** Returns visible rows filtered by collapsed IDs. */
+export function selectVisibleRows(state: RootState, collapsedIds: Set<string>): GridRow[] {
+  return getVisibleRows(state.grid.rows, collapsedIds);
 }
 
 export default gridSlice.reducer;

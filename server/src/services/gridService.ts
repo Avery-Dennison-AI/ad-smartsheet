@@ -8,7 +8,7 @@ import { getSheetWithAccess, serializeColumn, formatRow } from './gridShared';
 
 // Re-export sub-services for backward-compatible imports
 export { addColumn, updateColumn, deleteColumn, reorderColumns, setPrimaryColumn, updateColumnWidth } from './columnService';
-export { addRow, updateCell, deleteRows, reorderRows, updateRowHeights } from './rowService';
+export { addRow, updateCell, deleteRows, reorderRows, updateRowHeights, indentRows, outdentRows } from './rowService';
 export { updateFormatting, updateColumnFormatting } from './formattingService';
 
 // ─── Default columns ───────────────────────────────────────────────────────

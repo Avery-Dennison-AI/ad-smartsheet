@@ -134,6 +134,8 @@ export interface GridRow {
   cells: Record<string, string | number | boolean | null>;
   formatting?: Record<string, CellFormatting>;
   height?: number;
+  parentId: string | null;
+  depth: number;
   createdAt?: string;
   updatedAt?: string;
 }

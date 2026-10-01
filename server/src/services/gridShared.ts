@@ -113,6 +113,8 @@ export function formatRow(row: IRow) {
     cells: obj.cells || {},
     formatting: row.formatting instanceof Map ? Object.fromEntries(row.formatting) : (obj.formatting || {}),
     height: row.height ?? undefined,
+    parentId: row.parentId ? row.parentId.toString() : null,
+    depth: row.depth ?? 0,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

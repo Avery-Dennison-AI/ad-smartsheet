@@ -64,8 +64,8 @@ export const updateCell = asyncHandler(async (req: Request, res: Response) => {
 
 /** DELETE /api/sheets/:sheetId/grid/rows */
 export const deleteRows = asyncHandler(async (req: Request, res: Response) => {
-  const { rowIds } = req.body;
-  const result = await gridService.deleteRows(req.params.sheetId, req.user!.id, rowIds);
+  const { rowIds, includeDescendants } = req.body;
+  const result = await gridService.deleteRows(req.params.sheetId, req.user!.id, rowIds, !!includeDescendants);
   sendSuccess(res, result);
 });
 
@@ -101,5 +101,19 @@ export const patchColumnWidth = asyncHandler(async (req: Request, res: Response)
 export const patchRowHeights = asyncHandler(async (req: Request, res: Response) => {
   const { heights } = req.body;
   const result = await gridService.updateRowHeights(req.params.sheetId, req.user!.id, heights);
+  sendSuccess(res, result);
+});
+
+/** PATCH /api/sheets/:sheetId/grid/rows/indent */
+export const indentRows = asyncHandler(async (req: Request, res: Response) => {
+  const { rowIds } = req.body;
+  const result = await gridService.indentRows(req.params.sheetId, req.user!.id, rowIds);
+  sendSuccess(res, result);
+});
+
+/** PATCH /api/sheets/:sheetId/grid/rows/outdent */
+export const outdentRows = asyncHandler(async (req: Request, res: Response) => {
+  const { rowIds } = req.body;
+  const result = await gridService.outdentRows(req.params.sheetId, req.user!.id, rowIds);
   sendSuccess(res, result);
 });
