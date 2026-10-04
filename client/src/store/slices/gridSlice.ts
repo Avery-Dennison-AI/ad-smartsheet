@@ -523,8 +523,11 @@ const gridSlice = createSlice({
       })
       // indentSelectedRows
       .addCase(indentSelectedRows.pending, (state) => { state.saving = true; state.saveError = null; })
-      .addCase(indentSelectedRows.fulfilled, (state) => {
+      .addCase(indentSelectedRows.fulfilled, (state, action) => {
         state.saving = false;
+        if (action.payload.rows) {
+          state.rows = action.payload.rows;
+        }
       })
       .addCase(indentSelectedRows.rejected, (state, action) => {
         state.saving = false;
@@ -532,8 +535,11 @@ const gridSlice = createSlice({
       })
       // outdentSelectedRows
       .addCase(outdentSelectedRows.pending, (state) => { state.saving = true; state.saveError = null; })
-      .addCase(outdentSelectedRows.fulfilled, (state) => {
+      .addCase(outdentSelectedRows.fulfilled, (state, action) => {
         state.saving = false;
+        if (action.payload.rows) {
+          state.rows = action.payload.rows;
+        }
       })
       .addCase(outdentSelectedRows.rejected, (state, action) => {
         state.saving = false;
@@ -639,7 +645,8 @@ export const indentSelectedRows = createAsyncThunk(
 
     try {
       const res = await gridService.indentRows(sheetId, rowIds);
-      return res.data.data as { updated: number; rows: Record<string, { parentId: string | null; depth: number }> };
+      const payload = res.data.data as { updated: number; rows: GridRow[] };
+      return { rows: payload.rows };
     } catch (err: unknown) {
       for (const u of optimisticUpdates) {
         dispatch(optimisticIndentOutdent({ rowId: u.rowId, parentId: u.prevParentId, depth: u.prevDepth }));
@@ -683,7 +690,8 @@ export const outdentSelectedRows = createAsyncThunk(
 
     try {
       const res = await gridService.outdentRows(sheetId, rowIds);
-      return res.data.data as { updated: number; rows: Record<string, { parentId: string | null; depth: number }> };
+      const payload = res.data.data as { updated: number; rows: GridRow[] };
+      return { rows: payload.rows };
     } catch (err: unknown) {
       for (const u of optimisticUpdates) {
         dispatch(optimisticIndentOutdent({ rowId: u.rowId, parentId: u.prevParentId, depth: u.prevDepth }));

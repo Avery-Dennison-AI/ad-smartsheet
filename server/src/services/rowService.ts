@@ -1,9 +1,63 @@
 import mongoose from 'mongoose';
-import Sheet from '../models/Sheet';
 import Row, { type IRow } from '../models/Row';
 import Workspace from '../models/Workspace';
 import { getSheetWithAccess, validateCellValue, formatRow } from './gridShared';
 import { AppError } from '../utils/AppError';
+import {
+  type HierarchyRow,
+  insertRow as pureInsertRow,
+  indentRows as pureIndentRows,
+  outdentRows as pureOutdentRows,
+  moveRows as pureMoveRows,
+  deleteRows as pureDeleteRows,
+  validateHierarchy,
+} from './hierarchy';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+/** Load all rows for a sheet as sorted HierarchyRow[]. */
+async function loadHierarchyRows(sheetId: string): Promise<HierarchyRow[]> {
+  const sheetObjId = new mongoose.Types.ObjectId(sheetId);
+  const rows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
+  return rows.map((r) => ({
+    id: r._id.toString(),
+    order: r.order,
+    parentId: r.parentId ? r.parentId.toString() : null,
+    depth: r.depth ?? 0,
+  }));
+}
+
+/** Bulk-write order, parentId, and depth changes computed by the pure functions. */
+async function bulkWriteHierarchy(
+  sheetId: string,
+  result: HierarchyRow[],
+): Promise<void> {
+  const sheetObjId = new mongoose.Types.ObjectId(sheetId);
+  if (result.length === 0) return;
+
+  const ops = result.map((r) => ({
+    updateOne: {
+      filter: { _id: new mongoose.Types.ObjectId(r.id), sheetId: sheetObjId },
+      update: {
+        $set: {
+          order: r.order,
+          parentId: r.parentId ? new mongoose.Types.ObjectId(r.parentId) : null,
+          depth: r.depth,
+        },
+      },
+    },
+  }));
+  await Row.bulkWrite(ops);
+}
+
+/** Return full serialized row list for a sheet. */
+async function getSerializedRows(sheetId: string) {
+  const sheetObjId = new mongoose.Types.ObjectId(sheetId);
+  const rows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
+  return rows.map(formatRow);
+}
+
+// ─── addRow ───────────────────────────────────────────────────────────────
 
 /** Adds a row. Optionally insert after or before a specific row. Requires editor+. */
 export async function addRow(
@@ -12,7 +66,6 @@ export async function addRow(
   data?: { afterRowId?: string; beforeRowId?: string; cells?: Record<string, unknown>; parentId?: string | null; isParentExpanded?: boolean },
 ) {
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
-  const sheetObjId = new mongoose.Types.ObjectId(sheetId);
 
   const validatedCells: Record<string, unknown> = {};
   if (data?.cells) {
@@ -26,131 +79,49 @@ export async function addRow(
     }
   }
 
-  // Resolve parentId and depth based on insertion context
-  let parentId: mongoose.Types.ObjectId | null = null;
-  let depth = 0;
+  // Load current hierarchy
+  const hierarchyRows = await loadHierarchyRows(sheetId);
 
-  if (data?.afterRowId) {
-    const refRow = await Row.findById(data.afterRowId);
-    if (!refRow || refRow.sheetId.toString() !== sheetId) {
-      throw new AppError('Row not found', 404);
-    }
+  // Generate new ID
+  const newObjectId = new mongoose.Types.ObjectId();
+  const newId = newObjectId.toString();
 
-    const refDepth = refRow.depth ?? 0;
-    const refHasChildren = await Row.exists({ parentId: refRow._id, sheetId: sheetObjId });
-
-    if (data.isParentExpanded && refHasChildren) {
-      // Insert as first child of expanded parent
-      if (refDepth >= 10) {
-        throw new AppError('Maximum nesting depth of 10 exceeded', 400);
-      }
-      parentId = refRow._id as mongoose.Types.ObjectId;
-      depth = refDepth + 1;
-    } else {
-      // Sibling of reference row
-      parentId = refRow.parentId ?? null;
-      depth = refDepth;
-    }
-  } else if (data?.beforeRowId) {
-    const refRow = await Row.findById(data.beforeRowId);
-    if (!refRow || refRow.sheetId.toString() !== sheetId) {
-      throw new AppError('Row not found', 404);
-    }
-    // Always sibling of reference row
-    parentId = refRow.parentId ?? null;
-    depth = refRow.depth ?? 0;
-  } else if (data?.parentId) {
-    if (!mongoose.Types.ObjectId.isValid(data.parentId)) {
-      throw new AppError('Invalid parent row ID', 400);
-    }
-    const parentRow = await Row.findById(data.parentId);
-    if (!parentRow || parentRow.sheetId.toString() !== sheetId) {
-      throw new AppError('Parent row not found in this sheet', 404);
-    }
-    const parentDepth = parentRow.depth ?? 0;
-    if (parentDepth >= 10) {
-      throw new AppError('Maximum nesting depth of 10 exceeded', 400);
-    }
-    parentId = parentRow._id as mongoose.Types.ObjectId;
-    depth = parentDepth + 1;
+  // Delegate to pure function
+  let result: HierarchyRow[];
+  try {
+    result = pureInsertRow(hierarchyRows, newId, {
+      beforeRowId: data?.beforeRowId,
+      afterRowId: data?.afterRowId,
+      parentId: data?.parentId ?? undefined,
+      isParentExpanded: data?.isParentExpanded,
+    });
+    validateHierarchy(result);
+  } catch (err) {
+    throw new AppError((err as Error).message, 400);
   }
 
-  // Determine insertion order position
-  let insertAfterOrder: number | null = null;
+  // Find the new row's computed position
+  const newRowHierarchy = result.find((r) => r.id === newId)!;
 
-  if (data?.beforeRowId) {
-    const refRow = await Row.findById(data.beforeRowId);
-    if (!refRow) throw new AppError('Row not found', 404);
-    // Insert just before the reference row — we'll place it at refRow.order and shift everything >= down
-    insertAfterOrder = null; // special: insert before this order
-    // We'll handle below by finding correct slot
-  } else if (data?.afterRowId) {
-    const refRow = await Row.findById(data.afterRowId);
-    if (!refRow) throw new AppError('Row not found', 404);
-
-    if (parentId && parentId.equals(refRow._id)) {
-      // Inserting as first child of expanded parent → right after the parent
-      insertAfterOrder = refRow.order;
-    } else {
-      // Inserting as sibling after the reference row
-      // Find the last descendant of the reference row to insert after
-      const rowsAfterRef = await Row.find({ sheetId: sheetObjId, order: { $gt: refRow.order } }).sort({ order: 1 });
-      let lastOrder = refRow.order;
-      for (const r of rowsAfterRef) {
-        if ((r.depth ?? 0) > (refRow.depth ?? 0)) {
-          lastOrder = r.order;
-        } else {
-          break;
-        }
-      }
-      insertAfterOrder = lastOrder;
-    }
-  } else if (parentId) {
-    // Explicit parentId without after/before → insert after parent and its descendants
-    const parentRow = await Row.findById(parentId);
-    if (!parentRow) throw new AppError('Parent row not found', 404);
-    const rowsAfterParent = await Row.find({ sheetId: sheetObjId, order: { $gt: parentRow.order } }).sort({ order: 1 });
-    let lastOrder = parentRow.order;
-    for (const r of rowsAfterParent) {
-      if ((r.depth ?? 0) > depth - 1) {
-        lastOrder = r.order;
-      } else {
-        break;
-      }
-    }
-    insertAfterOrder = lastOrder;
-  } else {
-    // Append at end
-    const lastRow = await Row.findOne({ sheetId: sheetObjId }).sort({ order: -1 });
-    insertAfterOrder = lastRow ? lastRow.order : -1;
-  }
-
-  // Create the row with a temporary order value
-  const tempOrder = (insertAfterOrder ?? -1) + 0.5;
+  // Create the row document
   const row = await Row.create({
-    sheetId: sheetObjId,
-    order: tempOrder,
+    _id: newObjectId,
+    sheetId: new mongoose.Types.ObjectId(sheetId),
+    order: newRowHierarchy.order,
     cells: validatedCells,
-    parentId,
-    depth,
+    parentId: newRowHierarchy.parentId ? new mongoose.Types.ObjectId(newRowHierarchy.parentId) : null,
+    depth: newRowHierarchy.depth,
   });
 
-  // Renumber all rows with continuous integer orders
-  const allRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
-  const ops = allRows.map((r, i) => ({
-    updateOne: {
-      filter: { _id: r._id },
-      update: { $set: { order: i } },
-    },
-  }));
-  if (ops.length > 0) await Row.bulkWrite(ops);
+  // Bulk-write hierarchy changes for all other rows
+  await bulkWriteHierarchy(sheetId, result.filter((r) => r.id !== newId));
 
   // Return the new row plus full updated rows list
-  const updatedAllRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
-  const rowsList = updatedAllRows.map(formatRow);
-
+  const rowsList = await getSerializedRows(sheetId);
   return { row: formatRow(row), rows: rowsList };
 }
+
+// ─── updateCell ───────────────────────────────────────────────────────────
 
 /** Updates a single cell value. Requires editor+. */
 export async function updateCell(
@@ -195,6 +166,8 @@ export async function updateCell(
   return { rowId, columnId, value: validated };
 }
 
+// ─── deleteRows ───────────────────────────────────────────────────────────
+
 /** Deletes multiple rows. Requires editor+. */
 export async function deleteRows(
   sheetId: string,
@@ -207,84 +180,34 @@ export async function deleteRows(
   const validIds = rowIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
   if (validIds.length === 0) throw new AppError('No valid row IDs provided', 400);
 
-  const sheetObjId = new mongoose.Types.ObjectId(sheetId);
+  const hierarchyRows = await loadHierarchyRows(sheetId);
 
-  let idsToDelete: string[];
-
-  if (includeDescendants) {
-    // BFS to collect all descendants
-    const allRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
-    const childMap = new Map<string, string[]>();
-    for (const r of allRows) {
-      const pid = r.parentId ? r.parentId.toString() : null;
-      if (pid) {
-        if (!childMap.has(pid)) childMap.set(pid, []);
-        childMap.get(pid)!.push(r._id.toString());
-      }
-    }
-
-    const toDelete = new Set(validIds);
-    const queue = [...validIds];
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const children = childMap.get(current) || [];
-      for (const childId of children) {
-        if (!toDelete.has(childId)) {
-          toDelete.add(childId);
-          queue.push(childId);
-        }
-      }
-    }
-    idsToDelete = [...toDelete];
-  } else {
-    // Re-parent direct children of deleted rows to their grandparent
-    const deletedSet = new Set(validIds);
-    const rowsToDelete = await Row.find({ _id: { $in: validIds }, sheetId: sheetObjId });
-
-    for (const row of rowsToDelete) {
-      const rowIdStr = row._id.toString();
-      const grandparentId = row.parentId; // could be null
-      // Find direct children of this row
-      const children = await Row.find({ parentId: row._id, sheetId: sheetObjId });
-      if (children.length > 0) {
-        const ops = children.map((child) => ({
-          updateOne: {
-            filter: { _id: child._id },
-            update: {
-              $set: {
-                parentId: grandparentId,
-                depth: Math.max(0, (child.depth ?? 0) - 1),
-              },
-            },
-          },
-        }));
-        await Row.bulkWrite(ops);
-      }
-    }
-    idsToDelete = validIds;
+  let result: HierarchyRow[];
+  try {
+    result = pureDeleteRows(hierarchyRows, validIds, { cascade: includeDescendants });
+    validateHierarchy(result);
+  } catch (err) {
+    throw new AppError((err as Error).message, 400);
   }
 
+  // Determine which rows were deleted
+  const remainingIds = new Set(result.map((r) => r.id));
+  const idsToDelete = hierarchyRows.filter((r) => !remainingIds.has(r.id)).map((r) => r.id);
+
+  // Delete removed rows from DB
   await Row.deleteMany({
-    _id: { $in: idsToDelete },
-    sheetId: sheetObjId,
+    _id: { $in: idsToDelete.map((id) => new mongoose.Types.ObjectId(id)) },
+    sheetId: new mongoose.Types.ObjectId(sheetId),
   });
 
-  // Renumber remaining rows with continuous integer orders
-  const remainingRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
-  const ops = remainingRows.map((r, i) => ({
-    updateOne: {
-      filter: { _id: r._id },
-      update: { $set: { order: i } },
-    },
-  }));
-  if (ops.length > 0) await Row.bulkWrite(ops);
+  // Bulk-write hierarchy for remaining rows
+  await bulkWriteHierarchy(sheetId, result);
 
-  // Return full updated rows list
-  const updatedRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
-  const rowsList = updatedRows.map(formatRow);
-
+  const rowsList = await getSerializedRows(sheetId);
   return { deleted: idsToDelete.length, rows: rowsList };
 }
+
+// ─── reorderRows ──────────────────────────────────────────────────────────
 
 /** Reorders rows by providing an ordered array of row IDs. Requires editor+. */
 export async function reorderRows(
@@ -295,119 +218,94 @@ export async function reorderRows(
 ) {
   await getSheetWithAccess(sheetId, userId, 'editor');
 
-  const sheetObjId = new mongoose.Types.ObjectId(sheetId);
+  const hierarchyRows = await loadHierarchyRows(sheetId);
 
-  // Apply parent/depth updates if provided
+  // If parentUpdates are provided, use them to compute the new hierarchy
   if (parentUpdates && parentUpdates.length > 0) {
-    // Validate: no cycles, all parentIds belong to same sheet, depth <= 10
+    // Validate parent updates
     for (const update of parentUpdates) {
       if (update.depth < 0 || update.depth > 10) {
         throw new AppError(`Depth must be between 0 and 10, got ${update.depth}`, 400);
       }
-      if (update.parentId) {
-        if (!mongoose.Types.ObjectId.isValid(update.parentId)) {
-          throw new AppError(`Invalid parent ID: ${update.parentId}`, 400);
-        }
-        // No row can be its own ancestor
-        if (update.parentId === update.rowId) {
-          throw new AppError('A row cannot be its own parent', 400);
-        }
-        const parentRow = await Row.findById(update.parentId);
-        if (!parentRow || parentRow.sheetId.toString() !== sheetId) {
-          throw new AppError(`Parent row ${update.parentId} not found in this sheet`, 404);
-        }
+      if (update.parentId === update.rowId) {
+        throw new AppError('A row cannot be its own parent', 400);
       }
     }
 
-    // Check for cycles: ensure no row becomes an ancestor of itself through the chain
-    const allRows = await Row.find({ sheetId: sheetObjId });
-    const rowMap = new Map(allRows.map((r) => [r._id.toString(), r]));
-    // Apply pending updates to a virtual map for cycle detection
-    const pendingParentMap = new Map<string, string | null>();
+    // Apply parentUpdates to create a modified hierarchy, then reorder
+    const rowMap = new Map(hierarchyRows.map((r) => [r.id, r]));
+    let modified = [...hierarchyRows];
+
+    // Apply parent/depth changes
     for (const u of parentUpdates) {
-      pendingParentMap.set(u.rowId, u.parentId);
-    }
-
-    for (const update of parentUpdates) {
-      let current = update.parentId;
-      const visited = new Set<string>([update.rowId]);
-      while (current) {
-        if (visited.has(current)) {
-          throw new AppError('Cycle detected in parent chain', 400);
-        }
-        visited.add(current);
-        // Check if this parent is also being updated
-        const pendingParent = pendingParentMap.get(current);
-        if (pendingParent !== undefined) {
-          current = pendingParent;
-        } else {
-          const row = rowMap.get(current);
-          current = row?.parentId ? row.parentId.toString() : null;
-        }
+      const idx = modified.findIndex((r) => r.id === u.rowId);
+      if (idx !== -1) {
+        modified[idx] = { ...modified[idx], parentId: u.parentId, depth: u.depth };
       }
     }
 
-    // Apply bulk parent/depth updates
-    const parentOps = parentUpdates.map((u) => ({
-      updateOne: {
-        filter: { _id: new mongoose.Types.ObjectId(u.rowId), sheetId: sheetObjId },
-        update: { $set: { parentId: u.parentId ? new mongoose.Types.ObjectId(u.parentId) : null, depth: u.depth } },
-      },
-    }));
-    if (parentOps.length > 0) await Row.bulkWrite(parentOps);
-
-    // Also update descendants' depths relative to their moved roots
-    const updatedRowMap = new Map(parentUpdates.map((u) => [u.rowId, u]));
-    const childMap = new Map<string, IRow[]>();
-    const freshAllRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
-    for (const r of freshAllRows) {
-      const pid = r.parentId ? r.parentId.toString() : null;
-      if (pid) {
-        if (!childMap.has(pid)) childMap.set(pid, []);
-        childMap.get(pid)!.push(r);
+    // Adjust descendant depths for each updated root
+    for (const u of parentUpdates) {
+      const childMap = new Map<string, string[]>();
+      for (const r of modified) {
+        if (r.parentId !== null) {
+          if (!childMap.has(r.parentId)) childMap.set(r.parentId, []);
+          childMap.get(r.parentId)!.push(r.id);
+        }
       }
-    }
 
-    const depthOps: Array<{ updateOne: { filter: { _id: mongoose.Types.ObjectId }; update: { $set: { depth: number } } } }> = [];
-    for (const [rowId, update] of updatedRowMap.entries()) {
       const queue: Array<{ id: string; depth: number }> = [];
-      const children = childMap.get(rowId) || [];
-      for (const child of children) {
-        queue.push({ id: child._id.toString(), depth: update.depth + 1 });
+      const children = childMap.get(u.rowId) || [];
+      for (const cid of children) {
+        queue.push({ id: cid, depth: u.depth + 1 });
       }
       while (queue.length > 0) {
         const { id, depth } = queue.shift()!;
-        if (depth > 10) continue;
-        depthOps.push({
-          updateOne: {
-            filter: { _id: new mongoose.Types.ObjectId(id) },
-            update: { $set: { depth } },
-          },
-        });
+        const idx = modified.findIndex((r) => r.id === id);
+        if (idx !== -1) {
+          modified[idx] = { ...modified[idx], depth };
+        }
         const grandChildren = childMap.get(id) || [];
-        for (const gc of grandChildren) {
-          queue.push({ id: gc._id.toString(), depth: depth + 1 });
+        for (const gcId of grandChildren) {
+          queue.push({ id: gcId, depth: depth + 1 });
         }
       }
     }
-    if (depthOps.length > 0) await Row.bulkWrite(depthOps);
+
+    // Now reorder according to orderedIds
+    const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+    modified.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+    modified = modified.map((r, i) => ({ ...r, order: i }));
+
+    try {
+      validateHierarchy(modified);
+    } catch (err) {
+      throw new AppError((err as Error).message, 400);
+    }
+
+    await bulkWriteHierarchy(sheetId, modified);
+  } else {
+    // Simple reorder without parent changes
+    const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+    const reordered = [...hierarchyRows].sort(
+      (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
+    );
+    const result = reordered.map((r, i) => ({ ...r, order: i }));
+
+    try {
+      validateHierarchy(result);
+    } catch (err) {
+      throw new AppError((err as Error).message, 400);
+    }
+
+    await bulkWriteHierarchy(sheetId, result);
   }
 
-  // Renumber all rows with continuous integer orders based on orderedIds
-  const ops = orderedIds.map((id, index) => ({
-    updateOne: {
-      filter: { _id: new mongoose.Types.ObjectId(id), sheetId: sheetObjId },
-      update: { $set: { order: index } },
-    },
-  }));
-  if (ops.length > 0) await Row.bulkWrite(ops);
-
-  // Return full updated rows list
-  const allUpdatedRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
-  const rowsList = allUpdatedRows.map(formatRow);
-
+  const rowsList = await getSerializedRows(sheetId);
   return { reordered: orderedIds.length, rows: rowsList };
 }
+
+// ─── updateRowHeights ─────────────────────────────────────────────────────
 
 /** Updates row heights in bulk. Requires editor+. */
 export async function updateRowHeights(
@@ -440,6 +338,8 @@ export async function updateRowHeights(
   return { updated: result.modifiedCount };
 }
 
+// ─── indentRows ───────────────────────────────────────────────────────────
+
 /** Indents rows — makes each row a child of the row immediately above it. Requires editor+. */
 export async function indentRows(
   sheetId: string,
@@ -448,98 +348,23 @@ export async function indentRows(
 ) {
   await getSheetWithAccess(sheetId, userId, 'editor');
 
-  const sheetObjId = new mongoose.Types.ObjectId(sheetId);
-  const allRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
-  const rowMap = new Map(allRows.map((r) => [r._id.toString(), r]));
+  const hierarchyRows = await loadHierarchyRows(sheetId);
 
-  const ops: Array<{ updateOne: { filter: { _id: mongoose.Types.ObjectId }; update: { $set: { parentId: mongoose.Types.ObjectId | null; depth: number } } } }> = [];
-  const updatedRows: Record<string, { parentId: string | null; depth: number }> = {};
-
-  for (const rowId of rowIds) {
-    const row = rowMap.get(rowId);
-    if (!row) continue;
-
-    // Find the row immediately above in the ordered list
-    const idx = allRows.findIndex((r) => r._id.toString() === rowId);
-    if (idx <= 0) continue; // Can't indent first row
-
-    const aboveRow = allRows[idx - 1];
-    const aboveDepth = aboveRow.depth ?? 0;
-    const currentDepth = row.depth ?? 0;
-
-    // Can only indent if the row above is at the same or higher depth (i.e., same level or deeper)
-    if (aboveDepth < currentDepth) continue;
-
-    // Check that we won't exceed max depth
-    const newDepth = aboveDepth + 1;
-    if (newDepth > 10) continue;
-
-    // Prevent cycle: above row must not be a descendant of this row
-    let pid = aboveRow.parentId;
-    let isCycle = false;
-    while (pid) {
-      if (pid.toString() === rowId) {
-        isCycle = true;
-        break;
-      }
-      const parent = rowMap.get(pid.toString());
-      pid = parent?.parentId ?? null;
-    }
-    if (isCycle) continue;
-
-    ops.push({
-      updateOne: {
-        filter: { _id: row._id },
-        update: { $set: { parentId: aboveRow._id as mongoose.Types.ObjectId, depth: newDepth } },
-      },
-    });
-    updatedRows[rowId] = { parentId: aboveRow._id.toString(), depth: newDepth };
+  let result: HierarchyRow[];
+  try {
+    result = pureIndentRows(hierarchyRows, rowIds);
+    validateHierarchy(result);
+  } catch (err) {
+    throw new AppError((err as Error).message, 400);
   }
 
-  if (ops.length > 0) {
-    await Row.bulkWrite(ops);
-  }
+  await bulkWriteHierarchy(sheetId, result);
 
-  // Also update descendants' depths
-  if (Object.keys(updatedRows).length > 0) {
-    const childMap = new Map<string, IRow[]>();
-    for (const r of allRows) {
-      const pid = r.parentId ? r.parentId.toString() : null;
-      if (pid) {
-        if (!childMap.has(pid)) childMap.set(pid, []);
-        childMap.get(pid)!.push(r);
-      }
-    }
-
-    const depthOps: Array<{ updateOne: { filter: { _id: mongoose.Types.ObjectId }; update: { $set: { depth: number } } } }> = [];
-    for (const [rowId, update] of Object.entries(updatedRows)) {
-      const queue: Array<{ id: string; depth: number }> = [];
-      const children = childMap.get(rowId) || [];
-      for (const child of children) {
-        queue.push({ id: child._id.toString(), depth: update.depth + 1 });
-      }
-      while (queue.length > 0) {
-        const { id, depth } = queue.shift()!;
-        if (depth > 10) continue;
-        depthOps.push({
-          updateOne: {
-            filter: { _id: new mongoose.Types.ObjectId(id) },
-            update: { $set: { depth } },
-          },
-        });
-        const grandChildren = childMap.get(id) || [];
-        for (const gc of grandChildren) {
-          queue.push({ id: gc._id.toString(), depth: depth + 1 });
-        }
-      }
-    }
-    if (depthOps.length > 0) {
-      await Row.bulkWrite(depthOps);
-    }
-  }
-
-  return { updated: Object.keys(updatedRows).length, rows: updatedRows };
+  const rowsList = await getSerializedRows(sheetId);
+  return { updated: rowIds.length, rows: rowsList };
 }
+
+// ─── outdentRows ──────────────────────────────────────────────────────────
 
 /** Outdents rows — moves each row up one level in the hierarchy. Requires editor+. */
 export async function outdentRows(
@@ -549,71 +374,18 @@ export async function outdentRows(
 ) {
   await getSheetWithAccess(sheetId, userId, 'editor');
 
-  const sheetObjId = new mongoose.Types.ObjectId(sheetId);
-  const allRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
-  const rowMap = new Map(allRows.map((r) => [r._id.toString(), r]));
+  const hierarchyRows = await loadHierarchyRows(sheetId);
 
-  const ops: Array<{ updateOne: { filter: { _id: mongoose.Types.ObjectId }; update: { $set: { parentId: mongoose.Types.ObjectId | null; depth: number } } } }> = [];
-  const updatedRows: Record<string, { parentId: string | null; depth: number }> = {};
-
-  for (const rowId of rowIds) {
-    const row = rowMap.get(rowId);
-    if (!row || !row.parentId) continue; // Already top-level
-
-    const parentRow = rowMap.get(row.parentId.toString());
-    const grandparentId = parentRow?.parentId ?? null;
-    const newDepth = Math.max(0, (row.depth ?? 0) - 1);
-
-    ops.push({
-      updateOne: {
-        filter: { _id: row._id },
-        update: { $set: { parentId: grandparentId, depth: newDepth } },
-      },
-    });
-    updatedRows[rowId] = { parentId: grandparentId ? grandparentId.toString() : null, depth: newDepth };
+  let result: HierarchyRow[];
+  try {
+    result = pureOutdentRows(hierarchyRows, rowIds);
+    validateHierarchy(result);
+  } catch (err) {
+    throw new AppError((err as Error).message, 400);
   }
 
-  if (ops.length > 0) {
-    await Row.bulkWrite(ops);
-  }
+  await bulkWriteHierarchy(sheetId, result);
 
-  // Also update descendants' depths
-  if (Object.keys(updatedRows).length > 0) {
-    const childMap = new Map<string, IRow[]>();
-    for (const r of allRows) {
-      const pid = r.parentId ? r.parentId.toString() : null;
-      if (pid) {
-        if (!childMap.has(pid)) childMap.set(pid, []);
-        childMap.get(pid)!.push(r);
-      }
-    }
-
-    const depthOps: Array<{ updateOne: { filter: { _id: mongoose.Types.ObjectId }; update: { $set: { depth: number } } } }> = [];
-    for (const [rowId, update] of Object.entries(updatedRows)) {
-      const queue: Array<{ id: string; depth: number }> = [];
-      const children = childMap.get(rowId) || [];
-      for (const child of children) {
-        queue.push({ id: child._id.toString(), depth: update.depth + 1 });
-      }
-      while (queue.length > 0) {
-        const { id, depth } = queue.shift()!;
-        if (depth > 10) continue;
-        depthOps.push({
-          updateOne: {
-            filter: { _id: new mongoose.Types.ObjectId(id) },
-            update: { $set: { depth } },
-          },
-        });
-        const grandChildren = childMap.get(id) || [];
-        for (const gc of grandChildren) {
-          queue.push({ id: gc._id.toString(), depth: depth + 1 });
-        }
-      }
-    }
-    if (depthOps.length > 0) {
-      await Row.bulkWrite(depthOps);
-    }
-  }
-
-  return { updated: Object.keys(updatedRows).length, rows: updatedRows };
+  const rowsList = await getSerializedRows(sheetId);
+  return { updated: rowIds.length, rows: rowsList };
 }

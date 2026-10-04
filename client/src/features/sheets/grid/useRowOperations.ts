@@ -83,9 +83,12 @@ export function useRowOperations(
 
   const handleInsertRowBelow = useCallback(
     (rowId: string, isParentExpanded?: boolean) => {
-      dispatch(insertRow({ sheetId, afterRowId: rowId, isParentExpanded }));
+      // If not explicitly provided, derive from collapsedIds:
+      // a row is expanded if its id is NOT in the collapsed set
+      const expanded = isParentExpanded ?? !(collapsedIds?.has(rowId) ?? false);
+      dispatch(insertRow({ sheetId, afterRowId: rowId, isParentExpanded: expanded }));
     },
-    [sheetId, dispatch],
+    [sheetId, dispatch, collapsedIds],
   );
 
   const handleDeleteRows = useCallback(
