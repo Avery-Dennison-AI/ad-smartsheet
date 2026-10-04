@@ -25,7 +25,7 @@ export default function AdminUsersPage() {
       <div className="flex flex-col gap-4" data-icod-id="admin_page_root">
         <PageHeader
           title="Users"
-           description="Manage who has access to AD Smartsheet"
+           description="Manage who has access to NEO"
           className="mb-3"
           actions={
             <Button

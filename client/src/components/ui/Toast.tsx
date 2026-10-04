@@ -30,7 +30,7 @@ const icons: Record<ToastVariant, typeof Info> = {
 };
 
 const variantClass: Record<ToastVariant, string> = {
-  success: 'border-[var(--color-success)]/30 bg-[var(--color-success-bg)] text-[var(--color-success)]',
+  success: 'border-success/30 bg-[var(--color-success-bg)] text-[var(--color-success)]',
   error: 'border-destructive/30 bg-[var(--color-danger-bg)] text-destructive',
   info: 'border-border bg-[var(--color-info-bg)] text-[var(--color-info)]',
 };

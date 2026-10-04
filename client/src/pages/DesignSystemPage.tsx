@@ -47,7 +47,6 @@ import {
   ToolbarGroup,
   ColorSwatchPicker,
   ResizeHandle,
-  ThemeOptionCard,
   ColorSwatchGroup,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
@@ -1101,7 +1100,7 @@ export default function DesignSystemPage() {
       <Section title="CopyField" data-icod-id="ds_copyfield_section">
         <div className="max-w-md" data-icod-id="ds_copyfield_wrap">
           <CopyField
-             value="https://app.adsmartsheet.com/invite/abc123xyz"
+             value="https://app.neo.com/invite/abc123xyz"
             label="Invitation link"
             data-icod-id="ds_copyfield_instance" />
         </div>

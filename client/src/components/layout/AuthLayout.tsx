@@ -44,7 +44,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           <p
             className="mt-3 text-sm text-primary-foreground/80"
             data-icod-id="src_components_layout_authlayout_tsx_subheadline">
-             AD Smartsheet brings your team's tasks, timelines, and collaboration into a single intuitive workspace.
+             NEO brings your team's tasks, timelines, and collaboration into a single intuitive workspace.
           </p>
         </div>
       </div>
@@ -54,7 +54,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
         data-icod-id="src_components_layout_authlayout_tsx_mobile_header">
         <span
           className="text-lg font-bold text-primary-foreground"
-           data-icod-id="src_components_layout_authlayout_tsx_mobile_logo">AD Smartsheet</span>
+           data-icod-id="src_components_layout_authlayout_tsx_mobile_logo">NEO</span>
       </div>
       {/* Right panel / form area */}
       <div

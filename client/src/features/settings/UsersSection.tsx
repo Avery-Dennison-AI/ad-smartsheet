@@ -29,7 +29,7 @@ export default function UsersSection() {
             data-icod-id="users_section_title">Users</h2>
           <p
             className="mt-1 text-sm text-muted-foreground"
-            data-icod-id="users_section_desc">Manage who has access to AD Smartsheet</p>
+            data-icod-id="users_section_desc">Manage who has access to NEO</p>
         </div>
         <Button
           variant="primary"

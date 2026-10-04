@@ -116,11 +116,11 @@ export default function AppShell({ children }: AppShellProps) {
             <div
               className="flex flex-col items-center gap-1 px-2 pt-3 pb-2"
               data-icod-id="src_components_layout_appshell_tsx_6aaf">
-              <Tooltip content="AD Smartsheet" data-icod-id="src_components_layout_appshell_tsx_b053">
+              <Tooltip content="NEO" data-icod-id="src_components_layout_appshell_tsx_b053">
                 <span
                   className="font-bold text-sm text-primary"
                   data-icod-id="src_components_layout_appshell_tsx_e6ea">
-                  AD
+                  N
                 </span>
               </Tooltip>
               <IconButton
@@ -141,11 +141,11 @@ export default function AppShell({ children }: AppShellProps) {
                 <div
                   className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-primary text-sm font-bold text-primary-foreground"
                   data-icod-id="src_components_layout_appshell_tsx_e5ea">
-                  AD
+                  N
                 </div>
                 <span
                   className="text-sm font-semibold text-foreground"
-                  data-icod-id="src_components_layout_appshell_tsx_2cd4">AD Smartsheet</span>
+                  data-icod-id="src_components_layout_appshell_tsx_2cd4">NEO</span>
               </div>
               <IconButton
                 size="sm"

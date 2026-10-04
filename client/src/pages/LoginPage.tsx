@@ -69,7 +69,7 @@ export default function LoginPage() {
           <p
             className="mt-1 text-sm text-muted-foreground"
             data-icod-id="login_page_subtitle">
-             Log in to your AD Smartsheet account
+             Log in to your NEO account
           </p>
         </div>
 

@@ -13,7 +13,9 @@ const DEFAULT_FONT_SIZE = 13;
 interface CacheEntry {
   value: string;
   bold: boolean;
+  italic: boolean;
   fontSize: number;
+  fontFamily: string;
   wrapText: boolean;
   colWidth: number;
   lines: number;
@@ -135,6 +137,8 @@ export function useWrapRowHeights({
       availableWidth: number;
       fontSize: number;
       bold: boolean;
+      italic: boolean;
+      fontFamily: string;
       fontString: string;
     }> = [];
 
@@ -145,6 +149,8 @@ export function useWrapRowHeights({
       // We need to check per-cell, but we can pre-compute column-level defaults
       const colFontSize = colFmt.fontSize ?? DEFAULT_FONT_SIZE;
       const colBold = !!colFmt.bold;
+      const colItalic = !!colFmt.italic;
+      const colFontFamily = colFmt.fontFamily || 'Inter, sans-serif';
       const colWrapText = !!colFmt.wrapText;
 
       // Only include this column if at least the column-level formatting enables wrap
@@ -167,9 +173,11 @@ export function useWrapRowHeights({
       const availableWidth = Math.max(20, colWidth - CELL_PADDING_X);
       const fontSize = colFontSize;
       const bold = colBold;
-      const fontString = `${bold ? 'bold ' : ''}${fontSize}px Inter, sans-serif`;
+      const italic = colItalic;
+      const fontFamily = colFontFamily;
+      const fontString = `${italic ? 'italic ' : ''}${bold ? 'bold ' : ''}${fontSize}px ${fontFamily}`;
 
-      wrappedCols.push({ col, colWidth, availableWidth, fontSize, bold, fontString });
+      wrappedCols.push({ col, colWidth, availableWidth, fontSize, bold, italic, fontFamily, fontString });
     }
 
     if (wrappedCols.length === 0) {
@@ -198,6 +206,8 @@ export function useWrapRowHeights({
         const value = String(rawValue);
         const fontSize = effective.fontSize ?? wc.fontSize;
         const bold = effective.bold ?? wc.bold;
+        const italic = effective.italic ?? wc.italic;
+        const fontFamily = effective.fontFamily || wc.fontFamily;
         const colWidth = wc.colWidth;
 
         // Build fingerprint
@@ -210,7 +220,9 @@ export function useWrapRowHeights({
           cached &&
           cached.value === value &&
           cached.bold === bold &&
+          cached.italic === italic &&
           cached.fontSize === fontSize &&
+          cached.fontFamily === fontFamily &&
           cached.wrapText === true &&
           cached.colWidth === colWidth
         ) {
@@ -218,7 +230,7 @@ export function useWrapRowHeights({
           lines = cached.lines;
         } else {
           // Cache miss — measure and store
-          const fontString = `${bold ? 'bold ' : ''}${fontSize}px Inter, sans-serif`;
+          const fontString = `${italic ? 'italic ' : ''}${bold ? 'bold ' : ''}${fontSize}px ${fontFamily}`;
           ctx.font = fontString;
           const availableWidth = Math.max(20, colWidth - CELL_PADDING_X);
           lines = measureWrappedLines(ctx, value, availableWidth);
@@ -226,7 +238,9 @@ export function useWrapRowHeights({
           cache.set(cacheKey, {
             value,
             bold,
+            italic,
             fontSize,
+            fontFamily,
             wrapText: true,
             colWidth,
             lines,

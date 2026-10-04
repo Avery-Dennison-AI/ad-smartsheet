@@ -1,5 +1,5 @@
 /**
- * AD Smartsheet UI primitives — import from here, never from individual files.
+ * NEO UI primitives — import from here, never from individual files.
  */
 export { default as Alert, type AlertProps, type AlertVariant } from './Alert';
 export {
@@ -53,5 +53,4 @@ export { default as ToggleButton, type ToggleButtonProps } from './ToggleButton'
 export { Toolbar, ToolbarGroup, type ToolbarProps, type ToolbarGroupProps } from './Toolbar';
 export { default as ColorSwatchPicker, type ColorSwatchPickerProps } from './ColorSwatchPicker';
 export { default as ResizeHandle } from './ResizeHandle';
-export { default as ThemeOptionCard, type ThemeOptionCardProps } from './ThemeOptionCard';
 export { default as ColorSwatchGroup, type ColorSwatchGroupProps, type ColorSwatchOption } from './ColorSwatchGroup';

@@ -1,5 +1,5 @@
 /*
- * AD SMARTSHEET DESIGN TOKENS — single source of truth for all CSS custom properties.
+ * NEO DESIGN TOKENS — single source of truth for all CSS custom properties.
  *
  * The :root block defines non-primary tokens (neutrals, surfaces, status palette,
  * spacing, etc.). Primary colour tokens are defined per [data-accent="X"] block
@@ -7,7 +7,7 @@
  *
  * Semantic colour variables (--background, --foreground, etc.) use space-separated
  * R G B channel triplets so Tailwind opacity modifiers work (bg-primary/10).
- * AD Smartsheet-specific tokens use raw values (hex, px) and are consumed via var()
+ * NEO-specific tokens use raw values (hex, px) and are consumed via var()
  * or through extended Tailwind utilities.
  */
 :root {
