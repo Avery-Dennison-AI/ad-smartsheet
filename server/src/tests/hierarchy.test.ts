@@ -485,3 +485,300 @@ describe('deleteRows edge cases', () => {
     expect(() => validateHierarchy(result)).not.toThrow();
   });
 });
+
+// ─── outdentRows – sibling reassignment ────────────────────────────────────
+
+describe('outdentRows – sibling reassignment', () => {
+  it('Test 1: A > B, Bnext (sibling of B); D top — outdent B → B top, Bnext becomes child of B', () => {
+    // A (depth 0), B (child of A, depth 1), Bnext (child of A, depth 1), D (depth 0)
+    const input = rows(
+      ['A', null, 0],
+      ['B', 'A', 1],
+      ['Bnext', 'A', 1],
+      ['D', null, 0],
+    );
+
+    const result = outdentRows(input, ['B']);
+
+    const bRow = result.find((r) => r.id === 'B')!;
+    expect(bRow.parentId).toBeNull();
+    expect(bRow.depth).toBe(0);
+
+    const bnextRow = result.find((r) => r.id === 'Bnext')!;
+    expect(bnextRow.parentId).toBe('B');
+    expect(bnextRow.depth).toBe(1);
+
+    const aRow = result.find((r) => r.id === 'A')!;
+    expect(aRow.parentId).toBeNull();
+    expect(aRow.depth).toBe(0);
+
+    const dRow = result.find((r) => r.id === 'D')!;
+    expect(dRow.parentId).toBeNull();
+    expect(dRow.depth).toBe(0);
+
+    expect(() => validateHierarchy(result)).not.toThrow();
+  });
+
+  it('Test 2: A > [B, C, D]; E top — outdentRows([B, C]) → B,C promoted; D becomes child of C', () => {
+    const input = rows(
+      ['A', null, 0],
+      ['B', 'A', 1],
+      ['C', 'A', 1],
+      ['D', 'A', 1],
+      ['E', null, 0],
+    );
+
+    const result = outdentRows(input, ['B', 'C']);
+
+    const bRow = result.find((r) => r.id === 'B')!;
+    expect(bRow.parentId).toBeNull();
+    expect(bRow.depth).toBe(0);
+
+    const cRow = result.find((r) => r.id === 'C')!;
+    expect(cRow.parentId).toBeNull();
+    expect(cRow.depth).toBe(0);
+
+    // D was a later sibling of B and C under A; after outdenting both B and C,
+    // D should become child of C (the last outdented row that had D as a later sibling)
+    const dRow = result.find((r) => r.id === 'D')!;
+    expect(dRow.parentId).toBe('C');
+    expect(dRow.depth).toBe(1);
+
+    const eRow = result.find((r) => r.id === 'E')!;
+    expect(eRow.parentId).toBeNull();
+    expect(eRow.depth).toBe(0);
+
+    expect(() => validateHierarchy(result)).not.toThrow();
+  });
+
+  it('Test 3: A > B > [B1, B2]; A > Bnext; D top — outdent B → B top, B1 B2 Bnext children of B', () => {
+    const input = rows(
+      ['A', null, 0],
+      ['B', 'A', 1],
+      ['B1', 'B', 2],
+      ['B2', 'B', 2],
+      ['Bnext', 'A', 1],
+      ['D', null, 0],
+    );
+
+    const result = outdentRows(input, ['B']);
+
+    const bRow = result.find((r) => r.id === 'B')!;
+    expect(bRow.parentId).toBeNull();
+    expect(bRow.depth).toBe(0);
+
+    const b1Row = result.find((r) => r.id === 'B1')!;
+    expect(b1Row.parentId).toBe('B');
+    expect(b1Row.depth).toBe(1);
+
+    const b2Row = result.find((r) => r.id === 'B2')!;
+    expect(b2Row.parentId).toBe('B');
+    expect(b2Row.depth).toBe(1);
+
+    const bnextRow = result.find((r) => r.id === 'Bnext')!;
+    expect(bnextRow.parentId).toBe('B');
+    expect(bnextRow.depth).toBe(1);
+
+    const aRow = result.find((r) => r.id === 'A')!;
+    expect(aRow.parentId).toBeNull();
+    expect(aRow.depth).toBe(0);
+
+    const dRow = result.find((r) => r.id === 'D')!;
+    expect(dRow.parentId).toBeNull();
+    expect(dRow.depth).toBe(0);
+
+    // Verify order: A, B, B1, B2, Bnext, D
+    expect(result.map((r) => r.id)).toEqual(['A', 'B', 'B1', 'B2', 'Bnext', 'D']);
+
+    expect(() => validateHierarchy(result)).not.toThrow();
+  });
+
+  it('Test 6: A > [B, C]; D top — outdentRows([B]) → B top; C becomes child of B; A has no more children', () => {
+    const input = rows(
+      ['A', null, 0],
+      ['B', 'A', 1],
+      ['C', 'A', 1],
+      ['D', null, 0],
+    );
+
+    const result = outdentRows(input, ['B']);
+
+    const bRow = result.find((r) => r.id === 'B')!;
+    expect(bRow.parentId).toBeNull();
+    expect(bRow.depth).toBe(0);
+
+    const cRow = result.find((r) => r.id === 'C')!;
+    expect(cRow.parentId).toBe('B');
+    expect(cRow.depth).toBe(1);
+
+    const aRow = result.find((r) => r.id === 'A')!;
+    expect(aRow.parentId).toBeNull();
+    expect(aRow.depth).toBe(0);
+
+    const dRow = result.find((r) => r.id === 'D')!;
+    expect(dRow.parentId).toBeNull();
+    expect(dRow.depth).toBe(0);
+
+    // A should have no children now
+    const aChildren = result.filter((r) => r.parentId === 'A');
+    expect(aChildren.length).toBe(0);
+
+    expect(() => validateHierarchy(result)).not.toThrow();
+  });
+
+  it('Test 7: A > B > [B1, B2, B3] — outdent B → B promoted to top; B1 B2 B3 remain children of B', () => {
+    const input = rows(
+      ['A', null, 0],
+      ['B', 'A', 1],
+      ['B1', 'B', 2],
+      ['B2', 'B', 2],
+      ['B3', 'B', 2],
+    );
+
+    const result = outdentRows(input, ['B']);
+
+    const bRow = result.find((r) => r.id === 'B')!;
+    expect(bRow.parentId).toBeNull();
+    expect(bRow.depth).toBe(0);
+
+    const b1Row = result.find((r) => r.id === 'B1')!;
+    expect(b1Row.parentId).toBe('B');
+    expect(b1Row.depth).toBe(1);
+
+    const b2Row = result.find((r) => r.id === 'B2')!;
+    expect(b2Row.parentId).toBe('B');
+    expect(b2Row.depth).toBe(1);
+
+    const b3Row = result.find((r) => r.id === 'B3')!;
+    expect(b3Row.parentId).toBe('B');
+    expect(b3Row.depth).toBe(1);
+
+    // A should have no children
+    const aChildren = result.filter((r) => r.parentId === 'A');
+    expect(aChildren.length).toBe(0);
+
+    expect(() => validateHierarchy(result)).not.toThrow();
+  });
+});
+
+// ─── deleteRows keep-children – sibling reassignment ──────────────────────
+
+describe('deleteRows keep-children – sibling reassignment', () => {
+  it('Test 4: A > [B > [B1], Bnext]; D — delete A with keep-children → B, Bnext promoted to top; B1 remains child of B', () => {
+    const input = rows(
+      ['A', null, 0],
+      ['B', 'A', 1],
+      ['B1', 'B', 2],
+      ['Bnext', 'A', 1],
+      ['D', null, 0],
+    );
+
+    const result = deleteRows(input, ['A'], { cascade: false });
+
+    // B should be top-level
+    const bRow = result.find((r) => r.id === 'B')!;
+    expect(bRow.parentId).toBeNull();
+    expect(bRow.depth).toBe(0);
+
+    // B1 should remain child of B
+    const b1Row = result.find((r) => r.id === 'B1')!;
+    expect(b1Row.parentId).toBe('B');
+    expect(b1Row.depth).toBe(1);
+
+    // Bnext was also a direct child of A, so it gets promoted to top level too
+    const bnextRow = result.find((r) => r.id === 'Bnext')!;
+    expect(bnextRow.parentId).toBeNull();
+    expect(bnextRow.depth).toBe(0);
+
+    const dRow = result.find((r) => r.id === 'D')!;
+    expect(dRow.parentId).toBeNull();
+    expect(dRow.depth).toBe(0);
+
+    expect(() => validateHierarchy(result)).not.toThrow();
+  });
+
+  it('deleting middle row with keep-children promotes children and reassigns later siblings', () => {
+    // X > [Y > [Y1, Y2], Z]; W top
+    const input = rows(
+      ['X', null, 0],
+      ['Y', 'X', 1],
+      ['Y1', 'Y', 2],
+      ['Y2', 'Y', 2],
+      ['Z', 'X', 1],
+      ['W', null, 0],
+    );
+
+    const result = deleteRows(input, ['Y'], { cascade: false });
+
+    // Y1 and Y2 promoted to children of X
+    const y1Row = result.find((r) => r.id === 'Y1')!;
+    expect(y1Row.parentId).toBe('X');
+    expect(y1Row.depth).toBe(1);
+
+    const y2Row = result.find((r) => r.id === 'Y2')!;
+    expect(y2Row.parentId).toBe('X');
+    expect(y2Row.depth).toBe(1);
+
+    // Z was a later sibling of Y under X; should become child of Y2 (last re-parented child)
+    const zRow = result.find((r) => r.id === 'Z')!;
+    expect(zRow.parentId).toBe('Y2');
+    expect(zRow.depth).toBe(2);
+
+    const wRow = result.find((r) => r.id === 'W')!;
+    expect(wRow.parentId).toBeNull();
+    expect(wRow.depth).toBe(0);
+
+    expect(() => validateHierarchy(result)).not.toThrow();
+  });
+});
+
+// ─── validateHierarchy – contiguous subtree ───────────────────────────────
+
+describe('validateHierarchy – contiguous subtree', () => {
+  it('Test 5: throws when a parent\'s subtree is split (non-contiguous)', () => {
+    // Manually construct rows where A's subtree is split:
+    // A at index 0, B (child of A) at index 1, C (NOT child of A) at index 2,
+    // D (child of A) at index 3 — this means A's children are not contiguous
+    const bad: HierarchyRow[] = [
+      { id: 'A', order: 0, parentId: null, depth: 0 },
+      { id: 'B', order: 1, parentId: 'A', depth: 1 },
+      { id: 'C', order: 2, parentId: null, depth: 0 },
+      { id: 'D', order: 3, parentId: 'A', depth: 1 },
+    ];
+    expect(() => validateHierarchy(bad)).toThrow(/[Nn]on-contiguous|[Ss]ubtree/);
+  });
+
+  it('accepts valid contiguous subtrees', () => {
+    const good: HierarchyRow[] = [
+      { id: 'A', order: 0, parentId: null, depth: 0 },
+      { id: 'B', order: 1, parentId: 'A', depth: 1 },
+      { id: 'C', order: 2, parentId: 'A', depth: 1 },
+      { id: 'D', order: 3, parentId: null, depth: 0 },
+    ];
+    expect(() => validateHierarchy(good)).not.toThrow();
+  });
+
+  it('accepts deeply nested contiguous subtrees', () => {
+    const good: HierarchyRow[] = [
+      { id: 'A', order: 0, parentId: null, depth: 0 },
+      { id: 'B', order: 1, parentId: 'A', depth: 1 },
+      { id: 'C', order: 2, parentId: 'B', depth: 2 },
+      { id: 'D', order: 3, parentId: 'B', depth: 2 },
+      { id: 'E', order: 4, parentId: 'A', depth: 1 },
+      { id: 'F', order: 5, parentId: null, depth: 0 },
+    ];
+    expect(() => validateHierarchy(good)).not.toThrow();
+  });
+
+  it('throws when deeper descendant appears outside parent\'s span', () => {
+    // A > B > C, then X (top), then D (child of B) — D is outside B's contiguous block
+    const bad: HierarchyRow[] = [
+      { id: 'A', order: 0, parentId: null, depth: 0 },
+      { id: 'B', order: 1, parentId: 'A', depth: 1 },
+      { id: 'C', order: 2, parentId: 'B', depth: 2 },
+      { id: 'X', order: 3, parentId: null, depth: 0 },
+      { id: 'D', order: 4, parentId: 'B', depth: 2 },
+    ];
+    expect(() => validateHierarchy(bad)).toThrow(/[Nn]on-contiguous|[Ss]ubtree/);
+  });
+});

@@ -92,6 +92,35 @@ export function validateHierarchy(rows: HierarchyRow[]): void {
       current = parentRow?.parentId ?? null;
     }
   }
+
+  // 6. Contiguous subtree check: each row's descendants must occupy a single
+  //    uninterrupted run immediately following that row in the sorted list.
+  //    Build children map, then for every row verify that all its children
+  //    and their subtrees appear consecutively with no foreign rows interspersed.
+  const childrenMap = buildChildMap(rows);
+  const orderIdxMap = new Map<string, number>(rows.map((r, i) => [r.id, i]));
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const children = childrenMap.get(row.id) || [];
+    if (children.length === 0) continue;
+
+    // Find the span this row's subtree occupies: from i+1 to j where depth > row.depth
+    let subtreeEnd = i + 1;
+    while (subtreeEnd < rows.length && rows[subtreeEnd].depth > row.depth) {
+      subtreeEnd++;
+    }
+
+    // Every child (and all its descendants) must be within [i+1, subtreeEnd)
+    for (const childId of children) {
+      const childIdx = orderIdxMap.get(childId)!;
+      if (childIdx < i + 1 || childIdx >= subtreeEnd) {
+        throw new Error(
+          `Non-contiguous subtree: row ${row.id} has child ${childId} at index ${childIdx}, outside expected range [${i + 1}, ${subtreeEnd})`,
+        );
+      }
+    }
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -156,6 +185,26 @@ function adjustDescendantDepths(
   }
 
   return result;
+}
+
+/**
+ * Find the index of the last descendant of `rowId` in the sorted array.
+ * Returns `startIdx` if there are no descendants.
+ * Uses actual parentage (not just depth) to correctly identify subtree boundaries.
+ */
+function findSubtreeEnd(rows: HierarchyRow[], startIdx: number): number {
+  const ancestorIds = new Set<string>([rows[startIdx].id]);
+  let lastIdx = startIdx;
+  for (let i = startIdx + 1; i < rows.length; i++) {
+    const pid = rows[i].parentId;
+    if (pid !== null && ancestorIds.has(pid)) {
+      ancestorIds.add(rows[i].id);
+      lastIdx = i;
+    } else {
+      break;
+    }
+  }
+  return lastIdx;
 }
 
 // ─── insertRow ────────────────────────────────────────────────────────────
@@ -244,7 +293,9 @@ export function insertRow(
   const newRow: HierarchyRow = { id: newId, order: 0, parentId, depth };
   const result = [...rows];
   result.splice(insertIndex, 0, newRow);
-  return renumber(result);
+  const finalResult = renumber(result);
+  validateHierarchy(finalResult);
+  return finalResult;
 }
 
 // ─── indentRows ───────────────────────────────────────────────────────────
@@ -308,38 +359,105 @@ export function indentRows(rows: HierarchyRow[], rowIds: string[]): HierarchyRow
     }
   }
 
-  return renumber(result);
+  const finalResult = renumber(result);
+  validateHierarchy(finalResult);
+  return finalResult;
 }
 
 // ─── outdentRows ──────────────────────────────────────────────────────────
 
 /**
  * Outdent rows — each moves up one level in the hierarchy.
+ * When a row is outdented, every later sibling (same old parent, higher order,
+ * not itself in the outdented set) becomes a child of the outdented row,
+ * appended after its existing children.
  */
 export function outdentRows(rows: HierarchyRow[], rowIds: string[]): HierarchyRow[] {
   if (rowIds.length === 0) return [...rows];
 
   const rowMap = new Map(rows.map((r) => [r.id, r]));
-  let result = [...rows];
-  const rowIdxMap = new Map(result.map((r, i) => [r.id, i]));
+  const outdentSet = new Set(rowIds);
 
-  for (const rid of rowIds) {
-    const idx = rowIdxMap.get(rid);
-    if (idx === undefined) continue;
+  // Sort rowIds by current order to process top-to-bottom
+  const sortedIds = [...rowIds].sort((a, b) => {
+    const ra = rowMap.get(a);
+    const rb = rowMap.get(b);
+    return (ra?.order ?? 0) - (rb?.order ?? 0);
+  });
+
+  let result = [...rows];
+
+  for (const rid of sortedIds) {
+    const idx = result.findIndex((r) => r.id === rid);
+    if (idx === -1) continue;
     const row = result[idx];
     if (row.parentId === null || row.depth === 0) continue; // Already top-level
 
-    const parentRow = rowMap.get(row.parentId);
+    const oldParentId = row.parentId;
+    const parentRow = rowMap.get(oldParentId);
     const grandparentId = parentRow?.parentId ?? null;
     const newDepth = Math.max(0, row.depth - 1);
 
+    // Promote the outdented row
     result[idx] = { ...result[idx], parentId: grandparentId, depth: newDepth };
 
-    // Adjust descendants
+    // Adjust descendants of the outdented row
     result = adjustDescendantDepths(result, rid, newDepth);
+
+    // Collect later siblings: same old parent, higher order, not in outdent set.
+    // Stop scanning if we hit another outdent-set member (same parent) — that
+    // member will handle reassignment of rows after it when it is processed.
+    const ridNewIdx = result.findIndex((r) => r.id === rid);
+    const laterSiblings: number[] = [];
+    for (let i = ridNewIdx + 1; i < result.length; i++) {
+      if (result[i].parentId === oldParentId) {
+        if (outdentSet.has(result[i].id)) {
+          // Another outdent-set member with same parent — stop; it handles the rest
+          break;
+        }
+        laterSiblings.push(i);
+      } else if (result[i].depth <= newDepth && result[i].parentId !== oldParentId) {
+        // We've left the old parent's subtree region — stop scanning
+        break;
+      }
+    }
+
+    if (laterSiblings.length > 0) {
+      // Find the last descendant index of rid using actual parentage
+      const ridNewIdx2 = result.findIndex((r) => r.id === rid);
+      let lastDescIdx = findSubtreeEnd(result, ridNewIdx2);
+
+      // Extract later siblings from their current positions (reverse order to keep indices valid)
+      const extracted: HierarchyRow[] = [];
+      for (let s = laterSiblings.length - 1; s >= 0; s--) {
+        extracted.unshift(result[laterSiblings[s]]);
+        result.splice(laterSiblings[s], 1);
+      }
+
+      // Re-find rid's position after splicing and find subtree end again
+      const updatedRidIdx = result.findIndex((r) => r.id === rid);
+      let updatedLastDescIdx = findSubtreeEnd(result, updatedRidIdx);
+
+      // Insert later siblings right after the outdented row's subtree
+      const insertAt = updatedLastDescIdx + 1;
+      const adjustedSiblings = extracted.map((s) => ({
+        ...s,
+        parentId: rid,
+        depth: newDepth + 1,
+      }));
+
+      result.splice(insertAt, 0, ...adjustedSiblings);
+
+      // Adjust deeper descendants of the re-parented siblings
+      for (const sib of adjustedSiblings) {
+        result = adjustDescendantDepths(result, sib.id, newDepth + 1);
+      }
+    }
   }
 
-  return renumber(result);
+  result = renumber(result);
+  validateHierarchy(result);
+  return result;
 }
 
 // ─── moveRows ─────────────────────────────────────────────────────────────
@@ -493,7 +611,9 @@ export function moveRows(
 
   const result = [...remainingRows];
   result.splice(insertIdx, 0, ...adjustedMovedRows);
-  return renumber(result);
+  const finalResult = renumber(result);
+  validateHierarchy(finalResult);
+  return finalResult;
 }
 
 // ─── deleteRows ───────────────────────────────────────────────────────────
@@ -504,7 +624,9 @@ interface DeleteOpts {
 
 /**
  * Delete rows. If cascade=true, also delete all descendants.
- * If cascade=false, re-parent direct children to the deleted row's parent.
+ * If cascade=false, re-parent direct children to the deleted row's parent,
+ * then apply sibling reassignment: later siblings of the deleted row become
+ * children of the last re-parented child (maintaining contiguous subtrees).
  */
 export function deleteRows(
   rows: HierarchyRow[],
@@ -532,43 +654,105 @@ export function deleteRows(
         }
       }
     }
-  } else {
-    // Re-parent direct children of each deleted row to that row's parent
-    idsToDelete = new Set(rowIds);
-    let result = [...rows];
-    const rowIdxMap = new Map(result.map((r, i) => [r.id, i]));
-
-    for (const delId of rowIds) {
-      const delRow = rowMap.get(delId);
-      if (!delRow) continue;
-      const grandparentId = delRow.parentId ?? null;
-      const children = childMap.get(delId) || [];
-
-      for (const cid of children) {
-        const idx = rowIdxMap.get(cid);
-        if (idx === undefined) continue;
-        const childRow = result[idx];
-        const newDepth = Math.max(0, childRow.depth - 1);
-        result[idx] = { ...childRow, parentId: grandparentId, depth: newDepth };
-      }
-    }
-
-    // Also adjust deeper descendants of the re-parented children
-    for (const delId of rowIds) {
-      const delRow = rowMap.get(delId);
-      if (!delRow) continue;
-      const children = childMap.get(delId) || [];
-      for (const cid of children) {
-        result = adjustDescendantDepths(result, cid, Math.max(0, (rowMap.get(cid)?.depth ?? 1) - 1));
-      }
-    }
-
-    // Now filter out deleted rows
-    const filtered = result.filter((r) => !idsToDelete.has(r.id));
-    return renumber(filtered);
+    // Cascade: just filter out all ids to delete
+    const filtered = rows.filter((r) => !idsToDelete.has(r.id));
+    const result = renumber(filtered);
+    validateHierarchy(result);
+    return result;
   }
 
-  // Cascade: just filter out all ids to delete
-  const filtered = rows.filter((r) => !idsToDelete.has(r.id));
-  return renumber(filtered);
+  // Keep-children path: promote all direct children to grandparent level,
+  // then reassign later siblings of the deleted row to the last promoted child.
+  idsToDelete = new Set(rowIds);
+
+  // Sort rowIds by order to process top-to-bottom
+  const sortedDelIds = [...rowIds].sort((a, b) => {
+    const ra = rowMap.get(a);
+    const rb = rowMap.get(b);
+    return (ra?.order ?? 0) - (rb?.order ?? 0);
+  });
+
+  let result = [...rows];
+
+  for (const delId of sortedDelIds) {
+    const delIdx = result.findIndex((r) => r.id === delId);
+    if (delIdx === -1) continue;
+    const delRow = result[delIdx];
+    const grandparentId = delRow.parentId ?? null;
+    const delDepth = delRow.depth;
+    // Get direct children from the ORIGINAL childMap, excluding rows being deleted
+    const children = (childMap.get(delId) || []).filter((cid) => !idsToDelete.has(cid));
+
+    // Phase 1: Promote ALL direct children to grandparent level simultaneously
+    const promotedChildIds: string[] = [];
+    for (const cid of children) {
+      const cIdx = result.findIndex((r) => r.id === cid);
+      if (cIdx === -1) continue;
+      const childRow = result[cIdx];
+      const newDepth = Math.max(0, childRow.depth - 1);
+      result[cIdx] = { ...childRow, parentId: grandparentId, depth: newDepth };
+      promotedChildIds.push(cid);
+    }
+
+    // Adjust deeper descendants of each promoted child
+    for (const cid of promotedChildIds) {
+      const cRow = result.find((r) => r.id === cid);
+      if (cRow) {
+        result = adjustDescendantDepths(result, cid, cRow.depth);
+      }
+    }
+
+    // Phase 2: Later siblings of the DELETED ROW (same parent, higher order,
+    // not in delete set, not a promoted child) become children of the last
+    // promoted child. Only applies when the deleted row has a non-null parent.
+    if (promotedChildIds.length > 0 && grandparentId !== null) {
+      const lastChildId = promotedChildIds[promotedChildIds.length - 1];
+      const lastChildRow = result.find((r) => r.id === lastChildId)!;
+      const lastChildDepth = lastChildRow.depth;
+      const promotedSet = new Set(promotedChildIds);
+
+      const delRowNewIdx = result.findIndex((r) => r.id === delId);
+      if (delRowNewIdx !== -1) {
+        const outerLaterSiblings: number[] = [];
+        for (let i = delRowNewIdx + 1; i < result.length; i++) {
+          if (result[i].parentId === grandparentId && !idsToDelete.has(result[i].id) && !promotedSet.has(result[i].id)) {
+            outerLaterSiblings.push(i);
+          } else if (result[i].depth <= delDepth && result[i].parentId !== grandparentId) {
+            break;
+          }
+        }
+
+        if (outerLaterSiblings.length > 0) {
+          const lcIdx = result.findIndex((r) => r.id === lastChildId);
+          const subtreeEnd = findSubtreeEnd(result, lcIdx);
+
+          const extracted: HierarchyRow[] = [];
+          for (let s = outerLaterSiblings.length - 1; s >= 0; s--) {
+            extracted.unshift(result[outerLaterSiblings[s]]);
+            result.splice(outerLaterSiblings[s], 1);
+          }
+
+          const updatedLcIdx = result.findIndex((r) => r.id === lastChildId);
+          const updatedSubtreeEnd = findSubtreeEnd(result, updatedLcIdx);
+
+          const adjusted = extracted.map((s) => ({
+            ...s,
+            parentId: lastChildId,
+            depth: lastChildDepth + 1,
+          }));
+          result.splice(updatedSubtreeEnd + 1, 0, ...adjusted);
+
+          for (const sib of adjusted) {
+            result = adjustDescendantDepths(result, sib.id, lastChildDepth + 1);
+          }
+        }
+      }
+    }
+  }
+
+  // Filter out deleted rows
+  const filtered = result.filter((r) => !idsToDelete.has(r.id));
+  const finalResult = renumber(filtered);
+  validateHierarchy(finalResult);
+  return finalResult;
 }
