@@ -44,9 +44,9 @@ export const setPrimaryColumn = asyncHandler(async (req: Request, res: Response)
 
 /** POST /api/sheets/:sheetId/grid/rows */
 export const addRow = asyncHandler(async (req: Request, res: Response) => {
-  const { afterRowId, beforeRowId, cells } = req.body;
-  const row = await gridService.addRow(req.params.sheetId, req.user!.id, { afterRowId, beforeRowId, cells });
-  sendSuccess(res, row, 201);
+  const { afterRowId, beforeRowId, cells, parentId, isParentExpanded } = req.body;
+  const result = await gridService.addRow(req.params.sheetId, req.user!.id, { afterRowId, beforeRowId, cells, parentId, isParentExpanded });
+  sendSuccess(res, result, 201);
 });
 
 /** PATCH /api/sheets/:sheetId/grid/rows/:rowId/cells/:columnId */
@@ -71,8 +71,8 @@ export const deleteRows = asyncHandler(async (req: Request, res: Response) => {
 
 /** PATCH /api/sheets/:sheetId/grid/rows/reorder */
 export const reorderRows = asyncHandler(async (req: Request, res: Response) => {
-  const { orderedIds } = req.body;
-  const result = await gridService.reorderRows(req.params.sheetId, req.user!.id, orderedIds);
+  const { orderedIds, parentUpdates } = req.body;
+  const result = await gridService.reorderRows(req.params.sheetId, req.user!.id, orderedIds, parentUpdates);
   sendSuccess(res, result);
 });
 

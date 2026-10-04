@@ -119,12 +119,13 @@ export const setPrimaryColumn = createAsyncThunk(
 export const addRow = createAsyncThunk(
   'grid/addRow',
   async (
-    { sheetId, data }: { sheetId: string; data?: { afterRowId?: string; beforeRowId?: string; cells?: Record<string, unknown> } },
+    { sheetId, data }: { sheetId: string; data?: { afterRowId?: string; beforeRowId?: string; cells?: Record<string, unknown>; isParentExpanded?: boolean } },
     { rejectWithValue },
   ) => {
     try {
       const res = await gridService.addRow(sheetId, data);
-      return res.data.data as GridRow;
+      const payload = res.data.data as { row: GridRow; rows: GridRow[] };
+      return payload;
     } catch (err: unknown) {
       return rejectWithValue(parseApiError(err).message);
     }
@@ -135,12 +136,13 @@ export const addRow = createAsyncThunk(
 export const insertRow = createAsyncThunk(
   'grid/insertRow',
   async (
-    { sheetId, afterRowId, beforeRowId }: { sheetId: string; afterRowId?: string; beforeRowId?: string },
+    { sheetId, afterRowId, beforeRowId, isParentExpanded }: { sheetId: string; afterRowId?: string; beforeRowId?: string; isParentExpanded?: boolean },
     { rejectWithValue },
   ) => {
     try {
-      const res = await gridService.addRow(sheetId, { afterRowId, beforeRowId });
-      return res.data.data as GridRow;
+      const res = await gridService.addRow(sheetId, { afterRowId, beforeRowId, isParentExpanded });
+      const payload = res.data.data as { row: GridRow; rows: GridRow[] };
+      return payload;
     } catch (err: unknown) {
       return rejectWithValue(parseApiError(err).message);
     }
@@ -167,12 +169,24 @@ export const updateCell = createAsyncThunk(
 
 export const reorderRows = createAsyncThunk(
   'grid/reorderRows',
-  async ({ sheetId, orderedIds }: { sheetId: string; orderedIds: string[] }, { rejectWithValue }) => {
+  async (
+    { sheetId, orderedIds, parentUpdates }: {
+      sheetId: string;
+      orderedIds: string[];
+      parentUpdates?: Array<{ rowId: string; parentId: string | null; depth: number }>;
+    },
+    { getState, rejectWithValue },
+  ) => {
+    // Save previous state for rollback
+    const state = getState() as RootState;
+    const prevRows = state.grid.rows.map((r) => ({ ...r }));
+
     try {
-      await gridService.reorderRows(sheetId, orderedIds);
-      return orderedIds;
+      const res = await gridService.reorderRows(sheetId, orderedIds, parentUpdates);
+      const payload = res.data.data as { reordered: number; rows: GridRow[] };
+      return { rows: payload.rows, prevRows };
     } catch (err: unknown) {
-      return rejectWithValue(parseApiError(err).message);
+      return rejectWithValue({ message: parseApiError(err).message, prevRows });
     }
   },
 );
@@ -451,8 +465,7 @@ const gridSlice = createSlice({
       .addCase(addRow.pending, (state) => { state.saving = true; state.saveError = null; })
       .addCase(addRow.fulfilled, (state, action) => {
         state.saving = false;
-        state.rows.push(action.payload);
-        state.rows.sort((a, b) => a.order - b.order);
+        state.rows = action.payload.rows;
       })
       .addCase(addRow.rejected, (state, action) => {
         state.saving = false;
@@ -462,8 +475,7 @@ const gridSlice = createSlice({
       .addCase(insertRow.pending, (state) => { state.saving = true; state.saveError = null; })
       .addCase(insertRow.fulfilled, (state, action) => {
         state.saving = false;
-        state.rows.push(action.payload);
-        state.rows.sort((a, b) => a.order - b.order);
+        state.rows = action.payload.rows;
       })
       .addCase(insertRow.rejected, (state, action) => {
         state.saving = false;
@@ -485,8 +497,11 @@ const gridSlice = createSlice({
       })
       // deleteRows (optimistic — rows removed in thunk, rollback on failure)
       .addCase(deleteRows.pending, (state) => { state.saving = true; state.saveError = null; })
-      .addCase(deleteRows.fulfilled, (state) => {
+      .addCase(deleteRows.fulfilled, (state, action) => {
         state.saving = false;
+        if (action.payload.rows) {
+          state.rows = action.payload.rows;
+        }
       })
       .addCase(deleteRows.rejected, (state, action) => {
         state.saving = false;
@@ -494,12 +509,17 @@ const gridSlice = createSlice({
       })
       // reorderRows
       .addCase(reorderRows.pending, (state) => { state.saving = true; state.saveError = null; })
-      .addCase(reorderRows.fulfilled, (state) => {
+      .addCase(reorderRows.fulfilled, (state, action) => {
         state.saving = false;
+        state.rows = action.payload.rows;
       })
       .addCase(reorderRows.rejected, (state, action) => {
         state.saving = false;
-        state.saveError = (action.payload as string) || 'Failed to reorder rows';
+        const payload = action.payload as { message: string; prevRows?: GridRow[] } | undefined;
+        if (payload?.prevRows) {
+          state.rows = payload.prevRows;
+        }
+        state.saveError = payload?.message || 'Failed to reorder rows';
       })
       // indentSelectedRows
       .addCase(indentSelectedRows.pending, (state) => { state.saving = true; state.saveError = null; })
@@ -572,8 +592,9 @@ export const deleteRows = createAsyncThunk(
     dispatch(optimisticDeleteRows(rowIds));
 
     try {
-      await gridService.deleteRows(sheetId, rowIds, !!includeDescendants);
-      return rowIds;
+      const res = await gridService.deleteRows(sheetId, rowIds, !!includeDescendants);
+      const payload = res.data.data as { deleted: number; rows: GridRow[] };
+      return { rowIds, rows: payload.rows };
     } catch (err: unknown) {
       // Rollback: re-insert removed rows at their original positions
       dispatch(rollbackDeleteRows(removedRows.map((r) => ({ row: r.row, index: r.index }))));

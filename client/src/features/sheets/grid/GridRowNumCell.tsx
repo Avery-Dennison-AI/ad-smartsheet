@@ -20,9 +20,7 @@ interface GridRowNumCellProps {
   onInsertAbove: (rowId: string) => void;
   onInsertBelow: (rowId: string) => void;
   onRequestDeleteRows: (rowIds: string[]) => void;
-  onDragStart?: (rowIndex: number) => void;
-  onDragOver?: (rowIndex: number) => void;
-  onDrop?: (rowIndex: number) => void;
+  onDragStart?: (e: React.DragEvent, rowId: string) => void;
   onRowResizeStart?: (e: React.MouseEvent, rowIndex: number) => void;
   onRowResizeDoubleClick?: (rowIndex: number) => void;
   onRowContextMenu?: (rowIndex: number, x: number, y: number) => void;
@@ -49,8 +47,6 @@ export default function GridRowNumCell({
   onInsertBelow,
   onRequestDeleteRows,
   onDragStart,
-  onDragOver,
-  onDrop,
   onRowResizeStart,
   onRowResizeDoubleClick,
   onRowContextMenu,
@@ -115,16 +111,20 @@ export default function GridRowNumCell({
         'group relative flex h-full items-center justify-center border-b border-r select-none',
         'w-[var(--grid-row-num-width)]',
         'bg-[var(--grid-header-bg)] text-[var(--grid-header-text)]',
-        'text-xs font-medium cursor-pointer',
+        'text-xs font-medium cursor-grab hover:cursor-grab active:cursor-grabbing',
         isSelected && 'bg-[var(--grid-range-bg)]',
       )}
       style={{ borderColor: 'var(--grid-line-color)' }}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
-      draggable={canEdit}
-      onDragStart={() => onDragStart?.(rowIndex)}
-      onDragOver={(e) => { e.preventDefault(); onDragOver?.(rowIndex); }}
-      onDrop={() => onDrop?.(rowIndex)}
+      draggable={canEdit && isData}
+      onDragStart={(e) => {
+        if (rowId && onDragStart) {
+          e.dataTransfer.setData('text/plain', rowId);
+          e.dataTransfer.effectAllowed = 'move';
+          onDragStart(e, rowId);
+        }
+      }}
       data-icod-id="src_features_sheets_grid_gridrownumcell_tsx_34b4">
       <span
         className="group-hover:hidden"

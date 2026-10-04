@@ -2,6 +2,7 @@ import GridRowNumCell from './GridRowNumCell';
 import GridCell from './GridCell';
 import { getColWidth, getRowHeight } from './gridHelpers';
 import type { Column, GridRow as GridRowType, WorkspaceRole } from '@/types';
+import type { DropPosition } from './useRowOperations';
 
 interface GridMember {
   id: string;
@@ -39,8 +40,10 @@ interface GridRowProps {
   onInsertRowAbove: (rowId: string) => void;
   onInsertRowBelow: (rowId: string) => void;
   onRequestDeleteRows: (ids: string[]) => void;
-  onRowDragStart: (rowIdx: number) => void;
-  onRowDrop: (targetRowIdx: number) => void;
+  onDragStart: (e: React.DragEvent, rowId: string) => void;
+  onDragOver: (e: React.DragEvent, targetRowId: string) => void;
+  onDrop: (targetRowId: string, position: DropPosition) => void;
+  onDragEnd: () => void;
   onRowResizeStart: (e: React.MouseEvent, rowIndex: number) => void;
   onRowResizeDoubleClick: (rowIndex: number) => void;
   onRowContextMenu: (rowIndex: number, x: number, y: number) => void;
@@ -55,6 +58,10 @@ interface GridRowProps {
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
   rowNumberMap?: Map<string, number>;
+  /** Drag-and-drop visual state */
+  draggedRowIds?: Set<string>;
+  dropTargetRowId?: string | null;
+  dropPosition?: DropPosition | null;
 }
 
 export default function GridRow({
@@ -85,8 +92,10 @@ export default function GridRow({
   onInsertRowAbove,
   onInsertRowBelow,
   onRequestDeleteRows,
-  onRowDragStart,
-  onRowDrop,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
   onRowResizeStart,
   onRowResizeDoubleClick,
   onRowContextMenu,
@@ -100,6 +109,9 @@ export default function GridRow({
   onExpandAll,
   onCollapseAll,
   rowNumberMap,
+  draggedRowIds,
+  dropTargetRowId,
+  dropPosition,
 }: GridRowProps) {
   const isBlankRow = !row;
   const rowH = liveRowHeights && row && liveRowHeights[row.id] !== undefined
@@ -117,14 +129,45 @@ export default function GridRow({
   const visibleRowNumber = row ? rowNumberMap?.get(row.id) : undefined;
   const rowHasChildren = row ? parentIds?.has(row.id) ?? false : false;
 
+  // Drag visual state
+  const isDraggedRow = row ? draggedRowIds?.has(row.id) ?? false : false;
+  const isDropTarget = row ? dropTargetRowId === row.id : false;
+
   return (
     <div
       key={rowIdx}
-      className="absolute flex w-max"
+      className={`absolute flex w-max ${isDraggedRow ? 'opacity-40' : ''}`}
       style={{ top, height: rowH, willChange: 'transform' }}
       onMouseEnter={() => setHoveredRowIndex(rowIdx)}
       onMouseLeave={() => setHoveredRowIndex((prev) => prev === rowIdx ? null : prev)}
+      onDragOver={(e) => {
+        if (!row || !canEdit) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onDragOver(e, row.id);
+      }}
+      onDrop={(e) => {
+        if (!row || !canEdit) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const position: DropPosition = e.clientY < midY ? 'above' : 'below';
+        onDrop(row.id, position);
+      }}
+      onDragEnd={onDragEnd}
       data-icod-id="src_features_sheets_grid_gridrow_tsx_cce7">
+      {/* Drop insertion line indicator */}
+      {isDropTarget && dropPosition && (
+        <div
+          className="pointer-events-none absolute left-0 right-0 h-[2px] bg-primary"
+          style={{
+            top: dropPosition === 'above' ? -1 : undefined,
+            bottom: dropPosition === 'below' ? -1 : undefined,
+            zIndex: 'var(--z-grid-header)',
+          }}
+          data-icod-id="src_features_sheets_grid_gridrow_tsx_drop_line" />
+      )}
       {/* Row number cell */}
       <div
         className="sticky left-0"
@@ -140,9 +183,7 @@ export default function GridRow({
           onInsertAbove={onInsertRowAbove}
           onInsertBelow={onInsertRowBelow}
           onRequestDeleteRows={onRequestDeleteRows}
-          onDragStart={onRowDragStart}
-          onDragOver={() => {}}
-          onDrop={onRowDrop}
+          onDragStart={onDragStart}
           onRowResizeStart={onRowResizeStart}
           onRowResizeDoubleClick={onRowResizeDoubleClick}
           onRowContextMenu={!isBlankRow ? onRowContextMenu : undefined}

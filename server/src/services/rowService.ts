@@ -9,9 +9,10 @@ import { AppError } from '../utils/AppError';
 export async function addRow(
   sheetId: string,
   userId: string,
-  data?: { afterRowId?: string; beforeRowId?: string; cells?: Record<string, unknown>; parentId?: string | null },
+  data?: { afterRowId?: string; beforeRowId?: string; cells?: Record<string, unknown>; parentId?: string | null; isParentExpanded?: boolean },
 ) {
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
+  const sheetObjId = new mongoose.Types.ObjectId(sheetId);
 
   const validatedCells: Record<string, unknown> = {};
   if (data?.cells) {
@@ -25,11 +26,40 @@ export async function addRow(
     }
   }
 
-  // Resolve parentId and depth
+  // Resolve parentId and depth based on insertion context
   let parentId: mongoose.Types.ObjectId | null = null;
   let depth = 0;
 
-  if (data?.parentId) {
+  if (data?.afterRowId) {
+    const refRow = await Row.findById(data.afterRowId);
+    if (!refRow || refRow.sheetId.toString() !== sheetId) {
+      throw new AppError('Row not found', 404);
+    }
+
+    const refDepth = refRow.depth ?? 0;
+    const refHasChildren = await Row.exists({ parentId: refRow._id, sheetId: sheetObjId });
+
+    if (data.isParentExpanded && refHasChildren) {
+      // Insert as first child of expanded parent
+      if (refDepth >= 10) {
+        throw new AppError('Maximum nesting depth of 10 exceeded', 400);
+      }
+      parentId = refRow._id as mongoose.Types.ObjectId;
+      depth = refDepth + 1;
+    } else {
+      // Sibling of reference row
+      parentId = refRow.parentId ?? null;
+      depth = refDepth;
+    }
+  } else if (data?.beforeRowId) {
+    const refRow = await Row.findById(data.beforeRowId);
+    if (!refRow || refRow.sheetId.toString() !== sheetId) {
+      throw new AppError('Row not found', 404);
+    }
+    // Always sibling of reference row
+    parentId = refRow.parentId ?? null;
+    depth = refRow.depth ?? 0;
+  } else if (data?.parentId) {
     if (!mongoose.Types.ObjectId.isValid(data.parentId)) {
       throw new AppError('Invalid parent row ID', 400);
     }
@@ -45,64 +75,41 @@ export async function addRow(
     depth = parentDepth + 1;
   }
 
-  let order: number;
+  // Determine insertion order position
+  let insertAfterOrder: number | null = null;
 
   if (data?.beforeRowId) {
-    const beforeRow = await Row.findById(data.beforeRowId);
-    if (!beforeRow || beforeRow.sheetId.toString() !== sheetId) {
-      throw new AppError('Row not found', 404);
-    }
-
-    const prevRow = await Row.findOne({
-      sheetId: new mongoose.Types.ObjectId(sheetId),
-      order: { $lt: beforeRow.order },
-    }).sort({ order: -1 });
-
-    if (prevRow) {
-      order = (prevRow.order + beforeRow.order) / 2;
-    } else {
-      order = beforeRow.order - 1;
-    }
-
-    if (prevRow && Math.abs(order - prevRow.order) < 0.001) {
-      const allRows = await Row.find({ sheetId: new mongoose.Types.ObjectId(sheetId) })
-        .sort({ order: 1 });
-      const ops = allRows.map((r, i) => ({
-        updateOne: {
-          filter: { _id: r._id },
-          update: { $set: { order: i } },
-        },
-      }));
-      if (ops.length > 0) await Row.bulkWrite(ops);
-      const normalizedBeforeRow = await Row.findById(data.beforeRowId);
-      const normalizedPrevRow = await Row.findOne({
-        sheetId: new mongoose.Types.ObjectId(sheetId),
-        order: { $lt: normalizedBeforeRow!.order },
-      }).sort({ order: -1 });
-      order = normalizedPrevRow ? (normalizedPrevRow.order + normalizedBeforeRow!.order) / 2 : normalizedBeforeRow!.order - 1;
-    }
+    const refRow = await Row.findById(data.beforeRowId);
+    if (!refRow) throw new AppError('Row not found', 404);
+    // Insert just before the reference row — we'll place it at refRow.order and shift everything >= down
+    insertAfterOrder = null; // special: insert before this order
+    // We'll handle below by finding correct slot
   } else if (data?.afterRowId) {
-    const afterRow = await Row.findById(data.afterRowId);
-    if (!afterRow || afterRow.sheetId.toString() !== sheetId) {
-      throw new AppError('Row not found', 404);
-    }
-    order = afterRow.order + 1;
+    const refRow = await Row.findById(data.afterRowId);
+    if (!refRow) throw new AppError('Row not found', 404);
 
-    await Row.updateMany(
-      { sheetId: new mongoose.Types.ObjectId(sheetId), order: { $gte: order } },
-      { $inc: { order: 1 } },
-    );
+    if (parentId && parentId.equals(refRow._id)) {
+      // Inserting as first child of expanded parent → right after the parent
+      insertAfterOrder = refRow.order;
+    } else {
+      // Inserting as sibling after the reference row
+      // Find the last descendant of the reference row to insert after
+      const rowsAfterRef = await Row.find({ sheetId: sheetObjId, order: { $gt: refRow.order } }).sort({ order: 1 });
+      let lastOrder = refRow.order;
+      for (const r of rowsAfterRef) {
+        if ((r.depth ?? 0) > (refRow.depth ?? 0)) {
+          lastOrder = r.order;
+        } else {
+          break;
+        }
+      }
+      insertAfterOrder = lastOrder;
+    }
   } else if (parentId) {
-    // Insert immediately after the parent and its last descendant
+    // Explicit parentId without after/before → insert after parent and its descendants
     const parentRow = await Row.findById(parentId);
     if (!parentRow) throw new AppError('Parent row not found', 404);
-
-    // Find the last descendant by walking rows after the parent
-    const rowsAfterParent = await Row.find({
-      sheetId: new mongoose.Types.ObjectId(sheetId),
-      order: { $gt: parentRow.order },
-    }).sort({ order: 1 });
-
+    const rowsAfterParent = await Row.find({ sheetId: sheetObjId, order: { $gt: parentRow.order } }).sort({ order: 1 });
     let lastOrder = parentRow.order;
     for (const r of rowsAfterParent) {
       if ((r.depth ?? 0) > depth - 1) {
@@ -111,27 +118,38 @@ export async function addRow(
         break;
       }
     }
-
-    order = lastOrder + 1;
-    await Row.updateMany(
-      { sheetId: new mongoose.Types.ObjectId(sheetId), order: { $gte: order } },
-      { $inc: { order: 1 } },
-    );
+    insertAfterOrder = lastOrder;
   } else {
-    const lastRow = await Row.findOne({ sheetId: new mongoose.Types.ObjectId(sheetId) })
-      .sort({ order: -1 });
-    order = lastRow ? lastRow.order + 1 : 0;
+    // Append at end
+    const lastRow = await Row.findOne({ sheetId: sheetObjId }).sort({ order: -1 });
+    insertAfterOrder = lastRow ? lastRow.order : -1;
   }
 
+  // Create the row with a temporary order value
+  const tempOrder = (insertAfterOrder ?? -1) + 0.5;
   const row = await Row.create({
-    sheetId: new mongoose.Types.ObjectId(sheetId),
-    order,
+    sheetId: sheetObjId,
+    order: tempOrder,
     cells: validatedCells,
     parentId,
     depth,
   });
 
-  return formatRow(row);
+  // Renumber all rows with continuous integer orders
+  const allRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
+  const ops = allRows.map((r, i) => ({
+    updateOne: {
+      filter: { _id: r._id },
+      update: { $set: { order: i } },
+    },
+  }));
+  if (ops.length > 0) await Row.bulkWrite(ops);
+
+  // Return the new row plus full updated rows list
+  const updatedAllRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
+  const rowsList = updatedAllRows.map(formatRow);
+
+  return { row: formatRow(row), rows: rowsList };
 }
 
 /** Updates a single cell value. Requires editor+. */
@@ -246,12 +264,26 @@ export async function deleteRows(
     idsToDelete = validIds;
   }
 
-  const result = await Row.deleteMany({
+  await Row.deleteMany({
     _id: { $in: idsToDelete },
     sheetId: sheetObjId,
   });
 
-  return { deleted: result.deletedCount };
+  // Renumber remaining rows with continuous integer orders
+  const remainingRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
+  const ops = remainingRows.map((r, i) => ({
+    updateOne: {
+      filter: { _id: r._id },
+      update: { $set: { order: i } },
+    },
+  }));
+  if (ops.length > 0) await Row.bulkWrite(ops);
+
+  // Return full updated rows list
+  const updatedRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
+  const rowsList = updatedRows.map(formatRow);
+
+  return { deleted: idsToDelete.length, rows: rowsList };
 }
 
 /** Reorders rows by providing an ordered array of row IDs. Requires editor+. */
@@ -259,46 +291,122 @@ export async function reorderRows(
   sheetId: string,
   userId: string,
   orderedIds: string[],
+  parentUpdates?: Array<{ rowId: string; parentId: string | null; depth: number }>,
 ) {
   await getSheetWithAccess(sheetId, userId, 'editor');
 
+  const sheetObjId = new mongoose.Types.ObjectId(sheetId);
+
+  // Apply parent/depth updates if provided
+  if (parentUpdates && parentUpdates.length > 0) {
+    // Validate: no cycles, all parentIds belong to same sheet, depth <= 10
+    for (const update of parentUpdates) {
+      if (update.depth < 0 || update.depth > 10) {
+        throw new AppError(`Depth must be between 0 and 10, got ${update.depth}`, 400);
+      }
+      if (update.parentId) {
+        if (!mongoose.Types.ObjectId.isValid(update.parentId)) {
+          throw new AppError(`Invalid parent ID: ${update.parentId}`, 400);
+        }
+        // No row can be its own ancestor
+        if (update.parentId === update.rowId) {
+          throw new AppError('A row cannot be its own parent', 400);
+        }
+        const parentRow = await Row.findById(update.parentId);
+        if (!parentRow || parentRow.sheetId.toString() !== sheetId) {
+          throw new AppError(`Parent row ${update.parentId} not found in this sheet`, 404);
+        }
+      }
+    }
+
+    // Check for cycles: ensure no row becomes an ancestor of itself through the chain
+    const allRows = await Row.find({ sheetId: sheetObjId });
+    const rowMap = new Map(allRows.map((r) => [r._id.toString(), r]));
+    // Apply pending updates to a virtual map for cycle detection
+    const pendingParentMap = new Map<string, string | null>();
+    for (const u of parentUpdates) {
+      pendingParentMap.set(u.rowId, u.parentId);
+    }
+
+    for (const update of parentUpdates) {
+      let current = update.parentId;
+      const visited = new Set<string>([update.rowId]);
+      while (current) {
+        if (visited.has(current)) {
+          throw new AppError('Cycle detected in parent chain', 400);
+        }
+        visited.add(current);
+        // Check if this parent is also being updated
+        const pendingParent = pendingParentMap.get(current);
+        if (pendingParent !== undefined) {
+          current = pendingParent;
+        } else {
+          const row = rowMap.get(current);
+          current = row?.parentId ? row.parentId.toString() : null;
+        }
+      }
+    }
+
+    // Apply bulk parent/depth updates
+    const parentOps = parentUpdates.map((u) => ({
+      updateOne: {
+        filter: { _id: new mongoose.Types.ObjectId(u.rowId), sheetId: sheetObjId },
+        update: { $set: { parentId: u.parentId ? new mongoose.Types.ObjectId(u.parentId) : null, depth: u.depth } },
+      },
+    }));
+    if (parentOps.length > 0) await Row.bulkWrite(parentOps);
+
+    // Also update descendants' depths relative to their moved roots
+    const updatedRowMap = new Map(parentUpdates.map((u) => [u.rowId, u]));
+    const childMap = new Map<string, IRow[]>();
+    const freshAllRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
+    for (const r of freshAllRows) {
+      const pid = r.parentId ? r.parentId.toString() : null;
+      if (pid) {
+        if (!childMap.has(pid)) childMap.set(pid, []);
+        childMap.get(pid)!.push(r);
+      }
+    }
+
+    const depthOps: Array<{ updateOne: { filter: { _id: mongoose.Types.ObjectId }; update: { $set: { depth: number } } } }> = [];
+    for (const [rowId, update] of updatedRowMap.entries()) {
+      const queue: Array<{ id: string; depth: number }> = [];
+      const children = childMap.get(rowId) || [];
+      for (const child of children) {
+        queue.push({ id: child._id.toString(), depth: update.depth + 1 });
+      }
+      while (queue.length > 0) {
+        const { id, depth } = queue.shift()!;
+        if (depth > 10) continue;
+        depthOps.push({
+          updateOne: {
+            filter: { _id: new mongoose.Types.ObjectId(id) },
+            update: { $set: { depth } },
+          },
+        });
+        const grandChildren = childMap.get(id) || [];
+        for (const gc of grandChildren) {
+          queue.push({ id: gc._id.toString(), depth: depth + 1 });
+        }
+      }
+    }
+    if (depthOps.length > 0) await Row.bulkWrite(depthOps);
+  }
+
+  // Renumber all rows with continuous integer orders based on orderedIds
   const ops = orderedIds.map((id, index) => ({
     updateOne: {
-      filter: { _id: new mongoose.Types.ObjectId(id), sheetId: new mongoose.Types.ObjectId(sheetId) },
+      filter: { _id: new mongoose.Types.ObjectId(id), sheetId: sheetObjId },
       update: { $set: { order: index } },
     },
   }));
+  if (ops.length > 0) await Row.bulkWrite(ops);
 
-  if (ops.length > 0) {
-    await Row.bulkWrite(ops);
-  }
+  // Return full updated rows list
+  const allUpdatedRows = await Row.find({ sheetId: sheetObjId }).sort({ order: 1 });
+  const rowsList = allUpdatedRows.map(formatRow);
 
-  // Re-derive depth from parent chain after reorder
-  const allRows = await Row.find({ sheetId: new mongoose.Types.ObjectId(sheetId) }).sort({ order: 1 });
-  const depthOps: Array<{ updateOne: { filter: { _id: mongoose.Types.ObjectId }; update: { $set: { depth: number } } } }> = [];
-  for (const row of allRows) {
-    let d = 0;
-    let pid = row.parentId;
-    while (pid) {
-      const parent = allRows.find((r) => r._id.equals(pid));
-      if (!parent) break;
-      d++;
-      pid = parent.parentId;
-    }
-    if (d !== (row.depth ?? 0)) {
-      depthOps.push({
-        updateOne: {
-          filter: { _id: row._id },
-          update: { $set: { depth: Math.min(d, 10) } },
-        },
-      });
-    }
-  }
-  if (depthOps.length > 0) {
-    await Row.bulkWrite(depthOps);
-  }
-
-  return { reordered: orderedIds.length };
+  return { reordered: orderedIds.length, rows: rowsList };
 }
 
 /** Updates row heights in bulk. Requires editor+. */

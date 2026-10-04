@@ -23,35 +23,49 @@ type RowResizeDrag = {
   currentDelta: number;
 } | null;
 
+export type DropPosition = 'above' | 'below';
+
 interface UseRowOperationsResult {
-  dragRowIndex: number | null;
   rowResizeDrag: RowResizeDrag;
   pendingDeleteRowIds: string[] | null;
   setPendingDeleteRowIds: React.Dispatch<React.SetStateAction<string[] | null>>;
   handleAddRow: (afterRowId?: string) => void;
   handleInsertRowAbove: (rowId: string) => void;
-  handleInsertRowBelow: (rowId: string) => void;
+  handleInsertRowBelow: (rowId: string, isParentExpanded?: boolean) => void;
   handleDeleteRows: (rowIds: string[], includeDescendants?: boolean) => void;
   confirmDeleteRows: (selectedRowIndices: Set<number>, selectionClearFn: () => void, selectionSelectRowFn: (idx: number, opts: { shift: boolean; meta: boolean }) => void, includeDescendants?: boolean) => void;
   indentRows: (rowIds: string[]) => void;
   outdentRows: (rowIds: string[]) => void;
   canIndentSelection: (rowIds: string[]) => boolean;
   canOutdentSelection: (rowIds: string[]) => boolean;
-  handleRowDragStart: (rowIdx: number) => void;
-  handleRowDrop: (targetRowIdx: number) => void;
+  // Drag-and-drop
+  draggedRowIds: Set<string>;
+  dropTargetRowId: string | null;
+  dropPosition: DropPosition | null;
+  handleDragStart: (e: React.DragEvent, rowId: string, selectedRowIds?: Set<string>) => void;
+  handleDragOver: (e: React.DragEvent, targetRowId: string) => void;
+  handleDrop: (targetRowId: string, position: DropPosition) => void;
+  handleDragEnd: () => void;
+  // Row resize
   handleRowResizeStart: (e: React.MouseEvent, rowIndex: number, selectedRowIndices: Set<number>) => void;
   handleRowResizeDoubleClick: (rowIndex: number) => void;
 }
 
 export function useRowOperations(
   sheetId: string,
+  collapsedIds?: Set<string>,
 ): UseRowOperationsResult {
   const dispatch = useAppDispatch();
   const rows = useAppSelector(selectGridRows);
 
-  const [dragRowIndex, setDragRowIndex] = useState<number | null>(null);
   const [rowResizeDrag, setRowResizeDrag] = useState<RowResizeDrag>(null);
   const [pendingDeleteRowIds, setPendingDeleteRowIds] = useState<string[] | null>(null);
+
+  // Drag-and-drop state
+  const [draggedRowIds, setDraggedRowIds] = useState<Set<string>>(new Set());
+  const [dragSourceRowId, setDragSourceRowId] = useState<string | null>(null);
+  const [dropTargetRowId, setDropTargetRowId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<DropPosition | null>(null);
 
   const handleAddRow = useCallback(
     (afterRowId?: string) => {
@@ -68,8 +82,8 @@ export function useRowOperations(
   );
 
   const handleInsertRowBelow = useCallback(
-    (rowId: string) => {
-      dispatch(insertRow({ sheetId, afterRowId: rowId }));
+    (rowId: string, isParentExpanded?: boolean) => {
+      dispatch(insertRow({ sheetId, afterRowId: rowId, isParentExpanded }));
     },
     [sheetId, dispatch],
   );
@@ -140,43 +154,187 @@ export function useRowOperations(
     [rows],
   );
 
-  const handleRowDragStart = useCallback((rowIdx: number) => {
-    setDragRowIndex(rowIdx);
+  // ─── Drag-and-drop ──────────────────────────────────────────────────────
+
+  const clearDragState = useCallback(() => {
+    setDraggedRowIds(new Set());
+    setDragSourceRowId(null);
+    setDropTargetRowId(null);
+    setDropPosition(null);
   }, []);
 
-  const handleRowDrop = useCallback(
-    (targetRowIdx: number) => {
-      if (dragRowIndex !== null && dragRowIndex !== targetRowIdx) {
-        const ids = rows.map((r) => r.id);
-        if (dragRowIndex < ids.length && targetRowIdx < ids.length) {
-          const draggedId = ids[dragRowIndex];
-          // Get descendants to drag as a group
-          const descendantIds = getDescendantIds(rows, draggedId);
-          const groupIds = [draggedId, ...descendantIds];
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, rowId: string, selectedRowIds?: Set<string>) => {
+      e.dataTransfer.setData('text/plain', rowId);
+      e.dataTransfer.effectAllowed = 'move';
 
-          // Remove all group IDs from their current positions
-          const newIds = ids.filter((id) => !groupIds.includes(id));
+      // Compute dragged group: dragged row + descendants
+      const descendantIds = getDescendantIds(rows, rowId);
+      let groupIds = new Set([rowId, ...descendantIds]);
 
-          // Calculate insert position
-          let insertIdx = targetRowIdx;
-          if (dragRowIndex < targetRowIdx) {
-            // Adjust for removed items before target
-            const removedBefore = groupIds.filter((gid) => {
-              const gidIdx = ids.indexOf(gid);
-              return gidIdx < targetRowIdx;
-            }).length;
-            insertIdx = targetRowIdx - removedBefore;
+      // If multiple rows are selected and the dragged row is among them, include all selected + their descendants
+      if (selectedRowIds && selectedRowIds.size > 1 && selectedRowIds.has(rowId)) {
+        for (const selId of selectedRowIds) {
+          groupIds.add(selId);
+          const descIds = getDescendantIds(rows, selId);
+          for (const d of descIds) {
+            groupIds.add(d);
           }
-
-          // Insert group at new position
-          newIds.splice(insertIdx, 0, ...groupIds);
-          dispatch(reorderRows({ sheetId, orderedIds: newIds }));
         }
       }
-      setDragRowIndex(null);
+
+      setDraggedRowIds(groupIds);
+      setDragSourceRowId(rowId);
     },
-    [dragRowIndex, rows, sheetId, dispatch],
+    [rows],
   );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, targetRowId: string) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+
+      // Prevent dropping a row inside its own descendants
+      if (draggedRowIds.has(targetRowId)) return;
+
+      // Determine position based on mouse Y relative to the row element
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const position: DropPosition = e.clientY < midY ? 'above' : 'below';
+
+      setDropTargetRowId(targetRowId);
+      setDropPosition(position);
+    },
+    [draggedRowIds],
+  );
+
+  const handleDrop = useCallback(
+    (targetRowId: string, position: DropPosition) => {
+      if (draggedRowIds.size === 0 || !dragSourceRowId) {
+        clearDragState();
+        return;
+      }
+
+      // Prevent dropping onto own descendant
+      if (draggedRowIds.has(targetRowId)) {
+        clearDragState();
+        return;
+      }
+
+      const targetRow = rows.find((r) => r.id === targetRowId);
+      if (!targetRow) {
+        clearDragState();
+        return;
+      }
+
+      // Build ordered ID list: remove dragged rows, reinsert at target position
+      const allIds = rows.map((r) => r.id);
+      const newIds = allIds.filter((id) => !draggedRowIds.has(id));
+
+      // Find where to insert in the filtered list
+      let insertIdx = newIds.indexOf(targetRowId);
+      if (insertIdx === -1) {
+        clearDragState();
+        return;
+      }
+
+      // Collect dragged group IDs preserving their relative order
+      const draggedGroupOrdered = allIds.filter((id) => draggedRowIds.has(id));
+
+      if (position === 'above') {
+        newIds.splice(insertIdx, 0, ...draggedGroupOrdered);
+      } else {
+        // Below: find the last descendant of target row in the filtered list
+        const targetDescendants = getDescendantIds(rows, targetRowId);
+        const targetGroupIds = new Set([targetRowId, ...targetDescendants]);
+        // Find last index of any target group member in newIds
+        let lastTargetIdx = insertIdx;
+        for (let i = insertIdx + 1; i < newIds.length; i++) {
+          if (targetGroupIds.has(newIds[i])) {
+            lastTargetIdx = i;
+          } else {
+            break;
+          }
+        }
+        newIds.splice(lastTargetIdx + 1, 0, ...draggedGroupOrdered);
+      }
+
+      // Compute parentUpdates for moved root rows
+      const parentUpdates: Array<{ rowId: string; parentId: string | null; depth: number }> = [];
+
+      if (position === 'above') {
+        // Same parent/depth as target row (sibling above)
+        const newParentId = targetRow.parentId ?? null;
+        const newDepth = targetRow.depth ?? 0;
+        // Only update the top-level dragged roots (those whose original parent differs)
+        for (const id of draggedGroupOrdered) {
+          const row = rows.find((r) => r.id === id);
+          if (!row) continue;
+          // Only update rows that were direct children of the original context
+          // We only need to update the "root" dragged rows — those not descended from other dragged rows
+          const isChildOfDragged = rows.some((r) => draggedRowIds.has(r.id) && r.parentId === id);
+          const isRootDragged = !rows.some((r) => draggedRowIds.has(r.id) && r.id === row.parentId);
+          if (isRootDragged) {
+            parentUpdates.push({ rowId: id, parentId: newParentId, depth: newDepth });
+          }
+        }
+      } else {
+        // Below target
+        const targetHasChildren = rows.some((r) => r.parentId === targetRowId);
+        const targetIsCollapsed = collapsedIds?.has(targetRowId) ?? false;
+
+        if (targetHasChildren && !targetIsCollapsed) {
+          // Insert as first child of expanded parent
+          const newParentId = targetRowId;
+          const newDepth = (targetRow.depth ?? 0) + 1;
+          for (const id of draggedGroupOrdered) {
+            const row = rows.find((r) => r.id === id);
+            if (!row) continue;
+            const isRootDragged = !rows.some((r) => draggedRowIds.has(r.id) && r.id === row.parentId);
+            if (isRootDragged) {
+              parentUpdates.push({ rowId: id, parentId: newParentId, depth: newDepth });
+            }
+          }
+        } else {
+          // Sibling after target
+          const newParentId = targetRow.parentId ?? null;
+          const newDepth = targetRow.depth ?? 0;
+          for (const id of draggedGroupOrdered) {
+            const row = rows.find((r) => r.id === id);
+            if (!row) continue;
+            const isRootDragged = !rows.some((r) => draggedRowIds.has(r.id) && r.id === row.parentId);
+            if (isRootDragged) {
+              parentUpdates.push({ rowId: id, parentId: newParentId, depth: newDepth });
+            }
+          }
+        }
+      }
+
+      dispatch(reorderRows({ sheetId, orderedIds: newIds, parentUpdates }));
+      clearDragState();
+    },
+    [rows, draggedRowIds, dragSourceRowId, collapsedIds, sheetId, dispatch, clearDragState],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    clearDragState();
+  }, [clearDragState]);
+
+  // Escape key cancels drag
+  useEffect(() => {
+    if (draggedRowIds.size === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        clearDragState();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [draggedRowIds, clearDragState]);
+
+  // ─── Row resize ─────────────────────────────────────────────────────────
 
   const handleRowResizeStart = useCallback(
     (e: React.MouseEvent, rowIndex: number, selectedRowIndices: Set<number>) => {
@@ -253,7 +411,6 @@ export function useRowOperations(
   }, [rowResizeDrag, sheetId, dispatch]);
 
   return {
-    dragRowIndex,
     rowResizeDrag,
     pendingDeleteRowIds,
     setPendingDeleteRowIds,
@@ -266,8 +423,15 @@ export function useRowOperations(
     outdentRows: outdentRowsHandler,
     canIndentSelection,
     canOutdentSelection,
-    handleRowDragStart,
-    handleRowDrop,
+    // Drag-and-drop
+    draggedRowIds,
+    dropTargetRowId,
+    dropPosition,
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    handleDragEnd,
+    // Row resize
     handleRowResizeStart,
     handleRowResizeDoubleClick,
   };

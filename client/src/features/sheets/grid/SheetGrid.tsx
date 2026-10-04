@@ -74,7 +74,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
   // ─── Hooks ──────────────────────────────────────────────────────────────
 
   const colOps = useColumnOperations(sheetId);
-  const rowOps = useRowOperations(sheetId);
+  const rowOps = useRowOperations(sheetId, collapsedIds);
 
   // Descendant count for delete confirmation dialog
   const pendingDeleteDescendantCount = useMemo(() => {
@@ -295,6 +295,30 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     );
   }, [rowOps, selection]);
 
+  // Drag start wrapper that passes selected row IDs
+  const handleDragStartWrapper = useCallback(
+    (e: React.DragEvent, rowId: string) => {
+      const selectedRowIds = new Set<string>();
+      for (const idx of selection.selectedRowIndices) {
+        const row = visibleRows[idx];
+        if (row) selectedRowIds.add(row.id);
+      }
+      rowOps.handleDragStart(e, rowId, selectedRowIds);
+    },
+    [rowOps, selection.selectedRowIndices, visibleRows],
+  );
+
+  // Insert row below wrapper that checks isParentExpanded
+  const handleInsertRowBelowWrapper = useCallback(
+    (rowId: string) => {
+      const row = rows.find((r) => r.id === rowId);
+      const hasChildren = rows.some((r) => r.parentId === rowId);
+      const isExpanded = hasChildren && !(collapsedIds?.has(rowId) ?? false);
+      rowOps.handleInsertRowBelow(rowId, isExpanded);
+    },
+    [rows, collapsedIds, rowOps],
+  );
+
   if (loading) {
     return (
       <div
@@ -404,10 +428,12 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
             onCellClick={(rowIdx, colIdx, e) => selection.handleCellClick(rowIdx, colIdx, e.shiftKey)}
             onSelectRow={selection.selectRow}
             onInsertRowAbove={rowOps.handleInsertRowAbove}
-            onInsertRowBelow={rowOps.handleInsertRowBelow}
+            onInsertRowBelow={handleInsertRowBelowWrapper}
             onRequestDeleteRows={rowOps.setPendingDeleteRowIds}
-            onRowDragStart={rowOps.handleRowDragStart}
-            onRowDrop={rowOps.handleRowDrop}
+            onDragStart={handleDragStartWrapper}
+            onDragOver={rowOps.handleDragOver}
+            onDrop={rowOps.handleDrop}
+            onDragEnd={rowOps.handleDragEnd}
             onRowResizeStart={handleRowResizeStartWrapper}
             onRowResizeDoubleClick={rowOps.handleRowResizeDoubleClick}
             onRowContextMenu={handleRowContextMenu}
@@ -423,6 +449,9 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
             scrollNodeRef={virtualization.scrollNodeRef}
             rowResizeDrag={rowOps.rowResizeDrag}
             totalHeight={virtualization.rowPositions.total}
+            draggedRowIds={rowOps.draggedRowIds}
+            dropTargetRowId={rowOps.dropTargetRowId}
+            dropPosition={rowOps.dropPosition}
             data-icod-id="src_features_sheets_grid_sheetgrid_tsx_a98f" />
         </div>
       </div>
@@ -448,7 +477,7 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
         if (canEdit) {
           ctxItems.push(
             { label: 'Insert row above', onClick: () => rowOps.handleInsertRowAbove(ctxRow.id) },
-            { label: 'Insert row below', onClick: () => rowOps.handleInsertRowBelow(ctxRow.id) },
+            { label: 'Insert row below', onClick: () => handleInsertRowBelowWrapper(ctxRow.id) },
             { type: 'divider' },
             { label: 'Indent', onClick: () => rowOps.indentRows([ctxRow.id]) },
             { label: 'Outdent', onClick: () => rowOps.outdentRows([ctxRow.id]) },

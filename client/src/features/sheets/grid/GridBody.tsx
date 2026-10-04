@@ -1,6 +1,7 @@
 import GridRow from './GridRow';
 import { DEFAULT_ROW_HEIGHT } from './gridHelpers';
 import type { Column, GridRow as GridRowType, WorkspaceRole } from '@/types';
+import type { DropPosition } from './useRowOperations';
 
 interface GridMember {
   id: string;
@@ -38,8 +39,10 @@ interface GridBodyProps {
   onInsertRowAbove: (rowId: string) => void;
   onInsertRowBelow: (rowId: string) => void;
   onRequestDeleteRows: (ids: string[]) => void;
-  onRowDragStart: (rowIdx: number) => void;
-  onRowDrop: (targetRowIdx: number) => void;
+  onDragStart: (e: React.DragEvent, rowId: string) => void;
+  onDragOver: (e: React.DragEvent, targetRowId: string) => void;
+  onDrop: (targetRowId: string, position: DropPosition) => void;
+  onDragEnd: () => void;
   onRowResizeStart: (e: React.MouseEvent, rowIndex: number) => void;
   onRowResizeDoubleClick: (rowIndex: number) => void;
   onRowContextMenu: (rowIndex: number, x: number, y: number) => void;
@@ -56,6 +59,10 @@ interface GridBodyProps {
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
   rowNumberMap?: Map<string, number>;
+  /** Drag-and-drop visual state */
+  draggedRowIds?: Set<string>;
+  dropTargetRowId?: string | null;
+  dropPosition?: DropPosition | null;
 }
 
 export default function GridBody({
@@ -86,8 +93,10 @@ export default function GridBody({
   onInsertRowAbove,
   onInsertRowBelow,
   onRequestDeleteRows,
-  onRowDragStart,
-  onRowDrop,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
   onRowResizeStart,
   onRowResizeDoubleClick,
   onRowContextMenu,
@@ -103,6 +112,9 @@ export default function GridBody({
   onExpandAll,
   onCollapseAll,
   rowNumberMap,
+  draggedRowIds,
+  dropTargetRowId,
+  dropPosition,
 }: GridBodyProps) {
   return (
     <div
@@ -139,8 +151,10 @@ export default function GridBody({
           onInsertRowAbove={onInsertRowAbove}
           onInsertRowBelow={onInsertRowBelow}
           onRequestDeleteRows={onRequestDeleteRows}
-          onRowDragStart={onRowDragStart}
-          onRowDrop={onRowDrop}
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          onDragEnd={onDragEnd}
           onRowResizeStart={onRowResizeStart}
           onRowResizeDoubleClick={onRowResizeDoubleClick}
           onRowContextMenu={onRowContextMenu}
@@ -154,6 +168,9 @@ export default function GridBody({
           onExpandAll={onExpandAll}
           onCollapseAll={onCollapseAll}
           rowNumberMap={rowNumberMap}
+          draggedRowIds={draggedRowIds}
+          dropTargetRowId={dropTargetRowId}
+          dropPosition={dropPosition}
           data-icod-id={`src_features_sheets_grid_gridbody_tsx_4447_${rowIdx}`} />
       ))}
 

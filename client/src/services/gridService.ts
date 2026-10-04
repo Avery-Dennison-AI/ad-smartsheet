@@ -32,7 +32,7 @@ export function setPrimaryColumn(sheetId: string, columnId: string) {
   return apiClient.patch(`/api/sheets/${sheetId}/grid/columns/${columnId}/set-primary`);
 }
 
-export function addRow(sheetId: string, data?: { afterRowId?: string; beforeRowId?: string; cells?: Record<string, unknown> }) {
+export function addRow(sheetId: string, data?: { afterRowId?: string; beforeRowId?: string; cells?: Record<string, unknown>; parentId?: string | null; isParentExpanded?: boolean }) {
   return apiClient.post(`/api/sheets/${sheetId}/grid/rows`, data || {});
 }
 
@@ -44,8 +44,12 @@ export function deleteRows(sheetId: string, rowIds: string[], includeDescendants
   return apiClient.delete(`/api/sheets/${sheetId}/grid/rows`, { data: { rowIds, includeDescendants } });
 }
 
-export function reorderRows(sheetId: string, orderedIds: string[]) {
-  return apiClient.patch(`/api/sheets/${sheetId}/grid/rows/reorder`, { orderedIds });
+export function reorderRows(
+  sheetId: string,
+  orderedIds: string[],
+  parentUpdates?: Array<{ rowId: string; parentId: string | null; depth: number }>,
+) {
+  return apiClient.patch(`/api/sheets/${sheetId}/grid/rows/reorder`, { orderedIds, parentUpdates });
 }
 
 export function indentRows(sheetId: string, rowIds: string[]) {

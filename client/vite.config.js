@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
   },
   server: {
     host: "0.0.0.0",
-    port: 3335,
+    port: 3329,
     strictPort: true,
     allowedHosts: ["6ab6c4470002c467cfe3b0f7.icod.ai"],
     watch:{
