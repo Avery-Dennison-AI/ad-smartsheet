@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { ChevronDown, Type, Hash, Calendar, List, CheckSquare, Users, GripVertical } from 'lucide-react';
-import { DropdownMenu, Tooltip, IconButton, ResizeHandle } from '@/components/ui';
+import { DropdownMenu, Tooltip, IconButton, ResizeHandle, Input } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
 import type { Column, ColumnType, WorkspaceRole } from '@/types';
@@ -155,9 +155,11 @@ export default function GridHeaderCell({
       onClick={handleHeaderClick}
       data-icod-id="src_features_sheets_grid_gridheadercell_tsx_649d">
       {renaming ? (
-        <input
+        <Input
           ref={inputRef}
-          className="w-full bg-transparent text-xs font-medium text-foreground outline-none"
+          size="sm"
+          className="w-full bg-transparent text-xs font-medium text-foreground outline-none border-none shadow-none focus:shadow-none focus:border-transparent px-0 h-auto"
+          containerClassName="flex-1 gap-0"
           value={renameValue}
           onChange={(e) => setRenameValue(e.target.value)}
           onBlur={handleRenameSubmit}
@@ -165,6 +167,7 @@ export default function GridHeaderCell({
             if (e.key === 'Enter') handleRenameSubmit();
             if (e.key === 'Escape') { setRenameValue(column.name); setRenaming(false); }
           }}
+          autoFocus
           data-icod-id="src_features_sheets_grid_gridheadercell_tsx_c336" />
       ) : (
         <>

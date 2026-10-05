@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Type, PaintBucket } from 'lucide-react';
 import { IconButton, ColorSwatchPicker } from '@/components/ui';
+import { cn } from '@/utils/cn';
 import type { CellFormatting } from '@/types';
 
 interface ColorGroupProps {
@@ -34,8 +35,11 @@ export default function ColorGroup({ aggregated, onApply }: ColorGroupProps) {
               className="h-3.5 w-3.5"
               data-icod-id="src_features_sheets_grid_toolbar_colorgroup_tsx_e6d6" />
             <span
-              className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full"
-              style={{ backgroundColor: aggregated._mixedTextColor ? '#CBD5E1' : (aggregated.textColor || '#CBD5E1') }}
+              className={cn(
+                'absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full',
+                !aggregated._mixedTextColor && aggregated.textColor ? '' : 'bg-border',
+              )}
+              style={!aggregated._mixedTextColor && aggregated.textColor ? { backgroundColor: aggregated.textColor } : undefined}
               data-icod-id="src_features_sheets_grid_toolbar_colorgroup_tsx_4dd8" />
           </span>
         </IconButton>
@@ -66,8 +70,11 @@ export default function ColorGroup({ aggregated, onApply }: ColorGroupProps) {
               className="h-3.5 w-3.5"
               data-icod-id="src_features_sheets_grid_toolbar_colorgroup_tsx_aae9" />
             <span
-              className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full"
-              style={{ backgroundColor: aggregated._mixedFillColor ? '#CBD5E1' : (aggregated.fillColor || '#CBD5E1') }}
+              className={cn(
+                'absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full',
+                !aggregated._mixedFillColor && aggregated.fillColor ? '' : 'bg-border',
+              )}
+              style={!aggregated._mixedFillColor && aggregated.fillColor ? { backgroundColor: aggregated.fillColor } : undefined}
               data-icod-id="src_features_sheets_grid_toolbar_colorgroup_tsx_530c" />
           </span>
         </IconButton>

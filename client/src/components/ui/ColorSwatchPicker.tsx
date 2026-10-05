@@ -172,7 +172,7 @@ export default function ColorSwatchPicker({
       {SWATCH_ROWS.map((row) => (
         <div key={row.label} className="mb-1.5" data-icod-id={`color_swatch_row_${row.label}`}>
           <span
-            className="mb-1 block px-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
+            className="mb-1 block px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground"
             data-icod-id={`src_components_ui_colorswatchpicker_tsx_a62b_${row.label}`}>
             {row.label}
           </span>

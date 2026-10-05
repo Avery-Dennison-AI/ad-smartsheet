@@ -135,11 +135,13 @@ export default function ColumnPropertiesModal({
               const selected = type === t;
               const disabled = isPrimary && t !== 'text';
               return (
-                <button
+                <Button
                   key={t}
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   className={cn(
-                    'flex items-start gap-3 rounded-lg border p-3 text-left transition-colors',
+                    'flex h-auto items-start gap-3 rounded-lg border p-3 text-left transition-colors',
                     'hover:bg-muted',
                     selected ? 'border-primary bg-accent' : 'border-border',
                     disabled && 'opacity-40 cursor-not-allowed hover:bg-transparent',
@@ -161,7 +163,7 @@ export default function ColumnPropertiesModal({
                       className="text-xs text-muted-foreground"
                       data-icod-id={`src_features_sheets_grid_columnpropertiesmodal_tsx_cd79_${t}`}>{description}</div>
                   </div>
-                </button>
+                </Button>
               );
             })}
           </div>
