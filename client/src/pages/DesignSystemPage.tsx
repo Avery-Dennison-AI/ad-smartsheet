@@ -48,6 +48,7 @@ import {
   ColorSwatchPicker,
   ResizeHandle,
   ColorSwatchGroup,
+  AnimatedBrandBackground,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
@@ -278,6 +279,33 @@ export default function DesignSystemPage() {
             </div>
           </div>
         </div>
+      </Section>
+      {/* ─── Animated Brand Background ───────────────────────────────────── */}
+      <Section
+        title="Animated Brand Background"
+        data-icod-id="src_pages_designsystempage_tsx_70a9">
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ height: 320 }}
+          data-icod-id="src_pages_designsystempage_tsx_3aa0">
+          <div
+            className="relative w-full h-full"
+            data-icod-id="src_pages_designsystempage_tsx_644b">
+            <AnimatedBrandBackground data-icod-id="src_pages_designsystempage_tsx_2837" />
+            <div
+              className="relative z-10 flex items-center justify-center h-full"
+              data-icod-id="src_pages_designsystempage_tsx_fe0c">
+              <span
+                className="text-white font-bold text-2xl"
+                data-icod-id="src_pages_designsystempage_tsx_dd5f">AnimatedBrandBackground</span>
+            </div>
+          </div>
+        </div>
+        <p
+          className="mt-3 text-sm text-muted-foreground"
+          data-icod-id="src_pages_designsystempage_tsx_d9a1">
+          Used as the hero background on the landing page and the left panel of the auth layout. Animates CSS transform/opacity only; respects prefers-reduced-motion.
+        </p>
       </Section>
       {/* ─── 2. Typography Scale ─────────────────────────────────────────── */}
       <Section

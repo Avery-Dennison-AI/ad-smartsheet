@@ -1,235 +1,155 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { LayoutGrid, Grid2x2, GanttChart, Zap, BarChart2 } from 'lucide-react';
-import { Button, Card, Badge, Avatar, buttonClass } from '@/components/ui';
+import { ChevronDown, Table2, Users, Layers, Smartphone } from 'lucide-react';
+import { buttonClass, AnimatedBrandBackground } from '@/components/ui';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 
 const features = [
-  { icon: Grid2x2, title: 'Flexible Grids', description: 'Organize tasks in customizable spreadsheet-style views that adapt to your workflow.' },
-  { icon: GanttChart, title: 'Timelines & Gantt', description: 'Visualize project schedules and dependencies with interactive timeline charts.' },
-  { icon: Zap, title: 'Automated Workflows', description: 'Set up rules and triggers to automate repetitive tasks and keep work moving.' },
-  { icon: BarChart2, title: 'Dashboards & Reports', description: 'Track team performance and project health with real-time analytics dashboards.' },
+  { icon: Table2, title: 'Spreadsheet power', description: 'Rows, columns, formulas — all yours.' },
+  { icon: Users, title: 'Team collaboration', description: 'Invite members and work together.' },
+  { icon: Layers, title: 'Nested hierarchy', description: 'Organize rows with parent–child nesting.' },
+  { icon: Smartphone, title: 'Any device', description: 'Responsive and fast on desktop and mobile.' },
 ];
 
-const steps = [
-  { number: '1', title: 'Create a workspace', description: 'Set up a dedicated space for your team with custom fields and views.' },
-  { number: '2', title: 'Build your sheets', description: 'Add tasks, assign owners, and set deadlines in a familiar grid layout.' },
-  { number: '3', title: 'Collaborate with your team', description: 'Comment, share, and track progress together in real time.' },
-];
+/**
+ * Inject fadeUp keyframes once for hero entrance animation.
+ */
+const FADE_UP_STYLE_ID = 'landing-fadeup-style';
+const FADE_UP_CSS = `
+@keyframes abb-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-const mockTasks = [
-  { task: 'Design new onboarding flow', status: 'Done', statusVariant: 'status-green' as const, initials: 'SL', date: 'Jan 15' },
-  { task: 'API rate limiting', status: 'In Progress', statusVariant: 'status-yellow' as const, initials: 'MK', date: 'Jan 22' },
-  { task: 'Write Q1 report', status: 'In Review', statusVariant: 'status-blue' as const, initials: 'AR', date: 'Jan 28' },
-  { task: 'Update dependencies', status: 'Backlog', statusVariant: 'status-gray' as const, initials: 'TN', date: 'Feb 3' },
-];
+@media (prefers-reduced-motion: reduce) {
+  .abb-fade-up {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+`;
 
 export default function LandingPage() {
   const user = useAppSelector(selectCurrentUser);
+  const injected = useRef(false);
+
+  useEffect(() => {
+    if (!injected.current && typeof document !== 'undefined') {
+      if (!document.getElementById(FADE_UP_STYLE_ID)) {
+        const style = document.createElement('style');
+        style.id = FADE_UP_STYLE_ID;
+        style.textContent = FADE_UP_CSS;
+        document.head.appendChild(style);
+      }
+      injected.current = true;
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-card" data-icod-id="landing_page_root">
-      {/* ─── Sticky Nav ──────────────────────────────────────────────── */}
-      <nav
-        className="sticky top-0 z-50 flex h-[48px] items-center justify-between border-b border-border bg-card px-6"
-        data-icod-id="landing_nav">
-        <div className="flex items-center gap-2" data-icod-id="landing_nav_logo">
-          <LayoutGrid
-            className="h-5 w-5 text-primary"
-            data-icod-id="src_pages_landingpage_tsx_2970" />
-          <span
-            className="text-md font-bold text-primary"
-             data-icod-id="src_pages_landingpage_tsx_fae4">NEO</span>
-        </div>
-        <div data-icod-id="landing_nav_action">
-          {user ? (
-            <Link
-              to="/home"
-              className={buttonClass({ variant: 'secondary', size: 'sm' })}
-              data-icod-id="src_pages_landingpage_tsx_2bf8">
-              Go to app
-            </Link>
-          ) : (
-            <Link
-              to="/login"
-              className={buttonClass({ variant: 'primary', size: 'sm' })}
-              data-icod-id="src_pages_landingpage_tsx_17ae">
-              Log in
-            </Link>
-          )}
-        </div>
-      </nav>
       {/* ─── Hero Section ────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-6 py-24" data-icod-id="landing_hero">
-        <div className="grid gap-12 md:grid-cols-2 md:items-center" data-icod-id="landing_hero_grid">
-          {/* Left column */}
-          <div data-icod-id="landing_hero_text">
-            <h1
-              className="text-4xl font-semibold leading-tight text-foreground"
-              data-icod-id="landing_hero_headline">
-              Work management that feels like a spreadsheet, and works like a team
-            </h1>
-            <p
-              className="mt-4 max-w-lg text-base text-muted-foreground"
-              data-icod-id="landing_hero_description">
-               NEO combines the flexibility of spreadsheets with powerful project management tools. Plan, track, and deliver work — all in one place.
-            </p>
-            <div className="mt-8" data-icod-id="landing_hero_cta">
-              <Link
-                to="/login"
-                className={buttonClass({ variant: 'primary', size: 'lg' })}
-                data-icod-id="src_pages_landingpage_tsx_fa34">
-                 Log in to NEO
-              </Link>
-            </div>
-          </div>
+      <section className="relative min-h-screen overflow-hidden" data-icod-id="landing_hero">
+        <AnimatedBrandBackground data-icod-id="src_pages_landingpage_tsx_f4a1" />
 
-          {/* Right column — product preview mockup */}
-          <Card className="overflow-hidden shadow-[var(--shadow-md)]" data-icod-id="landing_hero_mockup">
-            {/* Header row */}
-            <div
-              className="flex items-center border-b border-border bg-muted/50 h-8"
-              data-icod-id="landing_mockup_header">
-              <div
-                className="w-[40%] px-3 text-xs font-medium text-muted-foreground"
-                data-icod-id="src_pages_landingpage_tsx_af81">Task</div>
-              <div
-                className="w-[20%] px-3 text-xs font-medium text-muted-foreground"
-                data-icod-id="src_pages_landingpage_tsx_2714">Status</div>
-              <div
-                className="w-[20%] px-3 text-xs font-medium text-muted-foreground"
-                data-icod-id="src_pages_landingpage_tsx_51be">Assignee</div>
-              <div
-                className="w-[20%] px-3 text-xs font-medium text-muted-foreground"
-                data-icod-id="src_pages_landingpage_tsx_2cac">Due Date</div>
-            </div>
-            {/* Task rows */}
-            {mockTasks.map((row) => (
-              <div
-                key={row.task}
-                className="flex items-center border-b border-border last:border-b-0 h-10"
-                data-icod-id={`landing_mockup_row_${row.initials}`}>
-                <div
-                  className="w-[40%] truncate px-3 text-sm text-foreground"
-                  data-icod-id={`src_pages_landingpage_tsx_d05a_${row.task}`}>{row.task}</div>
-                <div
-                  className="w-[20%] px-3"
-                  data-icod-id={`src_pages_landingpage_tsx_b9db_${row.task}`}>
-                  <Badge
-                    variant={row.statusVariant}
-                    size="sm"
-                    data-icod-id={`src_pages_landingpage_tsx_47ca_${row.task}`}>{row.status}</Badge>
-                </div>
-                <div
-                  className="w-[20%] px-3"
-                  data-icod-id={`src_pages_landingpage_tsx_a120_${row.task}`}>
-                  <Avatar
-                    name={row.initials}
-                    size="sm"
-                    data-icod-id={`src_pages_landingpage_tsx_9293_${row.task}`} />
-                </div>
-                <div
-                  className="w-[20%] px-3 text-sm text-muted-foreground"
-                  data-icod-id={`src_pages_landingpage_tsx_a924_${row.task}`}>{row.date}</div>
-              </div>
-            ))}
-          </Card>
-        </div>
-      </section>
-      {/* ─── Features Section ────────────────────────────────────────── */}
-      <section className="bg-muted/30 py-20" data-icod-id="landing_features">
-        <div className="mx-auto max-w-6xl px-6" data-icod-id="landing_features_inner">
-          <h2
-            className="mb-12 text-center text-xl font-semibold text-foreground"
-            data-icod-id="landing_features_heading">
-            Everything your team needs
-          </h2>
-          <div
-            className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
-            data-icod-id="landing_features_grid">
-            {features.map((f) => (
-              <Card key={f.title} className="p-6" data-icod-id={`landing_feature_${f.title}`}>
-                <f.icon className="mb-3 h-6 w-6 text-primary" />
-                <h3
-                  className="mb-1 text-md font-semibold text-foreground"
-                  data-icod-id={`src_pages_landingpage_tsx_d433_${f.title}`}>{f.title}</h3>
-                <p
-                  className="text-sm text-muted-foreground"
-                  data-icod-id={`src_pages_landingpage_tsx_8c09_${f.title}`}>{f.description}</p>
-              </Card>
-            ))}
+        {/* Nav — transparent overlay */}
+        <nav
+          className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-5 sm:px-10"
+          data-icod-id="landing_nav"
+        >
+          <div className="flex items-center gap-2" data-icod-id="landing_nav_logo">
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-primary text-sm font-bold text-primary-foreground"
+              data-icod-id="landing_nav_logo_mark"
+            >
+              N
+            </span>
+            <span className="text-lg font-semibold text-white" data-icod-id="landing_nav_logo_text">
+              NEO
+            </span>
           </div>
-        </div>
-      </section>
-      {/* ─── How It Works Strip ───────────────────────────────────────── */}
-      <section className="bg-card py-20" data-icod-id="landing_how_it_works">
-        <div className="mx-auto max-w-6xl px-6" data-icod-id="landing_steps_inner">
-          <h2
-            className="mb-12 text-center text-xl font-semibold text-foreground"
-            data-icod-id="landing_steps_heading">
-            Get started in minutes
-          </h2>
-          <div
-            className="grid gap-8 md:grid-cols-3"
-            data-icod-id="landing_steps_grid">
-            {steps.map((step) => (
-              <div key={step.number} className="text-center" data-icod-id={`landing_step_${step.number}`}>
-                <div
-                  className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-primary text-md font-semibold text-primary-foreground"
-                  data-icod-id={`landing_step_number_${step.number}`}>
-                  {step.number}
-                </div>
-                <h3
-                  className="mt-4 text-md font-semibold text-foreground"
-                  data-icod-id={`src_pages_landingpage_tsx_494b_${step.number}`}>{step.title}</h3>
-                <p
-                  className="mt-1 text-sm text-muted-foreground"
-                  data-icod-id={`src_pages_landingpage_tsx_fda0_${step.number}`}>{step.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      {/* ─── CTA Band ────────────────────────────────────────────────── */}
-      <section
-        className="bg-primary/10 py-16 text-center"
-        data-icod-id="landing_cta_band">
-        <div className="mx-auto max-w-6xl px-6" data-icod-id="landing_cta_inner">
-          <h2 className="text-xl font-semibold text-foreground" data-icod-id="landing_cta_heading">
-            Ready to get organized?
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground" data-icod-id="landing_cta_subtext">
-             Join teams who use NEO to ship faster and stay aligned.
-          </p>
-          <div className="mt-6" data-icod-id="landing_cta_button">
+          <div data-icod-id="landing_nav_action">
             <Link
-              to="/login"
-              className={buttonClass({ variant: 'primary', size: 'lg' })}
-              data-icod-id="src_pages_landingpage_tsx_13a6">
-                             Log in to NEO
+              to={user ? '/home' : '/login'}
+              className={buttonClass({ variant: 'primary', size: 'sm', className: '!rounded-full !bg-white !text-primary hover:!bg-white/90' })}
+              data-icod-id="landing_nav_cta"
+            >
+              {user ? 'Go to app' : 'Log in'}
             </Link>
           </div>
+        </nav>
+
+        {/* Hero content — centered */}
+        <div
+          className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 text-center"
+          data-icod-id="landing_hero_content"
+        >
+          <h1
+            className="abb-fade-up text-4xl font-bold text-white sm:text-5xl lg:text-6xl motion-reduce:animate-none"
+            style={{ animation: 'abb-fade-up 0.7s ease-out both' }}
+            data-icod-id="landing_hero_headline"
+          >
+            Work, connected.
+          </h1>
+          <p
+            className="abb-fade-up mt-4 max-w-md text-lg text-white/80 motion-reduce:animate-none"
+            style={{ animation: 'abb-fade-up 0.7s ease-out 0.15s both' }}
+            data-icod-id="landing_hero_subline"
+          >
+            One place for every project, every team.
+          </p>
+          <div
+            className="abb-fade-up mt-8 motion-reduce:animate-none"
+            style={{ animation: 'abb-fade-up 0.7s ease-out 0.3s both' }}
+            data-icod-id="landing_hero_cta"
+          >
+            <Link
+              to={user ? '/home' : '/login'}
+              className={buttonClass({ variant: 'primary', size: 'lg', className: '!rounded-full !bg-white !text-primary hover:!bg-white/90' })}
+              data-icod-id="landing_hero_cta_btn"
+            >
+              {user ? 'Go to app' : 'Log in'}
+            </Link>
+          </div>
+        </div>
+
+        {/* Scroll hint */}
+        <div
+          className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 animate-bounce text-white/50 motion-reduce:animate-none"
+          data-icod-id="landing_scroll_hint"
+        >
+          <ChevronDown className="h-6 w-6" data-icod-id="src_pages_landingpage_tsx_2d86" />
+        </div>
+      </section>
+      {/* ─── Features Strip ──────────────────────────────────────────── */}
+      <section
+        className="mx-auto max-w-5xl px-6 py-16"
+        data-icod-id="landing_features"
+      >
+        <div
+          className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4"
+          data-icod-id="landing_features_grid"
+        >
+          {features.map((f) => (
+            <div key={f.title} className="flex flex-col gap-2" data-icod-id={`landing_feature_${f.title}`}>
+              <f.icon className="h-6 w-6 text-primary" />
+              <h3 className="font-semibold text-foreground" data-icod-id={`landing_feature_title_${f.title}`}>
+                {f.title}
+              </h3>
+              <p className="text-sm text-muted-foreground" data-icod-id={`landing_feature_desc_${f.title}`}>
+                {f.description}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
       {/* ─── Footer ──────────────────────────────────────────────────── */}
       <footer
-        className="border-t border-border bg-card py-8"
-        data-icod-id="landing_footer">
-        <div
-          className="mx-auto flex max-w-6xl items-center justify-between px-6"
-          data-icod-id="landing_footer_inner">
-          <div className="flex items-center gap-2" data-icod-id="landing_footer_logo">
-            <LayoutGrid
-              className="h-4 w-4 text-primary"
-              data-icod-id="src_pages_landingpage_tsx_005c" />
-            <span
-              className="text-sm font-bold text-primary"
-               data-icod-id="src_pages_landingpage_tsx_fffb">NEO</span>
-          </div>
-          <p className="text-xs text-muted-foreground" data-icod-id="landing_footer_copy">
-             &copy; 2026 NEO. All rights reserved.
-          </p>
-        </div>
+        className="border-t border-border py-6 text-center text-sm text-muted-foreground"
+        data-icod-id="landing_footer"
+      >
+        &copy; 2026 NEO
       </footer>
     </div>
   );

@@ -54,3 +54,4 @@ export { Toolbar, ToolbarGroup, type ToolbarProps, type ToolbarGroupProps } from
 export { default as ColorSwatchPicker, type ColorSwatchPickerProps } from './ColorSwatchPicker';
 export { default as ResizeHandle } from './ResizeHandle';
 export { default as ColorSwatchGroup, type ColorSwatchGroupProps, type ColorSwatchOption } from './ColorSwatchGroup';
+export { default as AnimatedBrandBackground, type AnimatedBrandBackgroundProps } from './AnimatedBrandBackground';
