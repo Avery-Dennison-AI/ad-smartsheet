@@ -1,4 +1,4 @@
-import { useState, useCallback, type FormEvent } from 'react';
+import { useState, useCallback, useEffect, type FormEvent } from 'react';
 import {
   Button,
   Input,
@@ -9,8 +9,9 @@ import {
   DatePicker,
   Field,
 } from '@/components/ui';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { createAdminInvitation } from '@/store/slices/adminSlice';
+import { selectOrgPolicy, fetchOrgPolicy } from '@/store/slices/orgPolicySlice';
 import { buildInviteLink } from '@/utils/inviteLink';
 import type { UserRole } from '@/types';
 
@@ -21,6 +22,7 @@ interface InviteModalProps {
 
 export default function InviteModal({ open, onClose }: InviteModalProps) {
   const dispatch = useAppDispatch();
+  const orgPolicy = useAppSelector(selectOrgPolicy);
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<UserRole>('member');
@@ -28,6 +30,22 @@ export default function InviteModal({ open, onClose }: InviteModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invitePath, setInvitePath] = useState<string | null>(null);
+
+  // Fetch org policy when modal opens
+  useEffect(() => {
+    if (open) {
+      dispatch(fetchOrgPolicy());
+    }
+  }, [open, dispatch]);
+
+  // Pre-fill guest expiry date when role changes to guest and policy requires it
+  useEffect(() => {
+    if (role === 'guest' && orgPolicy?.guestAccessExpiry === 'required' && !guestExpiresAt) {
+      const d = new Date();
+      d.setDate(d.getDate() + (orgPolicy.defaultGuestExpiryDays || 90));
+      setGuestExpiresAt(d.toISOString().split('T')[0]);
+    }
+  }, [role, orgPolicy, guestExpiresAt]);
 
   function resetForm() {
     setEmail('');
@@ -161,8 +179,20 @@ export default function InviteModal({ open, onClose }: InviteModalProps) {
           </Select>
           {role === 'guest' && (
             <>
+              {/* Policy hints */}
+              {orgPolicy?.allowedGuestEmailDomains && orgPolicy.allowedGuestEmailDomains.length > 0 && (
+                <p className="text-xs text-muted-foreground" data-icod-id="invite_domain_hint">
+                  Guests must have an email from: {orgPolicy.allowedGuestEmailDomains.join(', ')}
+                </p>
+              )}
+              {orgPolicy?.maxGuestRole === 'viewer' && (
+                <p className="text-xs text-warning" data-icod-id="invite_max_role_hint">
+                  Guest role is capped at Viewer by organization policy.
+                </p>
+              )}
               <Field
-                label="Guest expiry date (optional)"
+                label={orgPolicy?.guestAccessExpiry === 'required' ? 'Guest expiry date' : 'Guest expiry date (optional)'}
+                required={orgPolicy?.guestAccessExpiry === 'required'}
                 data-icod-id="src_features_admin_invitemodal_tsx_b735">
                 <DatePicker
                   value={guestExpiresAt}

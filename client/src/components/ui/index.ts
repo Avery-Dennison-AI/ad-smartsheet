@@ -55,3 +55,4 @@ export { default as ColorSwatchPicker, type ColorSwatchPickerProps } from './Col
 export { default as ResizeHandle } from './ResizeHandle';
 export { default as ColorSwatchGroup, type ColorSwatchGroupProps, type ColorSwatchOption } from './ColorSwatchGroup';
 export { default as AnimatedBrandBackground, type AnimatedBrandBackgroundProps } from './AnimatedBrandBackground';
+export { default as PermissionMatrix, type PermissionMatrixProps, type PermissionRow } from './PermissionMatrix';

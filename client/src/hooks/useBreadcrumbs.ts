@@ -70,6 +70,10 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
     return [{ label: 'Settings', to: '/settings' }, { label: 'Users' }];
   }
 
+  if (pathname === '/settings/roles') {
+    return [{ label: 'Settings', to: '/settings' }, { label: 'Roles & permissions' }];
+  }
+
   if (pathname === '/settings') {
     return [{ label: 'Settings' }];
   }

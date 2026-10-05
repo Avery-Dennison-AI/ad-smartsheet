@@ -1,10 +1,10 @@
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 import SettingsLayout from '@/components/layout/SettingsLayout';
-import { AppearanceSection, UsersSection } from '@/features/settings';
+import { AppearanceSection, UsersSection, RolesPermissionsSection } from '@/features/settings';
 
 interface SettingsPageProps {
-  section: 'appearance' | 'users';
+  section: 'appearance' | 'users' | 'roles';
 }
 
 export default function SettingsPage({ section }: SettingsPageProps) {
@@ -15,6 +15,7 @@ export default function SettingsPage({ section }: SettingsPageProps) {
     <SettingsLayout data-icod-id="settings_page">
       {section === 'appearance' && <AppearanceSection data-icod-id="settings_appearance" />}
       {section === 'users' && isAdmin && <UsersSection data-icod-id="settings_users" />}
+      {section === 'roles' && isAdmin && <RolesPermissionsSection data-icod-id="settings_roles" />}
     </SettingsLayout>
   );
 }

@@ -35,6 +35,11 @@ export async function createWorkspace(
     throw new AppError('Guests cannot create workspaces', 403);
   }
 
+  // Enforce org policy for workspace creation
+  const orgPolicyService = await import('./orgPolicyService');
+  const policy = await orgPolicyService.getOrgPolicy();
+  orgPolicyService.enforceWorkspaceCreationPolicy({ role: userRole || 'member' }, policy);
+
   const workspace = await Workspace.create({
     name: data.name,
     description: data.description || undefined,

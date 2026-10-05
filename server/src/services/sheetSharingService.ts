@@ -96,8 +96,22 @@ export async function addOrUpdateSheetMember(
   if (!targetUser || !targetUser.isActive) {
     throw new AppError('User not found or inactive', 404);
   }
-  if (targetUser.role === 'guest' && data.role === 'admin') {
-    throw new AppError('Guests can be at most editor', 400);
+
+  // Enforce org policy maxGuestRole cap for guests
+  let assignedRole = data.role;
+  if (targetUser.role === 'guest') {
+    if (assignedRole === 'admin') {
+      throw new AppError('Guests can be at most editor', 400);
+    }
+    // Cap at org policy maxGuestRole
+    const orgPolicyService = await import('./orgPolicyService');
+    const policy = await orgPolicyService.getOrgPolicy();
+    const roleLevel: Record<string, number> = { viewer: 1, editor: 2 };
+    const maxLevel = roleLevel[policy.maxGuestRole] ?? 2;
+    const requestedLevel = roleLevel[assignedRole] ?? 0;
+    if (requestedLevel > maxLevel) {
+      assignedRole = policy.maxGuestRole as 'viewer' | 'editor';
+    }
   }
 
   // Upsert the member entry
@@ -110,12 +124,12 @@ export async function addOrUpdateSheetMember(
     // Update existing
     await Sheet.findOneAndUpdate(
       { _id: sheetId, 'members.userId': new mongoose.Types.ObjectId(data.userId) },
-      { $set: { 'members.$.role': data.role } },
+      { $set: { 'members.$.role': assignedRole } },
     );
   } else {
     // Add new
     await Sheet.findByIdAndUpdate(sheetId, {
-      $push: { members: { userId: new mongoose.Types.ObjectId(data.userId), role: data.role } },
+      $push: { members: { userId: new mongoose.Types.ObjectId(data.userId), role: assignedRole } },
     });
   }
 

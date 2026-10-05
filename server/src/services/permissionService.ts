@@ -31,7 +31,7 @@ function higherRole(a: SheetRole, b: SheetRole): SheetRole {
  * No DB access — all data must be pre-loaded.
  *
  * Effective role = highest of workspace role + sheet-direct role.
- * - Guests may access via workspace OR sheet membership (capped at editor).
+ * - Guests may access via workspace OR sheet membership (capped at editor by default, or maxGuestRole).
  * - Expired guests → null.
  * - Inactive users → null.
  * - No access anywhere → null.
@@ -41,6 +41,7 @@ export function calculateEffectiveRole(
   workspace: { members: Array<{ user: any; role: string }> } | null,
   sheet: { members: Array<{ userId: any; role: string }>; workspaceId?: any } | null,
   userId: string,
+  maxGuestRole?: 'editor' | 'viewer',
 ): SheetRole | null {
   // 1. Inactive user → null
   if (!user.isActive) return null;
@@ -49,7 +50,8 @@ export function calculateEffectiveRole(
   if (user.role === 'guest' && user.guestExpiresAt && user.guestExpiresAt < new Date()) return null;
 
   const isGuest = user.role === 'guest';
-  const GUEST_MAX: SheetRole = 'editor'; // guests can be at most editor
+  // Use org policy maxGuestRole if provided, otherwise default to editor
+  const GUEST_MAX: SheetRole = maxGuestRole === 'viewer' ? 'viewer' : 'editor';
 
   // 3. Workspace role
   const wsMember = workspace?.members.find(m => String(m.user) === String(userId));
@@ -165,9 +167,19 @@ export async function requireSheetAccess(
     throw new AppError('Sheet not found', 404);
   }
 
-  if (!hasMinRole(effectiveRole, requiredRole)) {
+  // If the user is a guest, also cap against org policy maxGuestRole
+  let finalRole = effectiveRole;
+  if (userData.role === 'guest') {
+    const orgPolicyService = await import('./orgPolicyService');
+    const policy = await orgPolicyService.getOrgPolicy();
+    if (policy.maxGuestRole === 'viewer' && hasMinRole(finalRole, 'editor')) {
+      finalRole = 'viewer';
+    }
+  }
+
+  if (!hasMinRole(finalRole, requiredRole)) {
     throw new AppError('Access denied', 403);
   }
 
-  return { sheet, workspace, effectiveRole };
+  return { sheet, workspace, effectiveRole: finalRole };
 }

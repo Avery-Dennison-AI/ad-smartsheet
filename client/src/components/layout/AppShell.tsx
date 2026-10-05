@@ -17,12 +17,14 @@ import {
   ArrowLeft,
   Palette,
   Users,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleSidebar } from '@/store/slices/uiSlice';
 import { logoutUser, selectCurrentUser, selectAuthInitialized } from '@/store/slices/authSlice';
 import { fetchWorkspaces, selectWorkspaceList, selectWorkspaceStatus } from '@/store/slices/workspaceSlice';
+import { fetchOrgPolicy, selectOrgPolicy } from '@/store/slices/orgPolicySlice';
 import { IconButton, DropdownMenu, Avatar, Tooltip, Input, Breadcrumbs, useToast, WorkspaceIcon } from '@/components/ui';
 import SidebarNavItem from './SidebarNavItem';
 import { useBreadcrumbs } from '@/hooks/useBreadcrumbs';
@@ -74,6 +76,10 @@ export default function AppShell({ children }: AppShellProps) {
   const isGuest = user?.role === 'guest';
   const isAdmin = user?.role === 'admin';
   const isSettingsMode = location.pathname.startsWith('/settings');
+  const orgPolicy = useAppSelector(selectOrgPolicy);
+
+  // Policy-driven UI gating: hide workspace "+" if policy restricts creation to admins and user is not admin
+  const canCreateWorkspaces = !orgPolicy || orgPolicy.whoCanCreateWorkspaces === 'all' || isAdmin;
 
   // Track last in-app page outside settings
   useEffect(() => {
@@ -88,6 +94,13 @@ export default function AppShell({ children }: AppShellProps) {
       dispatch(fetchWorkspaces());
     }
   }, [initialized, user, isGuest, wsStatus, dispatch]);
+
+  // Fetch org policy on auth init (for UI gating)
+  useEffect(() => {
+    if (initialized && user) {
+      dispatch(fetchOrgPolicy());
+    }
+  }, [initialized, user, dispatch]);
 
   async function handleLogout() {
     await dispatch(logoutUser());
@@ -214,6 +227,15 @@ export default function AppShell({ children }: AppShellProps) {
                 collapsed={collapsed}
                 to="/settings/users"
                 data-icod-id="src_components_layout_appshell_tsx_settings_users" />
+              <SidebarNavItem
+                icon={<ShieldCheck
+                  className="h-4 w-4"
+                  data-icod-id="src_components_layout_appshell_tsx_roles_icon" />}
+                label="Roles & permissions"
+                active={location.pathname === '/settings/roles'}
+                collapsed={collapsed}
+                to="/settings/roles"
+                data-icod-id="src_components_layout_appshell_tsx_settings_roles" />
             </div>
           </>
         )}
@@ -258,18 +280,20 @@ export default function AppShell({ children }: AppShellProps) {
               data-icod-id="src_components_layout_appshell_tsx_a7a2">
               Workspaces
             </span>
-            <IconButton
-              size="sm"
-              tooltip="New workspace"
-              onClick={() => setCreateOpen(true)}
-              data-icod-id="src_components_layout_appshell_tsx_a774">
-              <Plus
-                className="h-3.5 w-3.5"
-                data-icod-id="src_components_layout_appshell_tsx_a5e7" />
-            </IconButton>
+            {canCreateWorkspaces && (
+              <IconButton
+                size="sm"
+                tooltip="New workspace"
+                onClick={() => setCreateOpen(true)}
+                data-icod-id="src_components_layout_appshell_tsx_a774">
+                <Plus
+                  className="h-3.5 w-3.5"
+                  data-icod-id="src_components_layout_appshell_tsx_a5e7" />
+              </IconButton>
+            )}
           </div>
         )}
-        {!isGuest && collapsed && (
+        {!isGuest && collapsed && canCreateWorkspaces && (
           <div
             className="mb-1 flex justify-center"
             data-icod-id="src_components_layout_appshell_tsx_d281">

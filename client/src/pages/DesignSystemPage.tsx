@@ -49,6 +49,7 @@ import {
   ResizeHandle,
   ColorSwatchGroup,
   AnimatedBrandBackground,
+  PermissionMatrix,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
@@ -60,6 +61,7 @@ import ColumnPropertiesModal from '@/features/sheets/grid/ColumnPropertiesModal'
 import type { DropdownOption } from '@/types';
 import { ACCENTS, ACCENT_META } from '@/utils/theme';
 import type { Accent } from '@/utils/theme';
+import { ORG_ROLE_MATRIX, WORKSPACE_SHEET_ROLE_MATRIX } from '@/utils/permissionsDefinition';
 
 /* ─── Section wrapper ─────────────────────────────────────────────────────── */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -306,6 +308,27 @@ export default function DesignSystemPage() {
           data-icod-id="src_pages_designsystempage_tsx_d9a1">
           Used as the hero background on the landing page and the left panel of the auth layout. Animates CSS transform/opacity only; respects prefers-reduced-motion.
         </p>
+      </Section>
+      {/* ─── Permission Matrix ───────────────────────────────────────────── */}
+      <Section
+        title="PermissionMatrix"
+        data-icod-id="ds_permissionmatrix_section">
+        <div className="space-y-6" data-icod-id="ds_permissionmatrix_wrap">
+          <Card data-icod-id="ds_permissionmatrix_org_card">
+            <PermissionMatrix
+              rows={ORG_ROLE_MATRIX as unknown as import('@/components/ui/PermissionMatrix').PermissionRow[]}
+              columns={['Admin', 'Member', 'Guest']}
+              title="Organization roles"
+              data-icod-id="ds_permissionmatrix_org" />
+          </Card>
+          <Card data-icod-id="ds_permissionmatrix_ws_card">
+            <PermissionMatrix
+              rows={WORKSPACE_SHEET_ROLE_MATRIX as unknown as import('@/components/ui/PermissionMatrix').PermissionRow[]}
+              columns={['Owner', 'Admin', 'Editor', 'Viewer']}
+              title="Workspace & sheet roles"
+              data-icod-id="ds_permissionmatrix_ws" />
+          </Card>
+        </div>
       </Section>
       {/* ─── 2. Typography Scale ─────────────────────────────────────────── */}
       <Section

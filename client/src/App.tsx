@@ -111,6 +111,7 @@ function AppRoutes() {
       <Route path="/settings" element={<Navigate to="/settings/appearance" replace />} />
       <Route path="/settings/appearance" element={<ProtectedRoute data-icod-id="src_app_tsx_1e13"><AppShell data-icod-id="src_app_tsx_e9f2"><SettingsPage section="appearance" data-icod-id="src_app_tsx_9f17" /></AppShell></ProtectedRoute>} />
       <Route path="/settings/users" element={<AdminOnlyRoute data-icod-id="src_app_tsx_c097"><ProtectedRoute data-icod-id="src_app_tsx_settings_users_protected"><AppShell data-icod-id="src_app_tsx_settings_users_shell"><SettingsPage section="users" data-icod-id="src_app_tsx_settings_users_page" /></AppShell></ProtectedRoute></AdminOnlyRoute>} />
+      <Route path="/settings/roles" element={<AdminOnlyRoute data-icod-id="src_app_tsx_settings_roles_admin"><ProtectedRoute data-icod-id="src_app_tsx_settings_roles_protected"><AppShell data-icod-id="src_app_tsx_settings_roles_shell"><SettingsPage section="roles" data-icod-id="src_app_tsx_settings_roles_page" /></AppShell></ProtectedRoute></AdminOnlyRoute>} />
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

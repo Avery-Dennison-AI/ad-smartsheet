@@ -25,8 +25,24 @@ function computeStatus(inv: IInvitation): 'pending' | 'expired' | 'accepted' | '
 export async function createInvitation(
   data: { email: string; fullName?: string; role: UserRole; guestExpiresAt?: Date },
   invitedBy: mongoose.Types.ObjectId,
+  actorUser?: { id: string; role: string },
 ): Promise<{ invitation: IInvitation; invitePath: string }> {
   const email = data.email.trim().toLowerCase();
+
+  // Enforce org policy for guest invitations
+  if (data.role === 'guest' && actorUser) {
+    const orgPolicyService = await import('./orgPolicyService');
+    const policy = await orgPolicyService.getOrgPolicy();
+    orgPolicyService.enforceGuestInvitePolicy(actorUser, email, data.role, policy);
+
+    // Cap guest role at maxGuestRole from policy
+    const roleLevel: Record<string, number> = { viewer: 1, editor: 2 };
+    const maxLevel = roleLevel[policy.maxGuestRole] ?? 2;
+    const requestedLevel = roleLevel[data.role] ?? 0;
+    if (requestedLevel > maxLevel) {
+      data = { ...data, role: policy.maxGuestRole as UserRole };
+    }
+  }
 
   // Check active user
   const existingUser = await User.findOne({ email, isActive: true });

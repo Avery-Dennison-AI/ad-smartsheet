@@ -6,6 +6,7 @@ import workspacesReducer from './slices/workspaceSlice';
 import sheetsReducer from './slices/sheetsSlice';
 import userMetaReducer from './slices/userMetaSlice';
 import gridReducer from './slices/gridSlice';
+import orgPolicyReducer from './slices/orgPolicySlice';
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     sheets: sheetsReducer,
     userMeta: userMetaReducer,
     grid: gridReducer,
+    orgPolicy: orgPolicyReducer,
   },
 });
 

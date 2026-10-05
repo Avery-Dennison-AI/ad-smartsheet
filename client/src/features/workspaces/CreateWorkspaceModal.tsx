@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Modal, Field, Input, Textarea, Button, ColorPicker, WORKSPACE_COLORS } from '@/components/ui';
+import { Modal, Field, Input, Textarea, Button, ColorPicker, WORKSPACE_COLORS, useToast } from '@/components/ui';
 import { useAppDispatch } from '@/store/hooks';
 import { createWorkspace as createWorkspaceThunk } from '@/store/slices/workspaceSlice';
 import type { WorkspaceColor } from '@/types';
@@ -13,6 +13,7 @@ interface CreateWorkspaceModalProps {
 export default function CreateWorkspaceModal({ open, onClose }: CreateWorkspaceModalProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const { addToast } = useToast();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -31,8 +32,11 @@ export default function CreateWorkspaceModal({ open, onClose }: CreateWorkspaceM
       onClose();
       resetForm();
       navigate(`/workspaces/${result.id}`);
-    } catch {
-      // Error handled by slice
+    } catch (err) {
+      // Show server error message (e.g. policy violation)
+      if (typeof err === 'string') {
+        addToast('error', err);
+      }
     } finally {
       setSubmitting(false);
     }

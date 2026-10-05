@@ -201,3 +201,15 @@ export interface SharedWithMeItem {
   role: string;
 }
 
+// ─── Organization Policy Types ──────────────────────────────────────────────
+
+export interface OrgPolicy {
+  _id?: string;
+  whoCanCreateWorkspaces: 'all' | 'admins';
+  whoCanInviteGuests: 'admins' | 'admins_and_workspace_admins';
+  guestAccessExpiry: 'optional' | 'required';
+  defaultGuestExpiryDays: number;
+  allowedGuestEmailDomains: string[];
+  maxGuestRole: 'editor' | 'viewer';
+}
+
