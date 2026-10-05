@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   Home,
   Clock,
@@ -41,6 +41,18 @@ const navItems: NavItem[] = [
   { label: 'Shared with me', path: '/shared-with-me', icon: Share2 },
 ];
 
+const APP_PATH_PREFIXES = [
+  '/home', '/recents', '/favorites', '/shared',
+  '/workspaces/', '/sheets/', '/settings',
+];
+const PUBLIC_PATH_PREFIXES = ['/', '/login', '/invite/'];
+
+function isAppPath(pathname: string): boolean {
+  if (pathname === '/') return false;
+  return APP_PATH_PREFIXES.some(p => pathname === p || pathname.startsWith(p))
+    && !PUBLIC_PATH_PREFIXES.slice(1).some(p => pathname === p || pathname.startsWith(p));
+}
+
 interface AppShellProps {
   children: ReactNode;
 }
@@ -63,12 +75,12 @@ export default function AppShell({ children }: AppShellProps) {
   const isAdmin = user?.role === 'admin';
   const isSettingsMode = location.pathname.startsWith('/settings');
 
-  // Store pre-settings path when entering settings mode
+  // Track last in-app page outside settings
   useEffect(() => {
-    if (isSettingsMode && !sessionStorage.getItem('preSettingsPath')) {
-      sessionStorage.setItem('preSettingsPath', location.pathname);
+    if (!isSettingsMode && isAppPath(location.pathname)) {
+      sessionStorage.setItem('lastAppPath', location.pathname + location.search);
     }
-  }, [isSettingsMode, location.pathname]);
+  }, [location, isSettingsMode]);
 
   // Fetch workspaces on mount when authenticated (skip for guests)
   useEffect(() => {
@@ -83,11 +95,10 @@ export default function AppShell({ children }: AppShellProps) {
     navigate('/login');
   }
 
-  function handleBackToApp() {
-    const returnPath = sessionStorage.getItem('preSettingsPath') || '/';
-    sessionStorage.removeItem('preSettingsPath');
-    navigate(returnPath);
-  }
+  const handleBackToApp = useCallback(() => {
+    const last = sessionStorage.getItem('lastAppPath');
+    navigate(last && last !== location.pathname ? last : '/home');
+  }, [navigate, location.pathname]);
 
   const userDropdownItems = [
     {
@@ -324,11 +335,12 @@ export default function AppShell({ children }: AppShellProps) {
               className="flex flex-col items-center gap-1 px-2 pt-3 pb-2"
               data-icod-id="src_components_layout_appshell_tsx_6aaf">
               <Tooltip content="NEO" data-icod-id="src_components_layout_appshell_tsx_b053">
-                <span
+                <Link
+                  to="/home"
                   className="font-bold text-sm text-primary"
                   data-icod-id="src_components_layout_appshell_tsx_e6ea">
                   N
-                </span>
+                </Link>
               </Tooltip>
               <IconButton
                 size="sm"
@@ -342,7 +354,8 @@ export default function AppShell({ children }: AppShellProps) {
             </div>
           ) : (
             <>
-              <div
+              <Link
+                to="/home"
                 className="flex items-center gap-2"
                 data-icod-id="src_components_layout_appshell_tsx_1472">
                 <div
@@ -353,7 +366,7 @@ export default function AppShell({ children }: AppShellProps) {
                 <span
                   className="text-sm font-semibold text-foreground"
                   data-icod-id="src_components_layout_appshell_tsx_2cd4">NEO</span>
-              </div>
+              </Link>
               <IconButton
                 size="sm"
                 tooltip="Collapse sidebar"
