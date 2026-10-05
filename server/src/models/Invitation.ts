@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import type { OrgRole } from './User';
 
 export type InvitationRole = 'admin' | 'member';
 export type InvitationStatus = 'pending' | 'accepted' | 'revoked';
@@ -7,6 +8,8 @@ export interface IInvitation extends Document {
   email: string;
   fullName?: string;
   role: InvitationRole;
+  orgRole: OrgRole;
+  guestExpiresAt?: Date;
   tokenHash: string;
   invitedBy: mongoose.Types.ObjectId;
   expiresAt: Date;
@@ -24,6 +27,8 @@ const invitationSchema = new Schema<IInvitation>(
     email: { type: String, required: true, trim: true, lowercase: true },
     fullName: { type: String, trim: true },
     role: { type: String, enum: ['admin', 'member'], required: true },
+    orgRole: { type: String, enum: ['admin', 'member', 'guest'], default: 'member' },
+    guestExpiresAt: { type: Date, default: undefined },
     tokenHash: { type: String, required: true, unique: true },
     invitedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     expiresAt: { type: Date, required: true },

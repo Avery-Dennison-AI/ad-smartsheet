@@ -13,6 +13,7 @@ import {
   ChevronRight,
   PanelLeftOpen,
   Settings,
+  Share2,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { label: 'Home', path: '/home', icon: Home },
   { label: 'Recents', path: '/recents', icon: Clock },
   { label: 'Favorites', path: '/favorites', icon: Star },
+  { label: 'Shared with me', path: '/shared-with-me', icon: Share2 },
 ];
 
 interface AppShellProps {
@@ -54,12 +56,14 @@ export default function AppShell({ children }: AppShellProps) {
   const breadcrumbItems = useBreadcrumbs();
   const [createOpen, setCreateOpen] = useState(false);
 
-  // Fetch workspaces on mount when authenticated
+  const isGuest = user?.orgRole === 'guest';
+
+  // Fetch workspaces on mount when authenticated (skip for guests)
   useEffect(() => {
-    if (initialized && user && wsStatus === 'idle') {
+    if (initialized && user && !isGuest && wsStatus === 'idle') {
       dispatch(fetchWorkspaces());
     }
-  }, [initialized, user, wsStatus, dispatch]);
+  }, [initialized, user, isGuest, wsStatus, dispatch]);
 
   async function handleLogout() {
     await dispatch(logoutUser());
@@ -182,12 +186,14 @@ export default function AppShell({ children }: AppShellProps) {
           </div>
 
           {/* Divider */}
-          <div
-            className="my-3 border-t border-border"
-            data-icod-id="src_components_layout_appshell_tsx_9839" />
+          {!isGuest && (
+            <div
+              className="my-3 border-t border-border"
+              data-icod-id="src_components_layout_appshell_tsx_9839" />
+          )}
 
-          {/* Workspaces section header */}
-          {!collapsed && (
+          {/* Workspaces section header — hidden for guests */}
+          {!isGuest && !collapsed && (
             <div
               className="mb-1 flex items-center justify-between px-1"
               data-icod-id="src_components_layout_appshell_tsx_98e2">
@@ -207,7 +213,7 @@ export default function AppShell({ children }: AppShellProps) {
               </IconButton>
             </div>
           )}
-          {collapsed && (
+          {!isGuest && collapsed && (
             <div
               className="mb-1 flex justify-center"
               data-icod-id="src_components_layout_appshell_tsx_d281">
@@ -223,30 +229,32 @@ export default function AppShell({ children }: AppShellProps) {
             </div>
           )}
 
-          {/* Workspace items — scrollable region */}
-          <div
-            className="flex flex-1 flex-col gap-0.5 overflow-y-auto"
-            data-icod-id="src_components_layout_appshell_tsx_f2c5">
-            {workspaces.length === 0 && !collapsed && (
-              <div
-                className="px-3 py-2 text-xs text-muted-foreground"
-                data-icod-id="src_components_layout_appshell_tsx_62b4">No workspaces</div>
-            )}
-            {workspaces.map((ws) => (
-              <SidebarNavItem
-                key={ws.id}
-                iconNode={<WorkspaceIcon
-                  name={ws.name}
-                  color={ws.color}
-                  size="sm"
-                  data-icod-id={`src_components_layout_appshell_tsx_0203_${ws.id}`} />}
-                label={ws.name}
-                collapsed={collapsed}
-                active={location.pathname === `/workspaces/${ws.id}`}
-                to={`/workspaces/${ws.id}`}
-                data-icod-id={`src_components_layout_appshell_tsx_d3ca_${ws.id}`} />
-            ))}
-          </div>
+          {/* Workspace items — scrollable region (hidden for guests) */}
+          {!isGuest && (
+            <div
+              className="flex flex-1 flex-col gap-0.5 overflow-y-auto"
+              data-icod-id="src_components_layout_appshell_tsx_f2c5">
+              {workspaces.length === 0 && !collapsed && (
+                <div
+                  className="px-3 py-2 text-xs text-muted-foreground"
+                  data-icod-id="src_components_layout_appshell_tsx_62b4">No workspaces</div>
+              )}
+              {workspaces.map((ws) => (
+                <SidebarNavItem
+                  key={ws.id}
+                  iconNode={<WorkspaceIcon
+                    name={ws.name}
+                    color={ws.color}
+                    size="sm"
+                    data-icod-id={`src_components_layout_appshell_tsx_0203_${ws.id}`} />}
+                  label={ws.name}
+                  collapsed={collapsed}
+                  active={location.pathname === `/workspaces/${ws.id}`}
+                  to={`/workspaces/${ws.id}`}
+                  data-icod-id={`src_components_layout_appshell_tsx_d3ca_${ws.id}`} />
+              ))}
+            </div>
+          )}
         </nav>
 
         {/* Footer area */}

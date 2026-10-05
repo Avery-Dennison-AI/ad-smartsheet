@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export type UserRole = 'admin' | 'member';
+export type OrgRole = 'admin' | 'member' | 'guest';
 export type AccentColor = 'avery' | 'teal' | 'blue' | 'indigo' | 'purple' | 'rose' | 'orange';
 
 export const ACCENT_COLORS: AccentColor[] = ['avery', 'teal', 'blue', 'indigo', 'purple', 'rose', 'orange'];
@@ -10,6 +11,8 @@ export interface IUser extends Document {
   email: string;
   passwordHash: string;
   role: UserRole;
+  orgRole: OrgRole;
+  guestExpiresAt?: Date;
   isActive: boolean;
   accentColor: AccentColor;
   lastLoginAt?: Date;
@@ -30,6 +33,8 @@ const userSchema = new Schema<IUser>(
     },
     passwordHash: { type: String, required: true, select: false },
     role: { type: String, enum: ['admin', 'member'], default: 'member' },
+    orgRole: { type: String, enum: ['admin', 'member', 'guest'], default: 'member' },
+    guestExpiresAt: { type: Date, default: undefined },
     isActive: { type: Boolean, default: true },
     accentColor: { type: String, enum: ACCENT_COLORS, default: 'avery' },
     lastLoginAt: { type: Date },

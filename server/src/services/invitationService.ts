@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Invitation, { IInvitation } from '../models/Invitation';
 import User from '../models/User';
+import type { OrgRole } from '../models/User';
 import { generateToken, hashToken } from '../utils/tokens';
 import { hashPassword, validatePasswordPolicy } from '../utils/password';
 import { AppError } from '../utils/AppError';
@@ -22,10 +23,11 @@ function computeStatus(inv: IInvitation): 'pending' | 'expired' | 'accepted' | '
 }
 
 export async function createInvitation(
-  data: { email: string; fullName?: string; role: 'admin' | 'member' },
+  data: { email: string; fullName?: string; role: 'admin' | 'member'; orgRole?: OrgRole; guestExpiresAt?: Date },
   invitedBy: mongoose.Types.ObjectId,
 ): Promise<{ invitation: IInvitation; invitePath: string }> {
   const email = data.email.trim().toLowerCase();
+  const orgRole = data.orgRole || (data.role === 'admin' ? 'admin' : 'member');
 
   // Check active user
   const existingUser = await User.findOne({ email, isActive: true });
@@ -58,6 +60,8 @@ export async function createInvitation(
     email,
     fullName: data.fullName,
     role: data.role,
+    orgRole,
+    guestExpiresAt: orgRole === 'guest' ? data.guestExpiresAt : undefined,
     tokenHash,
     invitedBy,
     expiresAt: expiresAt(),
@@ -175,6 +179,8 @@ export async function acceptInvitation(
     email: invitation.email,
     fullName: data.fullName || invitation.fullName || '',
     role: invitation.role,
+    orgRole: invitation.orgRole || 'member',
+    guestExpiresAt: invitation.orgRole === 'guest' ? invitation.guestExpiresAt : undefined,
     passwordHash,
     isActive: true,
   });

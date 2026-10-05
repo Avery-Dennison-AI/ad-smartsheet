@@ -9,6 +9,7 @@ export interface AuthUser {
   id: string;
   email: string;
   role: string;
+  orgRole: string;
 }
 
 declare global {
@@ -42,13 +43,20 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
 
     // Load the user from DB to get live role and isActive status
     User.findById(payload.id)
-      .select('_id role isActive')
+      .select('_id role orgRole guestExpiresAt isActive')
       .then((user) => {
         if (!user || !user.isActive) {
           next(new AppError('Authentication required', 401));
           return;
         }
-        req.user = { id: user._id.toString(), email: payload.email, role: user.role };
+
+        // Check guest expiry
+        if (user.orgRole === 'guest' && user.guestExpiresAt && user.guestExpiresAt < new Date()) {
+          next(new AppError('Guest access has expired', 401));
+          return;
+        }
+
+        req.user = { id: user._id.toString(), email: payload.email, role: user.role, orgRole: user.orgRole };
         next();
       })
       .catch(() => {

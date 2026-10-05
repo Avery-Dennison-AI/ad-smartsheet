@@ -18,12 +18,20 @@ export interface ColumnDef {
   width?: number;
 }
 
+export type SheetRole = 'viewer' | 'editor' | 'admin';
+
+export interface SheetMemberEntry {
+  userId: mongoose.Types.ObjectId;
+  role: SheetRole;
+}
+
 export interface ISheet extends Document {
   workspaceId: mongoose.Types.ObjectId;
   name: string;
   description?: string;
   createdBy: mongoose.Types.ObjectId;
   columns: ColumnDef[];
+  members: SheetMemberEntry[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +62,18 @@ const columnDefSchema = new Schema<ColumnDef>(
   { _id: false },
 );
 
+const sheetMemberSchema = new Schema<SheetMemberEntry>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    role: {
+      type: String,
+      enum: ['viewer', 'editor', 'admin'],
+      required: true,
+    },
+  },
+  { _id: false },
+);
+
 const sheetSchema = new Schema<ISheet>(
   {
     workspaceId: { type: Schema.Types.ObjectId, ref: 'Workspace', required: true, index: true },
@@ -61,12 +81,15 @@ const sheetSchema = new Schema<ISheet>(
     description: { type: String, maxlength: 300, trim: true, default: undefined },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     columns: { type: [columnDefSchema], default: [] },
+    members: { type: [sheetMemberSchema], default: [] },
   },
   { timestamps: true },
 );
 
 // Compound index for efficient listing by workspace sorted by updatedAt
 sheetSchema.index({ workspaceId: 1, updatedAt: -1 });
+// Index for finding sheets shared with a specific user
+sheetSchema.index({ 'members.userId': 1 });
 
 const Sheet = mongoose.model<ISheet>('Sheet', sheetSchema);
 

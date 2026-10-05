@@ -14,9 +14,11 @@ import adminUsersRouter from './routes/adminUsers';
 import workspacesRouter from './routes/workspaces';
 import workspaceSheetsRouter from './routes/workspaceSheets';
 import sheetsRouter from './routes/sheets';
+import sheetSharingRouter from './routes/sheetSharing';
 import userSheetsRouter from './routes/userSheets';
 import gridRouter from './routes/grid';
 import userPreferencesRouter from './routes/userPreferences';
+import usersRouter from './routes/users';
 import { seedAdmin } from './config/seedAdmin';
 import { migrateWorkspaceColors, repairBrokenColumns, repairPrimaryColumnOrder } from './config/migrations';
 import { sendSuccess } from './utils/response';
@@ -72,9 +74,11 @@ app.use('/api/admin', adminUsersRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/workspaces', workspaceSheetsRouter);
 app.use('/api/sheets', sheetsRouter);
+app.use('/api/sheets/:sheetId/members', sheetSharingRouter);
 app.use('/api/sheets/:sheetId/grid', gridRouter);
 app.use('/api/user', userSheetsRouter);
 app.use('/api/user', userPreferencesRouter);
+app.use('/api/users', usersRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use(errorHandler);

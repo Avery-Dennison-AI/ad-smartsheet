@@ -9,12 +9,15 @@ export interface ApiResponse<T = unknown> {
 // ─── User Management Types ──────────────────────────────────────────────────
 
 export type UserRole = 'admin' | 'member';
+export type OrgRole = 'admin' | 'member' | 'guest';
 
 export interface AdminUser {
   id: string;
   fullName: string;
   email: string;
   role: UserRole;
+  orgRole: OrgRole;
+  guestExpiresAt: string | null;
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -157,5 +160,46 @@ export interface CellFormatting {
 export interface GridState {
   columns: Column[];
   rows: GridRow[];
+}
+
+// ─── Sheet Sharing Types ──────────────────────────────────────────────────
+
+export type SheetRole = 'viewer' | 'editor' | 'admin';
+
+export interface DirectSheetMember {
+  id: string;
+  fullName: string;
+  email: string;
+  role: SheetRole;
+  orgRole: OrgRole;
+  guestExpiresAt: string | null;
+}
+
+export interface WorkspaceSheetMember {
+  id: string;
+  fullName: string;
+  email: string;
+  role: string;
+}
+
+export interface SheetMembersResult {
+  directMembers: DirectSheetMember[];
+  workspaceMembers: WorkspaceSheetMember[];
+}
+
+export interface SharedWithMeItem {
+  sheet: {
+    id: string;
+    name: string;
+    updatedAt: string;
+    workspaceId: string;
+  };
+  workspace: {
+    id: string;
+    name: string;
+  };
+  lastOpenedAt: string | null;
+  isFavorite: boolean;
+  role: string;
 }
 

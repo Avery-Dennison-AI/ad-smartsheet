@@ -16,7 +16,7 @@ function getDummyHash(): Promise<string> {
 }
 
 interface LoginResult {
-  user: { id: string; fullName: string; email: string; role: string; accentColor: string };
+  user: { id: string; fullName: string; email: string; role: string; orgRole: string; guestExpiresAt: Date | null; accentColor: string };
   token: string;
 }
 
@@ -50,6 +50,8 @@ export async function loginUser(email: string, password: string, _ip?: string): 
       fullName: user.fullName,
       email: user.email,
       role: user.role,
+      orgRole: user.orgRole || 'member',
+      guestExpiresAt: user.guestExpiresAt || null,
       accentColor: user.accentColor || 'avery',
     },
     token,
@@ -95,6 +97,8 @@ export async function getCurrentUser(userId: string) {
     fullName: user.fullName,
     email: user.email,
     role: user.role,
+    orgRole: user.orgRole || 'member',
+    guestExpiresAt: user.guestExpiresAt || null,
     accentColor: user.accentColor || 'avery',
   };
 }

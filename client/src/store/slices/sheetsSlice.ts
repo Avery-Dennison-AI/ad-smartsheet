@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import * as sheetService from '../../services/sheetService';
+import * as sheetSharingService from '../../services/sheetSharingService';
 import { parseApiError } from '../../utils/parseApiError';
-import type { Sheet } from '../../types';
+import type { Sheet, SheetMembersResult, SharedWithMeItem } from '../../types';
 import type { RootState } from '../store';
 
 interface SheetsState {
@@ -11,6 +12,10 @@ interface SheetsState {
   loading: boolean;
   error: string | null;
   errorStatus?: number;
+  sharedWithMe: SharedWithMeItem[];
+  sharedWithMeStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
+  sheetMembers: SheetMembersResult | null;
+  sheetMembersStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
 }
 
 const initialState: SheetsState = {
@@ -20,6 +25,10 @@ const initialState: SheetsState = {
   loading: false,
   error: null,
   errorStatus: undefined,
+  sharedWithMe: [],
+  sharedWithMeStatus: 'idle',
+  sheetMembers: null,
+  sheetMembersStatus: 'idle',
 };
 
 // ─── Thunks ────────────────────────────────────────────────────────────────
@@ -89,6 +98,68 @@ export const setFavorite = createAsyncThunk(
   async ({ sheetId, starred }: { sheetId: string; starred: boolean }) => {
     const res = await sheetService.setFavorite(sheetId, starred);
     return res.data.data as { sheetId: string; isFavorite: boolean };
+  },
+);
+
+// ─── Sharing Thunks ──────────────────────────────────────────────────────
+
+export const fetchSharedWithMe = createAsyncThunk(
+  'sheets/fetchSharedWithMe',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await sheetSharingService.getSharedWithMe();
+      return data.data as SharedWithMeItem[];
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
+
+export const fetchSheetMembers = createAsyncThunk(
+  'sheets/fetchSheetMembers',
+  async (sheetId: string, { rejectWithValue }) => {
+    try {
+      const { data } = await sheetSharingService.getSheetMembers(sheetId);
+      return data.data as SheetMembersResult;
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
+
+export const addSheetMember = createAsyncThunk(
+  'sheets/addSheetMember',
+  async ({ sheetId, userId, role }: { sheetId: string; userId: string; role: 'viewer' | 'editor' | 'admin' }, { rejectWithValue }) => {
+    try {
+      const { data } = await sheetSharingService.addSheetMember(sheetId, { userId, role });
+      return data.data as SheetMembersResult;
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
+
+export const updateSheetMemberRole = createAsyncThunk(
+  'sheets/updateSheetMemberRole',
+  async ({ sheetId, userId, role }: { sheetId: string; userId: string; role: 'viewer' | 'editor' | 'admin' }, { rejectWithValue }) => {
+    try {
+      const { data } = await sheetSharingService.updateSheetMemberRole(sheetId, userId, role);
+      return data.data as SheetMembersResult;
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
+
+export const removeSheetMember = createAsyncThunk(
+  'sheets/removeSheetMember',
+  async ({ sheetId, userId }: { sheetId: string; userId: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await sheetSharingService.removeSheetMember(sheetId, userId);
+      return data.data as SheetMembersResult;
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
   },
 );
 
@@ -186,6 +257,32 @@ const sheetsSlice = createSlice({
         if (state.currentSheetId === sheetId) {
           state.currentSheetId = null;
         }
+      })
+      // fetchSharedWithMe
+      .addCase(fetchSharedWithMe.pending, (state) => { state.sharedWithMeStatus = 'loading'; })
+      .addCase(fetchSharedWithMe.fulfilled, (state, action) => {
+        state.sharedWithMeStatus = 'succeeded';
+        state.sharedWithMe = action.payload;
+      })
+      .addCase(fetchSharedWithMe.rejected, (state) => { state.sharedWithMeStatus = 'failed'; })
+      // fetchSheetMembers
+      .addCase(fetchSheetMembers.pending, (state) => { state.sheetMembersStatus = 'loading'; state.sheetMembers = null; })
+      .addCase(fetchSheetMembers.fulfilled, (state, action) => {
+        state.sheetMembersStatus = 'succeeded';
+        state.sheetMembers = action.payload;
+      })
+      .addCase(fetchSheetMembers.rejected, (state) => { state.sheetMembersStatus = 'failed'; })
+      // addSheetMember
+      .addCase(addSheetMember.fulfilled, (state, action) => {
+        state.sheetMembers = action.payload;
+      })
+      // updateSheetMemberRole
+      .addCase(updateSheetMemberRole.fulfilled, (state, action) => {
+        state.sheetMembers = action.payload;
+      })
+      // removeSheetMember
+      .addCase(removeSheetMember.fulfilled, (state, action) => {
+        state.sheetMembers = action.payload;
       });
   },
 });
@@ -209,5 +306,10 @@ export const selectSheetsByWorkspace = createSelector(
    (state: RootState, workspaceId: string) => state.sheets.byWorkspace[workspaceId]],
   (byId, ids) => (ids ?? []).map(id => byId[id]).filter(Boolean) as Sheet[],
 );
+
+export const selectSharedWithMe = (state: RootState) => state.sheets.sharedWithMe;
+export const selectSharedWithMeStatus = (state: RootState) => state.sheets.sharedWithMeStatus;
+export const selectSheetMembers = (state: RootState) => state.sheets.sheetMembers;
+export const selectSheetMembersStatus = (state: RootState) => state.sheets.sheetMembersStatus;
 
 export default sheetsSlice.reducer;

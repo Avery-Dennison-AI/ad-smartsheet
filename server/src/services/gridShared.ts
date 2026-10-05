@@ -2,8 +2,10 @@ import mongoose from 'mongoose';
 import Sheet, { type ISheet, type ColumnDef, type ColumnType } from '../models/Sheet';
 import Row, { type IRow } from '../models/Row';
 import Workspace from '../models/Workspace';
-import { getMemberRole, getMemberId } from './workspaceService';
+import { getMemberId } from './workspaceService';
 import { AppError } from '../utils/AppError';
+import { requireSheetAccess, hasMinRole as permHasMinRole } from './permissionService';
+import type { SheetRole } from './permissionService';
 
 // ─── Role hierarchy ────────────────────────────────────────────────────────
 
@@ -29,29 +31,19 @@ export interface SheetWithAccess {
 /**
  * Validates sheetId, loads the sheet and its workspace, checks membership,
  * and verifies the user has at least `requiredRole`.
+ * Delegates to the central permissionService.
  */
 export async function getSheetWithAccess(
   sheetId: string,
   userId: string,
   requiredRole: WorkspaceRole = 'viewer',
 ): Promise<SheetWithAccess> {
-  if (!mongoose.Types.ObjectId.isValid(sheetId)) {
-    throw new AppError('Invalid sheet ID', 400);
-  }
-
-  const sheet = await Sheet.findById(sheetId);
-  if (!sheet) throw new AppError('Sheet not found', 404);
-
-  const workspace = await Workspace.findById(sheet.workspaceId);
-  if (!workspace) throw new AppError('Sheet not found', 404);
-
-  const role = getMemberRole(workspace, userId);
-  if (!role) throw new AppError('Access denied', 403);
-  if (!hasMinRole(role, requiredRole)) {
-    throw new AppError('Access denied', 403);
-  }
-
-  return { sheet, workspace, userRole: role as WorkspaceRole };
+  const result = await requireSheetAccess(userId, sheetId, requiredRole as SheetRole);
+  return {
+    sheet: result.sheet,
+    workspace: result.workspace,
+    userRole: result.effectiveRole as WorkspaceRole,
+  };
 }
 
 // ─── Cell validation ───────────────────────────────────────────────────────

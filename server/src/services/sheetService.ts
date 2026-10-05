@@ -5,6 +5,8 @@ import UserSheetMeta, { type IUserSheetMeta } from '../models/UserSheetMeta';
 import Workspace, { type IWorkspace } from '../models/Workspace';
 import { getMemberRole } from './workspaceService';
 import { AppError } from '../utils/AppError';
+import { requireSheetAccess, hasMinRole as permHasMinRole, getEffectiveRole } from './permissionService';
+import type { SheetRole } from './permissionService';
 
 const CREATED_BY_POPULATE = '_id fullName email';
 
@@ -55,29 +57,19 @@ interface SheetWithAccess {
 /**
  * Validates sheetId, loads the sheet and its workspace, checks membership,
  * and verifies the user has at least `requiredRole`. Returns all three together.
+ * Delegates to the central permissionService.
  */
 async function getSheetWithAccess(
   sheetId: string,
   userId: string,
   requiredRole: WorkspaceRole = 'viewer',
 ): Promise<SheetWithAccess> {
-  if (!mongoose.Types.ObjectId.isValid(sheetId)) {
-    throw new AppError('Invalid sheet ID', 400);
-  }
-
-  const sheet = await Sheet.findById(sheetId).populate('createdBy', CREATED_BY_POPULATE);
-  if (!sheet) throw new AppError('Sheet not found', 404);
-
-  const workspace = await Workspace.findById(sheet.workspaceId);
-  if (!workspace) throw new AppError('Sheet not found', 404);
-
-  const role = getMemberRole(workspace, userId);
-  if (!role) throw new AppError('Access denied', 403);
-  if (!hasMinRole(role, requiredRole)) {
-    throw new AppError('Access denied', 403);
-  }
-
-  return { sheet, workspace, userRole: role as WorkspaceRole };
+  const result = await requireSheetAccess(userId, sheetId, requiredRole as SheetRole);
+  return {
+    sheet: result.sheet,
+    workspace: result.workspace,
+    userRole: result.effectiveRole as WorkspaceRole,
+  };
 }
 
 // ─── Shared meta formatter ─────────────────────────────────────────────────
@@ -308,7 +300,7 @@ export async function deleteSheetsByWorkspace(workspaceId: string): Promise<void
   await UserSheetMeta.deleteMany({ workspaceId: wsObjectId });
 }
 
-/** Returns recently opened sheets for the user. */
+/** Returns recently opened sheets for the user. Includes sheets accessible via direct sharing. */
 export async function getRecents(userId: string, limit = 20) {
   const metas = await UserSheetMeta.find({
     userId: new mongoose.Types.ObjectId(userId),
@@ -330,7 +322,7 @@ export async function getRecents(userId: string, limit = 20) {
   const workspaces = await Workspace.find({ _id: { $in: workspaceIds } });
   const wsMap = new Map(workspaces.map((ws) => [ws._id.toString(), ws]));
 
-  // Filter by membership and build results
+  // Filter by membership (workspace OR direct sheet share) and build results
   const results: SheetMetaResponse[] = [];
   for (const meta of validMetas) {
     const wsId = (meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId })._id?.toString()
@@ -338,18 +330,30 @@ export async function getRecents(userId: string, limit = 20) {
     const workspace = wsMap.get(wsId);
     if (!workspace) continue;
 
-    const role = getMemberRole(workspace, userId);
-    if (!role) continue;
+    // Check workspace membership first
+    const wsRole = getMemberRole(workspace, userId);
+    if (wsRole) {
+      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId };
+      const wsObj = meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId; name: string };
+      results.push(formatSheetMeta(sheetObj, wsObj, meta));
+      continue;
+    }
 
-    const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId };
-    const wsObj = meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId; name: string };
-    results.push(formatSheetMeta(sheetObj, wsObj, meta));
+    // If not a workspace member, check direct sheet share
+    const sheetId = (meta.sheetId as unknown as { _id: mongoose.Types.ObjectId })._id?.toString()
+      ?? meta.sheetId.toString();
+    const effectiveRole = await getEffectiveRole(userId, sheetId);
+    if (effectiveRole) {
+      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId };
+      const wsObj = meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId; name: string };
+      results.push(formatSheetMeta(sheetObj, wsObj, meta));
+    }
   }
 
   return results.slice(0, limit);
 }
 
-/** Returns favorite sheets for the user. */
+/** Returns favorite sheets for the user. Includes sheets accessible via direct sharing. */
 export async function getFavorites(userId: string) {
   const metas = await UserSheetMeta.find({
     userId: new mongoose.Types.ObjectId(userId),
@@ -370,7 +374,7 @@ export async function getFavorites(userId: string) {
   const workspaces = await Workspace.find({ _id: { $in: workspaceIds } });
   const wsMap = new Map(workspaces.map((ws) => [ws._id.toString(), ws]));
 
-  // Filter by membership and build results
+  // Filter by membership (workspace OR direct sheet share) and build results
   const results: SheetMetaResponse[] = [];
   for (const meta of validMetas) {
     const wsId = (meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId })._id?.toString()
@@ -378,12 +382,24 @@ export async function getFavorites(userId: string) {
     const workspace = wsMap.get(wsId);
     if (!workspace) continue;
 
-    const role = getMemberRole(workspace, userId);
-    if (!role) continue;
+    // Check workspace membership first
+    const wsRole = getMemberRole(workspace, userId);
+    if (wsRole) {
+      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId };
+      const wsObj = meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId; name: string };
+      results.push(formatSheetMeta(sheetObj, wsObj, meta));
+      continue;
+    }
 
-    const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId };
-    const wsObj = meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId; name: string };
-    results.push(formatSheetMeta(sheetObj, wsObj, meta));
+    // If not a workspace member, check direct sheet share
+    const sheetId = (meta.sheetId as unknown as { _id: mongoose.Types.ObjectId })._id?.toString()
+      ?? meta.sheetId.toString();
+    const effectiveRole = await getEffectiveRole(userId, sheetId);
+    if (effectiveRole) {
+      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId };
+      const wsObj = meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId; name: string };
+      results.push(formatSheetMeta(sheetObj, wsObj, meta));
+    }
   }
 
   // Sort by sheet updatedAt desc

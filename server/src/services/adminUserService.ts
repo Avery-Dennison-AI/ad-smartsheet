@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import User from '../models/User';
+import type { OrgRole } from '../models/User';
 import { AppError } from '../utils/AppError';
 import { escapeRegex } from '../utils/escapeRegex';
 
@@ -25,7 +26,7 @@ export async function listUsers(params: {
 
   const total = await User.countDocuments(query);
   const users = await User.find(query)
-    .select('_id fullName email role isActive lastLoginAt createdAt')
+    .select('_id fullName email role orgRole guestExpiresAt isActive lastLoginAt createdAt')
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit);
@@ -36,6 +37,8 @@ export async function listUsers(params: {
       fullName: u.fullName,
       email: u.email,
       role: u.role,
+      orgRole: u.orgRole,
+      guestExpiresAt: u.guestExpiresAt || null,
       isActive: u.isActive,
       lastLoginAt: u.lastLoginAt,
       createdAt: u.createdAt,
@@ -49,7 +52,7 @@ export async function listUsers(params: {
 export async function updateUser(
   targetId: string,
   requesterId: mongoose.Types.ObjectId,
-  data: { role?: 'admin' | 'member'; isActive?: boolean },
+  data: { role?: 'admin' | 'member'; orgRole?: OrgRole; guestExpiresAt?: Date | null; isActive?: boolean },
 ) {
   if (targetId === requesterId.toString()) {
     if (data.isActive === false) throw new AppError('You cannot deactivate your own account', 400);
@@ -72,8 +75,22 @@ export async function updateUser(
     }
   }
 
-  const user = await User.findByIdAndUpdate(targetId, data, { new: true, runValidators: true }).select(
-    '_id fullName email role isActive lastLoginAt createdAt',
+  // Build update object
+  const updates: Record<string, unknown> = {};
+  if (data.role !== undefined) updates.role = data.role;
+  if (data.orgRole !== undefined) updates.orgRole = data.orgRole;
+  if (data.isActive !== undefined) updates.isActive = data.isActive;
+  if (data.guestExpiresAt !== undefined) {
+    updates.guestExpiresAt = data.guestExpiresAt || undefined;
+  }
+
+  // Clear guestExpiresAt when switching away from guest
+  if (data.orgRole && data.orgRole !== 'guest') {
+    updates.guestExpiresAt = undefined;
+  }
+
+  const user = await User.findByIdAndUpdate(targetId, { $set: updates }, { new: true, runValidators: true }).select(
+    '_id fullName email role orgRole guestExpiresAt isActive lastLoginAt createdAt',
   );
 
   if (!user) throw new AppError('User not found', 404);
@@ -83,6 +100,8 @@ export async function updateUser(
     fullName: user.fullName,
     email: user.email,
     role: user.role,
+    orgRole: user.orgRole,
+    guestExpiresAt: user.guestExpiresAt || null,
     isActive: user.isActive,
     lastLoginAt: user.lastLoginAt,
     createdAt: user.createdAt,

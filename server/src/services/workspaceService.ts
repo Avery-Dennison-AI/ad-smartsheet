@@ -259,7 +259,7 @@ export async function searchUsersToAdd(
   workspaceId: string,
   actorId: string,
   query: string,
-): Promise<{ _id: string; fullName: string; email: string }[]> {
+): Promise<{ _id: string; fullName: string; email: string; orgRole?: string }[]> {
   if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
     throw new AppError('Invalid workspace ID', 400);
   }
@@ -285,12 +285,98 @@ export async function searchUsersToAdd(
       { email: { $regex: regex } },
     ],
   })
-    .select('_id fullName email')
+    .select('_id fullName email orgRole')
     .limit(10);
 
   return users.map((u) => ({
     _id: u._id.toString(),
     fullName: u.fullName,
     email: u.email,
+    orgRole: u.orgRole,
+  }));
+}
+
+/** General user search with guest scoping. Guests only see users who share a workspace or sheet. */
+export async function searchUsersGlobal(
+  actorId: string,
+  query: string,
+): Promise<{ _id: string; fullName: string; email: string; orgRole: string }[]> {
+  const regex = new RegExp(escapeRegex(query), 'i');
+  const baseQuery = {
+    isActive: true,
+    $or: [
+      { fullName: { $regex: regex } },
+      { email: { $regex: regex } },
+    ],
+  };
+
+  // Check if actor is a guest
+  const actor = await User.findById(actorId).select('orgRole');
+  const isGuest = actor?.orgRole === 'guest';
+
+  if (isGuest) {
+    // Guest: find users who share a workspace or sheet with the requester
+    // Find workspaces the guest belongs to (should be none, but check anyway)
+    const sharedWorkspaces = await Workspace.find({ 'members.user': new mongoose.Types.ObjectId(actorId) })
+      .select('members');
+    const wsUserIds = new Set<string>();
+    for (const ws of sharedWorkspaces) {
+      for (const m of ws.members) {
+        wsUserIds.add(getMemberId(m.user));
+      }
+    }
+
+    // Find sheets directly shared with the guest
+    const Sheet = (await import('../models/Sheet')).default;
+    const sharedSheets = await Sheet.find({ 'members.userId': new mongoose.Types.ObjectId(actorId) })
+      .select('members workspaceId');
+    
+    // Also get workspace members from workspaces that contain shared sheets
+    const sharedWsIds = [...new Set(sharedSheets.map(s => s.workspaceId.toString()))];
+    if (sharedWsIds.length > 0) {
+      const relatedWorkspaces = await Workspace.find({ _id: { $in: sharedWsIds } }).select('members');
+      for (const ws of relatedWorkspaces) {
+        for (const m of ws.members) {
+          wsUserIds.add(getMemberId(m.user));
+        }
+      }
+    }
+
+    // Also add direct sheet co-members
+    for (const sheet of sharedSheets) {
+      for (const m of sheet.members) {
+        wsUserIds.add(m.userId.toString());
+      }
+    }
+
+    wsUserIds.delete(actorId); // exclude self
+
+    const scopedQuery = {
+      ...baseQuery,
+      _id: { $in: [...wsUserIds].map(id => new mongoose.Types.ObjectId(id)) },
+    };
+
+    const users = await User.find(scopedQuery)
+      .select('_id fullName email orgRole')
+      .limit(10);
+
+    return users.map((u) => ({
+      _id: u._id.toString(),
+      fullName: u.fullName,
+      email: u.email,
+      orgRole: u.orgRole,
+    }));
+  }
+
+  // Non-guests: full directory search
+  const users = await User.find(baseQuery)
+    .select('_id fullName email orgRole')
+    .limit(10);
+
+  return users.map((u) => ({
+    _id: u._id.toString(),
+    fullName: u.fullName,
+    email: u.email,
+    orgRole: u.orgRole,
   }));
 }

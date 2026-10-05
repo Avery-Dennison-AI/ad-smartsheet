@@ -6,10 +6,13 @@ import {
   Modal,
   Alert,
   CopyField,
+  DatePicker,
+  Field,
 } from '@/components/ui';
 import { useAppDispatch } from '@/store/hooks';
 import { createAdminInvitation } from '@/store/slices/adminSlice';
 import { buildInviteLink } from '@/utils/inviteLink';
+import type { OrgRole } from '@/types';
 
 interface InviteModalProps {
   open: boolean;
@@ -21,6 +24,8 @@ export default function InviteModal({ open, onClose }: InviteModalProps) {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'admin' | 'member'>('member');
+  const [orgRole, setOrgRole] = useState<OrgRole>('member');
+  const [guestExpiresAt, setGuestExpiresAt] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invitePath, setInvitePath] = useState<string | null>(null);
@@ -29,6 +34,8 @@ export default function InviteModal({ open, onClose }: InviteModalProps) {
     setEmail('');
     setFullName('');
     setRole('member');
+    setOrgRole('member');
+    setGuestExpiresAt('');
     setError(null);
     setInvitePath(null);
   }
@@ -42,7 +49,13 @@ export default function InviteModal({ open, onClose }: InviteModalProps) {
     }
     setLoading(true);
     try {
-      const result = await dispatch(createAdminInvitation({ email: email.trim(), fullName: fullName.trim() || undefined, role })).unwrap();
+      const result = await dispatch(createAdminInvitation({
+        email: email.trim(),
+        fullName: fullName.trim() || undefined,
+        role,
+        orgRole,
+        guestExpiresAt: orgRole === 'guest' && guestExpiresAt ? guestExpiresAt : undefined,
+      })).unwrap();
       setInvitePath(result.invitePath);
     } catch (err) {
       setError(err as string);
@@ -62,6 +75,8 @@ export default function InviteModal({ open, onClose }: InviteModalProps) {
     setEmail('');
     setFullName('');
     setRole('member');
+    setOrgRole('member');
+    setGuestExpiresAt('');
     setError(null);
   }
 
@@ -140,13 +155,39 @@ export default function InviteModal({ open, onClose }: InviteModalProps) {
             onChange={(e) => setFullName(e.target.value)}
             data-icod-id="src_pages_adminuserspage_tsx_invite_name" />
           <Select
-            label="Role"
+            label="System Role"
             value={role}
             onChange={(e) => setRole(e.target.value as 'admin' | 'member')}
             data-icod-id="src_pages_adminuserspage_tsx_invite_role">
             <option value="member" data-icod-id="src_pages_adminuserspage_tsx_role_member">Member</option>
             <option value="admin" data-icod-id="src_pages_adminuserspage_tsx_role_admin">Admin</option>
           </Select>
+          <Select
+            label="Organization Role"
+            value={orgRole}
+            onChange={(e) => setOrgRole(e.target.value as OrgRole)}
+            data-icod-id="invite_orgrole_select">
+            <option value="member" data-icod-id="src_features_admin_invitemodal_tsx_1e63">Member</option>
+            <option value="admin" data-icod-id="src_features_admin_invitemodal_tsx_052c">Admin</option>
+            <option value="guest" data-icod-id="src_features_admin_invitemodal_tsx_f010">Guest</option>
+          </Select>
+          {orgRole === 'guest' && (
+            <>
+              <Field
+                label="Guest expiry date (optional)"
+                data-icod-id="src_features_admin_invitemodal_tsx_b735">
+                <DatePicker
+                  value={guestExpiresAt}
+                  onChange={setGuestExpiresAt}
+                  data-icod-id="invite_guest_expiry" />
+              </Field>
+              <p
+                className="text-xs text-muted-foreground"
+                data-icod-id="src_features_admin_invitemodal_tsx_cce4">
+                Guests can only access sheets explicitly shared with them.
+              </p>
+            </>
+          )}
         </form>
       )}
     </Modal>

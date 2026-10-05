@@ -41,6 +41,8 @@ export async function createInvitation(data: {
   email: string;
   fullName?: string;
   role: 'admin' | 'member';
+  orgRole?: string;
+  guestExpiresAt?: string;
 }): Promise<{ invitation: InvitationItem; invitePath: string }> {
   const { data: res } = await apiClient.post('/api/admin/invitations', data);
   return res.data as { invitation: InvitationItem; invitePath: string };

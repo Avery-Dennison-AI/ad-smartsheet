@@ -14,6 +14,7 @@ import WorkspacePage from '@/pages/WorkspacePage';
 import SheetPage from '@/pages/SheetPage';
 import AcceptInvitePage from '@/pages/AcceptInvitePage';
 import SettingsPage from '@/pages/SettingsPage';
+import SharedWithMePage from '@/pages/SharedWithMePage';
 
 /** Shows a full-page centered spinner while auth is initializing. */
 function AuthLoadingScreen() {
@@ -65,6 +66,23 @@ function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Redirects guests away from workspace pages to /shared-with-me. */
+function NonGuestRoute({ children }: { children: React.ReactNode }) {
+  const user = useAppSelector(selectCurrentUser);
+  const initialized = useAppSelector(selectAuthInitialized);
+  const { addToast } = useToast();
+  const isGuest = initialized && user && user.orgRole === 'guest';
+
+  useEffect(() => {
+    if (isGuest) {
+      addToast('error', 'Guests do not have access to workspace pages.');
+    }
+  }, [isGuest, addToast]);
+
+  if (isGuest) return <Navigate to="/shared-with-me" replace />;
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   const dispatch = useAppDispatch();
   const initialized = useAppSelector(selectAuthInitialized);
@@ -85,8 +103,9 @@ function AppRoutes() {
       <Route path="/home" element={<ProtectedRoute data-icod-id="src_app_tsx_17a0"><AppShell data-icod-id="src_app_tsx_2d74"><HomePage data-icod-id="src_app_tsx_6d06" /></AppShell></ProtectedRoute>} />
       <Route path="/recents" element={<ProtectedRoute data-icod-id="src_app_tsx_306b"><AppShell data-icod-id="src_app_tsx_a900"><RecentsPage data-icod-id="src_app_tsx_6633" /></AppShell></ProtectedRoute>} />
       <Route path="/favorites" element={<ProtectedRoute data-icod-id="src_app_tsx_0c3a"><AppShell data-icod-id="src_app_tsx_3d12"><FavoritesPage data-icod-id="src_app_tsx_997c" /></AppShell></ProtectedRoute>} />
+      <Route path="/shared-with-me" element={<ProtectedRoute data-icod-id="src_app_tsx_c719"><AppShell data-icod-id="src_app_tsx_2799"><SharedWithMePage data-icod-id="src_app_tsx_d98f" /></AppShell></ProtectedRoute>} />
       <Route path="/design-system" element={<ProtectedRoute data-icod-id="src_app_tsx_22ed"><AppShell data-icod-id="src_app_tsx_5e50"><DesignSystemPage data-icod-id="src_app_tsx_0ba9" /></AppShell></ProtectedRoute>} />
-      <Route path="/workspaces/:id" element={<ProtectedRoute data-icod-id="src_app_tsx_157a"><AppShell data-icod-id="src_app_tsx_66f4"><WorkspacePage data-icod-id="src_app_tsx_e7d0" /></AppShell></ProtectedRoute>} />
+      <Route path="/workspaces/:id" element={<ProtectedRoute data-icod-id="src_app_tsx_157a"><NonGuestRoute data-icod-id="src_app_tsx_be54"><AppShell data-icod-id="src_app_tsx_66f4"><WorkspacePage data-icod-id="src_app_tsx_e7d0" /></AppShell></NonGuestRoute></ProtectedRoute>} />
       <Route path="/sheets/:sheetId" element={<ProtectedRoute data-icod-id="src_app_tsx_4746"><AppShell data-icod-id="src_app_tsx_b0b1"><SheetPage data-icod-id="src_app_tsx_1376" /></AppShell></ProtectedRoute>} />
       <Route path="/admin/users" element={<Navigate to="/settings/users" replace />} />
       <Route path="/settings" element={<Navigate to="/settings/appearance" replace />} />
