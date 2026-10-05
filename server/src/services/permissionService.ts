@@ -70,9 +70,9 @@ export function calculateEffectiveRole(
   if (isGuest) {
     // Guest must have explicit share on workspace OR sheet
     if (!wsRole && !sheetRole) return null;
-    // Take highest (capped)
-    return ROLE_LEVEL[sheetRole ?? 'viewer'] >= ROLE_LEVEL[wsRole ?? 'viewer']
-      ? sheetRole : wsRole;
+    // Take highest non-null role (same logic as non-guests)
+    const candidates = [wsRole, sheetRole].filter(Boolean) as SheetRole[];
+    return candidates.reduce((best, r) => ROLE_LEVEL[r] > ROLE_LEVEL[best] ? r : best);
   }
 
   // Non-guest: take highest of workspace role and sheet role
@@ -83,26 +83,34 @@ export function calculateEffectiveRole(
 
 /**
  * Returns the effective role for a user on a sheet.
- * Loads sheet, workspace, and user from DB once and delegates to calculateEffectiveRole.
+ * Loads sheet, workspace, and optionally user from DB once and delegates to calculateEffectiveRole.
+ * Accepts an optional preloaded user to avoid duplicate DB queries when req.user is available.
  */
 export async function getEffectiveRole(
   userId: string,
   sheetId: string,
+  preloadedUser?: { role: string; isActive: boolean; guestExpiresAt?: Date | null } | null,
 ): Promise<SheetRole | null> {
   if (!mongoose.Types.ObjectId.isValid(sheetId)) return null;
 
   const sheet = await Sheet.findById(sheetId).select('workspaceId members');
   if (!sheet) return null;
 
-  // Load user to check guest status
-  const user = await User.findById(userId).select('role guestExpiresAt isActive');
-  if (!user) return null;
+  // Use preloaded user if provided, otherwise load from DB
+  let userData: { role: string; isActive: boolean; guestExpiresAt?: Date | null };
+  if (preloadedUser) {
+    userData = preloadedUser;
+  } else {
+    const user = await User.findById(userId).select('role guestExpiresAt isActive');
+    if (!user) return null;
+    userData = { role: user.role, isActive: user.isActive, guestExpiresAt: user.guestExpiresAt };
+  }
 
   // Get workspace
   const workspace = await Workspace.findById(sheet.workspaceId).select('members');
 
   return calculateEffectiveRole(
-    { role: user.role, isActive: user.isActive, guestExpiresAt: user.guestExpiresAt },
+    userData,
     workspace ? { members: workspace.members.map(m => ({ user: m.user, role: m.role })) } : null,
     { members: sheet.members.map(m => ({ userId: m.userId, role: m.role })) },
     userId,

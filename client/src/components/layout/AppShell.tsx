@@ -14,6 +14,9 @@ import {
   PanelLeftOpen,
   Settings,
   Share2,
+  ArrowLeft,
+  Palette,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -57,6 +60,15 @@ export default function AppShell({ children }: AppShellProps) {
   const [createOpen, setCreateOpen] = useState(false);
 
   const isGuest = user?.role === 'guest';
+  const isAdmin = user?.role === 'admin';
+  const isSettingsMode = location.pathname.startsWith('/settings');
+
+  // Store pre-settings path when entering settings mode
+  useEffect(() => {
+    if (isSettingsMode && !sessionStorage.getItem('preSettingsPath')) {
+      sessionStorage.setItem('preSettingsPath', location.pathname);
+    }
+  }, [isSettingsMode, location.pathname]);
 
   // Fetch workspaces on mount when authenticated (skip for guests)
   useEffect(() => {
@@ -69,6 +81,12 @@ export default function AppShell({ children }: AppShellProps) {
     await dispatch(logoutUser());
     addToast('success', "You've been logged out");
     navigate('/login');
+  }
+
+  function handleBackToApp() {
+    const returnPath = sessionStorage.getItem('preSettingsPath') || '/';
+    sessionStorage.removeItem('preSettingsPath');
+    navigate(returnPath);
   }
 
   const userDropdownItems = [
@@ -100,6 +118,191 @@ export default function AppShell({ children }: AppShellProps) {
         data-icod-id="src_components_layout_appshell_tsx_a563">{user.email}</div>
     </div>
   ) : undefined;
+
+  /** Renders the settings-mode sidebar content */
+  function renderSettingsSidebar() {
+    return (
+      <>
+        {/* Back to app button */}
+        <div
+          className="flex flex-col gap-0.5 px-2 pt-2"
+          data-icod-id="src_components_layout_appshell_tsx_settings_back">
+          <SidebarNavItem
+            icon={<ArrowLeft
+              className="h-4 w-4"
+              data-icod-id="src_components_layout_appshell_tsx_4e36" />}
+            label="Back to app"
+            collapsed={collapsed}
+            onClick={handleBackToApp}
+            data-icod-id="src_components_layout_appshell_tsx_settings_back_btn" />
+        </div>
+        {/* Divider */}
+        <div
+          className="my-3 border-t border-border"
+          data-icod-id="src_components_layout_appshell_tsx_settings_divider1" />
+        {/* Settings title */}
+        {!collapsed && (
+          <div
+            className="mb-1 px-3"
+            data-icod-id="src_components_layout_appshell_tsx_settings_title">
+            <span
+              className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+              data-icod-id="src_components_layout_appshell_tsx_settings_label">
+              Settings
+            </span>
+          </div>
+        )}
+        {/* Preferences group */}
+        {!collapsed && (
+          <div
+            className="mb-1 px-3 mt-2"
+            data-icod-id="src_components_layout_appshell_tsx_settings_pref_label">
+            <span
+              className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+              data-icod-id="src_components_layout_appshell_tsx_settings_pref_text">
+              Preferences
+            </span>
+          </div>
+        )}
+        <div
+          className="flex flex-col gap-0.5 px-2"
+          data-icod-id="src_components_layout_appshell_tsx_settings_pref_items">
+          <SidebarNavItem
+            icon={<Palette
+              className="h-4 w-4"
+              data-icod-id="src_components_layout_appshell_tsx_442a" />}
+            label="Appearance"
+            active={location.pathname === '/settings/appearance'}
+            collapsed={collapsed}
+            to="/settings/appearance"
+            data-icod-id="src_components_layout_appshell_tsx_settings_appearance" />
+        </div>
+        {/* Administration group (admin only) */}
+        {isAdmin && (
+          <>
+            {!collapsed && (
+              <div
+                className="mb-1 px-3 mt-3"
+                data-icod-id="src_components_layout_appshell_tsx_settings_admin_label">
+                <span
+                  className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                  data-icod-id="src_components_layout_appshell_tsx_settings_admin_text">
+                  Administration
+                </span>
+              </div>
+            )}
+            <div
+              className="flex flex-col gap-0.5 px-2"
+              data-icod-id="src_components_layout_appshell_tsx_settings_admin_items">
+              <SidebarNavItem
+                icon={<Users
+                  className="h-4 w-4"
+                  data-icod-id="src_components_layout_appshell_tsx_dcee" />}
+                label="Users"
+                active={location.pathname === '/settings/users'}
+                collapsed={collapsed}
+                to="/settings/users"
+                data-icod-id="src_components_layout_appshell_tsx_settings_users" />
+            </div>
+          </>
+        )}
+      </>
+    );
+  }
+
+  /** Renders the normal sidebar content */
+  function renderNormalSidebar() {
+    return (
+      <>
+        {/* Main nav items */}
+        <div
+          className="flex flex-col gap-0.5"
+          data-icod-id="src_components_layout_appshell_tsx_c094">
+          {navItems.map((item) => (
+            <SidebarNavItem
+              key={item.path}
+              icon={<item.icon className="h-4 w-4" />}
+              label={item.label}
+              active={location.pathname === item.path}
+              collapsed={collapsed}
+              to={item.path}
+              data-icod-id={`src_components_layout_appshell_tsx_bd24_${item.path}`} />
+          ))}
+        </div>
+
+        {/* Divider */}
+        {!isGuest && (
+          <div
+            className="my-3 border-t border-border"
+            data-icod-id="src_components_layout_appshell_tsx_9839" />
+        )}
+
+        {/* Workspaces section header — hidden for guests */}
+        {!isGuest && !collapsed && (
+          <div
+            className="mb-1 flex items-center justify-between px-1"
+            data-icod-id="src_components_layout_appshell_tsx_98e2">
+            <span
+              className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+              data-icod-id="src_components_layout_appshell_tsx_a7a2">
+              Workspaces
+            </span>
+            <IconButton
+              size="sm"
+              tooltip="New workspace"
+              onClick={() => setCreateOpen(true)}
+              data-icod-id="src_components_layout_appshell_tsx_a774">
+              <Plus
+                className="h-3.5 w-3.5"
+                data-icod-id="src_components_layout_appshell_tsx_a5e7" />
+            </IconButton>
+          </div>
+        )}
+        {!isGuest && collapsed && (
+          <div
+            className="mb-1 flex justify-center"
+            data-icod-id="src_components_layout_appshell_tsx_d281">
+            <IconButton
+              size="sm"
+              tooltip="New workspace"
+              onClick={() => setCreateOpen(true)}
+              data-icod-id="src_components_layout_appshell_tsx_d4d7">
+              <Plus
+                className="h-3.5 w-3.5"
+                data-icod-id="src_components_layout_appshell_tsx_9198" />
+            </IconButton>
+          </div>
+        )}
+
+        {/* Workspace items — scrollable region (hidden for guests) */}
+        {!isGuest && (
+          <div
+            className="flex flex-1 flex-col gap-0.5 overflow-y-auto"
+            data-icod-id="src_components_layout_appshell_tsx_f2c5">
+            {workspaces.length === 0 && !collapsed && (
+              <div
+                className="px-3 py-2 text-xs text-muted-foreground"
+                data-icod-id="src_components_layout_appshell_tsx_62b4">No workspaces</div>
+            )}
+            {workspaces.map((ws) => (
+              <SidebarNavItem
+                key={ws.id}
+                iconNode={<WorkspaceIcon
+                  name={ws.name}
+                  color={ws.color}
+                  size="sm"
+                  data-icod-id={`src_components_layout_appshell_tsx_0203_${ws.id}`} />}
+                label={ws.name}
+                collapsed={collapsed}
+                active={location.pathname === `/workspaces/${ws.id}`}
+                to={`/workspaces/${ws.id}`}
+                data-icod-id={`src_components_layout_appshell_tsx_d3ca_${ws.id}`} />
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div
@@ -165,117 +368,34 @@ export default function AppShell({ children }: AppShellProps) {
           )}
         </div>
 
-        {/* Navigation + Workspaces (scrollable region for workspaces only) */}
+        {/* Navigation content — switches between settings mode and normal mode */}
         <nav
-          className="flex flex-col px-2 pt-2"
+          className="flex flex-col px-2 pt-2 flex-1 overflow-y-auto"
           data-icod-id="src_components_layout_appshell_tsx_2bfb">
-          {/* Main nav items */}
-          <div
-            className="flex flex-col gap-0.5"
-            data-icod-id="src_components_layout_appshell_tsx_c094">
-            {navItems.map((item) => (
-              <SidebarNavItem
-                key={item.path}
-                icon={<item.icon className="h-4 w-4" />}
-                label={item.label}
-                active={location.pathname === item.path}
-                collapsed={collapsed}
-                to={item.path}
-                data-icod-id={`src_components_layout_appshell_tsx_bd24_${item.path}`} />
-            ))}
-          </div>
-
-          {/* Divider */}
-          {!isGuest && (
-            <div
-              className="my-3 border-t border-border"
-              data-icod-id="src_components_layout_appshell_tsx_9839" />
-          )}
-
-          {/* Workspaces section header — hidden for guests */}
-          {!isGuest && !collapsed && (
-            <div
-              className="mb-1 flex items-center justify-between px-1"
-              data-icod-id="src_components_layout_appshell_tsx_98e2">
-              <span
-                className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
-                data-icod-id="src_components_layout_appshell_tsx_a7a2">
-                Workspaces
-              </span>
-              <IconButton
-                size="sm"
-                tooltip="New workspace"
-                onClick={() => setCreateOpen(true)}
-                data-icod-id="src_components_layout_appshell_tsx_a774">
-                <Plus
-                  className="h-3.5 w-3.5"
-                  data-icod-id="src_components_layout_appshell_tsx_a5e7" />
-              </IconButton>
-            </div>
-          )}
-          {!isGuest && collapsed && (
-            <div
-              className="mb-1 flex justify-center"
-              data-icod-id="src_components_layout_appshell_tsx_d281">
-              <IconButton
-                size="sm"
-                tooltip="New workspace"
-                onClick={() => setCreateOpen(true)}
-                data-icod-id="src_components_layout_appshell_tsx_d4d7">
-                <Plus
-                  className="h-3.5 w-3.5"
-                  data-icod-id="src_components_layout_appshell_tsx_9198" />
-              </IconButton>
-            </div>
-          )}
-
-          {/* Workspace items — scrollable region (hidden for guests) */}
-          {!isGuest && (
-            <div
-              className="flex flex-1 flex-col gap-0.5 overflow-y-auto"
-              data-icod-id="src_components_layout_appshell_tsx_f2c5">
-              {workspaces.length === 0 && !collapsed && (
-                <div
-                  className="px-3 py-2 text-xs text-muted-foreground"
-                  data-icod-id="src_components_layout_appshell_tsx_62b4">No workspaces</div>
-              )}
-              {workspaces.map((ws) => (
-                <SidebarNavItem
-                  key={ws.id}
-                  iconNode={<WorkspaceIcon
-                    name={ws.name}
-                    color={ws.color}
-                    size="sm"
-                    data-icod-id={`src_components_layout_appshell_tsx_0203_${ws.id}`} />}
-                  label={ws.name}
-                  collapsed={collapsed}
-                  active={location.pathname === `/workspaces/${ws.id}`}
-                  to={`/workspaces/${ws.id}`}
-                  data-icod-id={`src_components_layout_appshell_tsx_d3ca_${ws.id}`} />
-              ))}
-            </div>
-          )}
+          {isSettingsMode ? renderSettingsSidebar() : renderNormalSidebar()}
         </nav>
 
-        {/* Footer area */}
-        <div
-          className="mt-auto shrink-0 px-2 pb-2 border-t border-border"
-          data-icod-id="src_components_layout_appshell_tsx_4dec">
-          {/* Settings nav item — pinned to bottom */}
+        {/* Footer area — only show Settings link when NOT in settings mode */}
+        {!isSettingsMode && (
           <div
-            className="pt-2"
-            data-icod-id="src_components_layout_appshell_tsx_8396">
-            <SidebarNavItem
-              icon={<Settings
-                className="h-5 w-5"
-                data-icod-id="src_components_layout_appshell_tsx_2c36" />}
-              label="Settings"
-              active={location.pathname.startsWith('/settings')}
-              collapsed={collapsed}
-              to="/settings/appearance"
-              data-icod-id="src_components_layout_appshell_tsx_2379" />
+            className="mt-auto shrink-0 px-2 pb-2 border-t border-border"
+            data-icod-id="src_components_layout_appshell_tsx_4dec">
+            {/* Settings nav item — pinned to bottom */}
+            <div
+              className="pt-2"
+              data-icod-id="src_components_layout_appshell_tsx_8396">
+              <SidebarNavItem
+                icon={<Settings
+                  className="h-5 w-5"
+                  data-icod-id="src_components_layout_appshell_tsx_2c36" />}
+                label="Settings"
+                active={location.pathname.startsWith('/settings')}
+                collapsed={collapsed}
+                to="/settings/appearance"
+                data-icod-id="src_components_layout_appshell_tsx_2379" />
+            </div>
           </div>
-        </div>
+        )}
       </aside>
       {/* ─── Right panel ──────────────────────────────────────────────────── */}
       <div
