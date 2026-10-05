@@ -18,8 +18,8 @@ export const listUsers = asyncHandler(async (req: Request, res: Response) => {
 /** PATCH /api/admin/users/:id */
 export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   const requesterId = new mongoose.Types.ObjectId(req.user!.id);
-  const { role, isActive, orgRole, guestExpiresAt } = req.body;
+  const { role, isActive, guestExpiresAt } = req.body;
 
-  const user = await adminUserService.updateUser(req.params.id, requesterId, { role, isActive, orgRole, guestExpiresAt });
+  const user = await adminUserService.updateUser(req.params.id, requesterId, { role, isActive, guestExpiresAt });
   sendSuccess(res, user);
 });

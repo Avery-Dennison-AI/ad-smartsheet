@@ -1,5 +1,6 @@
 import Workspace, { WORKSPACE_COLORS } from '../models/Workspace';
 import Sheet from '../models/Sheet';
+import User from '../models/User';
 import type { ColumnDef } from '../models/Sheet';
 
 /** Hex-to-palette-name mapping for one-time colour migration. */
@@ -109,5 +110,42 @@ export async function repairPrimaryColumnOrder(): Promise<void> {
 
   if (repairedCount > 0) {
     console.log(`[startup] Repaired primary column order in ${repairedCount} sheet(s)`);
+  }
+}
+
+/**
+ * Migrates users from the old dual-field role system (role + orgRole) to the
+ * unified single `role` field. If a user had orgRole='guest', their role is
+ * set to 'guest'. The orgRole field is then unset.
+ * This is idempotent and safe to run multiple times.
+ */
+export async function migrateUserRoles(): Promise<void> {
+  // Find users that still have orgRole set (legacy data)
+  const users = await User.find({ orgRole: { $exists: true, $ne: null } }).select('_id role orgRole');
+  if (users.length === 0) return;
+
+  let migrated = 0;
+  for (const user of users) {
+    const doc = user as unknown as { _id: unknown; role: string; orgRole?: string };
+    const updates: Record<string, unknown> = {};
+
+    // If orgRole was 'guest' and role isn't already 'guest', set role to 'guest'
+    if (doc.orgRole === 'guest' && doc.role !== 'guest') {
+      updates.role = 'guest';
+    }
+
+    // Unset orgRole
+    await User.updateOne(
+      { _id: doc._id },
+      {
+        ...(Object.keys(updates).length > 0 ? { $set: updates } : {}),
+        $unset: { orgRole: '' },
+      },
+    );
+    migrated++;
+  }
+
+  if (migrated > 0) {
+    console.log(`[startup] Migrated ${migrated} user(s) from orgRole to unified role field`);
   }
 }

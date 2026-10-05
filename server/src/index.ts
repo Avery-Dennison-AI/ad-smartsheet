@@ -20,7 +20,7 @@ import gridRouter from './routes/grid';
 import userPreferencesRouter from './routes/userPreferences';
 import usersRouter from './routes/users';
 import { seedAdmin } from './config/seedAdmin';
-import { migrateWorkspaceColors, repairBrokenColumns, repairPrimaryColumnOrder } from './config/migrations';
+import { migrateWorkspaceColors, repairBrokenColumns, repairPrimaryColumnOrder, migrateUserRoles } from './config/migrations';
 import { sendSuccess } from './utils/response';
 
 // ─── Process-Level Error Handlers ──────────────────────────────────────────────
@@ -98,6 +98,7 @@ async function start(): Promise<void> {
     await migrateWorkspaceColors();
     await repairBrokenColumns();
     await repairPrimaryColumnOrder();
+    await migrateUserRoles();
 
     app.listen(env.PORT, () => {
       console.log(`[startup] Server listening on port ${env.PORT}`);

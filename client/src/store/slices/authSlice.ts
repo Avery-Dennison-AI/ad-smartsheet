@@ -9,7 +9,6 @@ export interface AuthUser {
   fullName: string;
   email: string;
   role: string;
-  orgRole?: string;
   guestExpiresAt?: string | null;
   accentColor?: Accent;
 }

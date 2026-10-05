@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SheetRole } from '../services/permissionService';
 
-// ─── Mock Mongoose models ──────────────────────────────────────────────────
+// ─── Mock Mongoose models (only needed for requireSheetAccess integration tests) ──
 
 const mockSheetFindById = vi.fn();
 const mockWorkspaceFindById = vi.fn();
@@ -21,41 +20,36 @@ vi.mock('../models/User', () => ({
 
 vi.mock('../services/workspaceService', () => ({
   getMemberRole: (workspace: any, userId: string) => {
-    const member = workspace?.members?.find((m: any) => m.user === userId);
+    const member = workspace?.members?.find((m: any) => String(m.user) === String(userId));
     return member ? member.role : null;
   },
 }));
 
 // Import after mocks
-import { getEffectiveRole, requireSheetAccess, hasMinRole } from '../services/permissionService';
+import { calculateEffectiveRole, hasMinRole, requireSheetAccess } from '../services/permissionService';
 
-// ─── Test helpers ──────────────────────────────────────────────────────────
+// ─── Valid-looking ObjectId hex strings for tests ─────────────────────────────
 
-function makeSheet(id: string, workspaceId: string, members: Array<{ userId: string; role: string }> = []) {
-  return {
-    _id: id,
-    workspaceId,
-    members: members.map(m => ({ userId: m.userId, role: m.role })),
-  };
+const USER_ID = '507f1f77bcf86cd799439011';
+const SHEET_ID = '507f1f77bcf86cd799439012';
+const WORKSPACE_ID = '507f1f77bcf86cd799439013';
+const OTHER_USER_ID = '507f1f77bcf86cd799439014';
+
+// ─── Test helpers ──────────────────────────────────────────────────────────────
+
+function makeUser(role = 'member', guestExpiresAt?: Date | null, isActive = true) {
+  return { role, isActive, guestExpiresAt: guestExpiresAt ?? undefined };
 }
 
-function makeWorkspace(id: string, members: Array<{ user: string; role: string }> = []) {
-  return {
-    _id: id,
-    members: members.map(m => ({ user: m.user, role: m.role })),
-  };
+function makeWorkspace(members: Array<{ user: string; role: string }> = []) {
+  return { members: members.map(m => ({ user: m.user, role: m.role })) };
 }
 
-function makeUser(id: string, orgRole = 'member', guestExpiresAt?: Date | null, isActive = true) {
-  return {
-    _id: id,
-    orgRole,
-    guestExpiresAt: guestExpiresAt ?? undefined,
-    isActive,
-  };
+function makeSheet(members: Array<{ userId: string; role: string }> = []) {
+  return { members: members.map(m => ({ userId: m.userId, role: m.role })) };
 }
 
-// ─── hasMinRole tests ──────────────────────────────────────────────────────
+// ─── hasMinRole tests ──────────────────────────────────────────────────────────
 
 describe('hasMinRole', () => {
   it('viewer satisfies viewer', () => {
@@ -79,118 +73,118 @@ describe('hasMinRole', () => {
   });
 });
 
-// ─── getEffectiveRole tests ────────────────────────────────────────────────
+// ─── calculateEffectiveRole tests (pure function, no DB) ───────────────────────
 
-describe('getEffectiveRole', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Default select chain mock
-    mockSheetFindById.mockReturnValue({ select: vi.fn().mockResolvedValue(null) });
-    mockWorkspaceFindById.mockReturnValue({ select: vi.fn().mockResolvedValue(null) });
-    mockUserFindById.mockReturnValue({ select: vi.fn().mockResolvedValue(null) });
+describe('calculateEffectiveRole', () => {
+  it('workspace role only — member has editor in workspace → gets editor', () => {
+    const user = makeUser('member');
+    const workspace = makeWorkspace([{ user: USER_ID, role: 'editor' }]);
+    const sheet = makeSheet(); // no direct shares
+
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBe('editor');
   });
 
-  function setupMocks(sheet: any, workspace: any, user: any) {
-    // Sheet.findById returns a thenable with select
-    const sheetSelectFn = vi.fn().mockResolvedValue(sheet);
-    mockSheetFindById.mockReturnValue({ select: sheetSelectFn });
+  it('sheet role only — no workspace membership, has viewer on sheet → gets viewer', () => {
+    const user = makeUser('member');
+    const workspace = makeWorkspace(); // not a member
+    const sheet = makeSheet([{ userId: USER_ID, role: 'viewer' }]);
 
-    // For the second call to Sheet.findById (without select in requireSheetAccess path),
-    // we need to handle both patterns. Since getEffectiveRole uses .select(), mock that.
-    
-    // Workspace.findById
-    const wsSelectFn = vi.fn().mockResolvedValue(workspace);
-    mockWorkspaceFindById.mockReturnValue({ select: wsSelectFn });
-
-    // User.findById
-    const userSelectFn = vi.fn().mockResolvedValue(user);
-    mockUserFindById.mockReturnValue({ select: userSelectFn });
-  }
-
-  it('1. Workspace member only → workspace role returned', async () => {
-    const sheet = makeSheet('s1', 'w1');
-    const workspace = makeWorkspace('w1', [{ user: 'u1', role: 'editor' }]);
-    const user = makeUser('u1', 'member');
-    setupMocks(sheet, workspace, user);
-
-    const role = await getEffectiveRole('u1', 's1');
-    expect(role).toBe('editor');
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBe('viewer');
   });
 
-  it('2. Sheet member only (not workspace member) → sheet role returned', async () => {
-    const sheet = makeSheet('s1', 'w1', [{ userId: 'u1', role: 'viewer' }]);
-    const workspace = makeWorkspace('w1'); // no members
-    const user = makeUser('u1', 'member');
-    setupMocks(sheet, workspace, user);
+  it('highest role wins — workspace=viewer, sheet=editor → gets editor', () => {
+    const user = makeUser('member');
+    const workspace = makeWorkspace([{ user: USER_ID, role: 'viewer' }]);
+    const sheet = makeSheet([{ userId: USER_ID, role: 'editor' }]);
 
-    const role = await getEffectiveRole('u1', 's1');
-    expect(role).toBe('viewer');
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBe('editor');
   });
 
-  it('3. Both workspace and sheet roles → higher wins', async () => {
-    const sheet = makeSheet('s1', 'w1', [{ userId: 'u1', role: 'admin' }]);
-    const workspace = makeWorkspace('w1', [{ user: 'u1', role: 'viewer' }]);
-    const user = makeUser('u1', 'member');
-    setupMocks(sheet, workspace, user);
+  it('guest with workspace role capped at editor — workspace admin → gets editor', () => {
+    const user = makeUser('guest');
+    const workspace = makeWorkspace([{ user: USER_ID, role: 'admin' }]);
+    const sheet = makeSheet();
 
-    const role = await getEffectiveRole('u1', 's1');
-    expect(role).toBe('admin');
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBe('editor');
   });
 
-  it('4. Workspace viewer + sheet editor → editor returned', async () => {
-    const sheet = makeSheet('s1', 'w1', [{ userId: 'u1', role: 'editor' }]);
-    const workspace = makeWorkspace('w1', [{ user: 'u1', role: 'viewer' }]);
-    const user = makeUser('u1', 'member');
-    setupMocks(sheet, workspace, user);
+  it('guest with sheet role capped at editor — sheet admin → gets editor', () => {
+    const user = makeUser('guest');
+    const workspace = makeWorkspace(); // not a workspace member
+    const sheet = makeSheet([{ userId: USER_ID, role: 'admin' }]);
 
-    const role = await getEffectiveRole('u1', 's1');
-    expect(role).toBe('editor');
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBe('editor');
   });
 
-  it('5. Guest with valid expiry + sheet share → sheet role returned', async () => {
-    const futureDate = new Date(Date.now() + 86400000); // tomorrow
-    const sheet = makeSheet('s1', 'w1', [{ userId: 'u1', role: 'editor' }]);
-    const workspace = makeWorkspace('w1'); // not a workspace member
-    const user = makeUser('u1', 'guest', futureDate);
-    setupMocks(sheet, workspace, user);
+  it('guest with both workspace and sheet roles — takes highest (capped)', () => {
+    const user = makeUser('guest');
+    const workspace = makeWorkspace([{ user: USER_ID, role: 'viewer' }]);
+    const sheet = makeSheet([{ userId: USER_ID, role: 'editor' }]);
 
-    const role = await getEffectiveRole('u1', 's1');
-    expect(role).toBe('editor');
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBe('editor');
   });
 
-  it('6. Guest with expired date → null', async () => {
+  it('guest with no explicit share → null', () => {
+    const user = makeUser('guest');
+    const workspace = makeWorkspace(); // not a member
+    const sheet = makeSheet(); // no direct share
+
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBeNull();
+  });
+
+  it('expired guest → null', () => {
     const pastDate = new Date(Date.now() - 86400000); // yesterday
-    const sheet = makeSheet('s1', 'w1', [{ userId: 'u1', role: 'editor' }]);
-    const workspace = makeWorkspace('w1');
-    const user = makeUser('u1', 'guest', pastDate);
-    setupMocks(sheet, workspace, user);
+    const user = makeUser('guest', pastDate);
+    const workspace = makeWorkspace([{ user: USER_ID, role: 'editor' }]);
+    const sheet = makeSheet([{ userId: USER_ID, role: 'editor' }]);
 
-    const role = await getEffectiveRole('u1', 's1');
-    expect(role).toBeNull();
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBeNull();
   });
 
-  it('7. No access → null', async () => {
-    const sheet = makeSheet('s1', 'w1'); // no direct shares
-    const workspace = makeWorkspace('w1'); // not a member
-    const user = makeUser('u1', 'member');
-    setupMocks(sheet, workspace, user);
+  it('inactive user → null', () => {
+    const user = makeUser('member', null, false);
+    const workspace = makeWorkspace([{ user: USER_ID, role: 'editor' }]);
+    const sheet = makeSheet([{ userId: USER_ID, role: 'editor' }]);
 
-    const role = await getEffectiveRole('u1', 's1');
-    expect(role).toBeNull();
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBeNull();
   });
 
-  it('9. Removed sheet access (user deleted from members) → null', async () => {
-    const sheet = makeSheet('s1', 'w1'); // empty members — was removed
-    const workspace = makeWorkspace('w1'); // also not workspace member
-    const user = makeUser('u1', 'member');
-    setupMocks(sheet, workspace, user);
+  it('no access (no workspace, no sheet membership) → null', () => {
+    const user = makeUser('member');
+    const workspace = makeWorkspace(); // not a member
+    const sheet = makeSheet(); // no direct share
 
-    const role = await getEffectiveRole('u1', 's1');
-    expect(role).toBeNull();
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBeNull();
+  });
+
+  it('guest with valid expiry + workspace share → workspace role (capped)', () => {
+    const futureDate = new Date(Date.now() + 86400000); // tomorrow
+    const user = makeUser('guest', futureDate);
+    const workspace = makeWorkspace([{ user: USER_ID, role: 'viewer' }]);
+    const sheet = makeSheet();
+
+    const result = calculateEffectiveRole(user, workspace, sheet, USER_ID);
+    expect(result).toBe('viewer');
+  });
+
+  it('null workspace and null sheet → null', () => {
+    const user = makeUser('member');
+    const result = calculateEffectiveRole(user, null, null, USER_ID);
+    expect(result).toBeNull();
   });
 });
 
-// ─── requireSheetAccess tests ──────────────────────────────────────────────
+// ─── requireSheetAccess integration tests ──────────────────────────────────────
 
 describe('requireSheetAccess', () => {
   beforeEach(() => {
@@ -198,61 +192,56 @@ describe('requireSheetAccess', () => {
   });
 
   function setupFullMocks(sheet: any, workspace: any, user: any) {
-    // getEffectiveRole calls Sheet.findById().select(), User.findById().select(), Workspace.findById().select()
-    // requireSheetAccess also calls Sheet.findById() and Workspace.findById() without select
-    
-    let sheetCallCount = 0;
-    mockSheetFindById.mockImplementation(() => {
-      sheetCallCount++;
-      if (sheetCallCount % 2 === 1) {
-        // First call (from getEffectiveRole) uses .select()
-        return { select: vi.fn().mockResolvedValue(sheet) };
-      }
-      // Second call (from requireSheetAccess) returns full doc
-      return Promise.resolve(sheet);
-    });
-
-    let wsCallCount = 0;
-    mockWorkspaceFindById.mockImplementation(() => {
-      wsCallCount++;
-      if (wsCallCount % 2 === 1) {
-        return { select: vi.fn().mockResolvedValue(workspace) };
-      }
-      return Promise.resolve(workspace);
-    });
-
-    mockUserFindById.mockReturnValue({ select: vi.fn().mockResolvedValue(user) });
+    // requireSheetAccess calls Sheet.findById(), Workspace.findById(), and optionally User.findById()
+    // The sheet and workspace are returned as full docs (not .select() chains)
+    mockSheetFindById.mockResolvedValue(sheet);
+    mockWorkspaceFindById.mockResolvedValue(workspace);
+    if (user) {
+      mockUserFindById.mockReturnValue({ select: vi.fn().mockResolvedValue(user) });
+    }
   }
 
-  it('8. Viewer cannot satisfy requiredRole: editor → throws 403', async () => {
-    const sheet = makeSheet('s1', 'w1');
-    const workspace = makeWorkspace('w1', [{ user: 'u1', role: 'viewer' }]);
-    const user = makeUser('u1', 'member');
+  it('Viewer cannot satisfy requiredRole: editor → throws 403', async () => {
+    const sheet = { _id: SHEET_ID, workspaceId: WORKSPACE_ID, members: [] };
+    const workspace = { _id: WORKSPACE_ID, members: [{ user: USER_ID, role: 'viewer' }] };
+    const user = { role: 'member', isActive: true };
     setupFullMocks(sheet, workspace, user);
 
-    await expect(requireSheetAccess('u1', 's1', 'editor'))
+    await expect(requireSheetAccess(USER_ID, SHEET_ID, 'editor'))
       .rejects.toThrow('Access denied');
   });
 
   it('Valid access returns sheet, workspace, and effectiveRole', async () => {
-    const sheet = makeSheet('s1', 'w1');
-    const workspace = makeWorkspace('w1', [{ user: 'u1', role: 'editor' }]);
-    const user = makeUser('u1', 'member');
+    const sheet = { _id: SHEET_ID, workspaceId: WORKSPACE_ID, members: [] };
+    const workspace = { _id: WORKSPACE_ID, members: [{ user: USER_ID, role: 'editor' }] };
+    const user = { role: 'member', isActive: true };
     setupFullMocks(sheet, workspace, user);
 
-    const result = await requireSheetAccess('u1', 's1', 'viewer');
+    const result = await requireSheetAccess(USER_ID, SHEET_ID, 'viewer');
     expect(result.effectiveRole).toBe('editor');
     expect(result.sheet).toBe(sheet);
     expect(result.workspace).toBe(workspace);
   });
 
   it('No access throws 404', async () => {
-    const sheet = makeSheet('s1', 'w1');
-    const workspace = makeWorkspace('w1'); // not a member
-    const user = makeUser('u1', 'member');
+    const sheet = { _id: SHEET_ID, workspaceId: WORKSPACE_ID, members: [] };
+    const workspace = { _id: WORKSPACE_ID, members: [] }; // not a member
+    const user = { role: 'member', isActive: true };
     setupFullMocks(sheet, workspace, user);
 
-    await expect(requireSheetAccess('u1', 's1'))
+    await expect(requireSheetAccess(USER_ID, SHEET_ID))
       .rejects.toThrow('Sheet not found');
+  });
+
+  it('Accepts preloaded user to avoid duplicate DB query', async () => {
+    const sheet = { _id: SHEET_ID, workspaceId: WORKSPACE_ID, members: [] };
+    const workspace = { _id: WORKSPACE_ID, members: [{ user: USER_ID, role: 'editor' }] };
+    const preloadedUser = { role: 'member', isActive: true };
+    setupFullMocks(sheet, workspace, null); // no User.findById mock needed
+
+    const result = await requireSheetAccess(USER_ID, SHEET_ID, 'viewer', preloadedUser);
+    expect(result.effectiveRole).toBe('editor');
+    // User.findById should NOT have been called since we provided preloadedUser
+    expect(mockUserFindById).not.toHaveBeenCalled();
   });
 });

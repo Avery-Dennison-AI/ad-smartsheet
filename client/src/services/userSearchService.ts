@@ -4,7 +4,7 @@ export interface UserSearchResult {
   _id: string;
   fullName: string;
   email: string;
-  orgRole: string;
+  role: string;
 }
 
 /** Global user search — scoped for guests, full directory for non-guests. */

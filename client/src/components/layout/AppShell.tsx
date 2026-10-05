@@ -56,7 +56,7 @@ export default function AppShell({ children }: AppShellProps) {
   const breadcrumbItems = useBreadcrumbs();
   const [createOpen, setCreateOpen] = useState(false);
 
-  const isGuest = user?.orgRole === 'guest';
+  const isGuest = user?.role === 'guest';
 
   // Fetch workspaces on mount when authenticated (skip for guests)
   useEffect(() => {

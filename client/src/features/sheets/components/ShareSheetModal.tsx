@@ -261,7 +261,7 @@ export default function ShareSheetModal({
                                 className="text-muted-foreground"
                                 data-icod-id={`src_features_sheets_components_sharesheetmodal_tsx_254e_${member.id}`}> (you)</span>}
                             </span>
-                            {member.orgRole === 'guest' && (
+                            {member.userRole === 'guest' && (
                               <Badge
                                 variant="warning"
                                 size="sm"

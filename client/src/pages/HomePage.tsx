@@ -26,7 +26,7 @@ export default function HomePage() {
   const sharedWithMe = useAppSelector(selectSharedWithMe);
   const firstName = user?.fullName?.split(' ')[0] || 'there';
   const greeting = getGreeting();
-  const isGuest = user?.orgRole === 'guest';
+  const isGuest = user?.role === 'guest';
   const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {

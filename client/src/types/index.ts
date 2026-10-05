@@ -8,15 +8,13 @@ export interface ApiResponse<T = unknown> {
 
 // ─── User Management Types ──────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'member';
-export type OrgRole = 'admin' | 'member' | 'guest';
+export type UserRole = 'admin' | 'member' | 'guest';
 
 export interface AdminUser {
   id: string;
   fullName: string;
   email: string;
   role: UserRole;
-  orgRole: OrgRole;
   guestExpiresAt: string | null;
   isActive: boolean;
   lastLoginAt: string | null;
@@ -171,7 +169,7 @@ export interface DirectSheetMember {
   fullName: string;
   email: string;
   role: SheetRole;
-  orgRole: OrgRole;
+  userRole: UserRole;
   guestExpiresAt: string | null;
 }
 

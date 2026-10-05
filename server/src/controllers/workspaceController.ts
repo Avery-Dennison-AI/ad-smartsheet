@@ -28,7 +28,7 @@ function formatWorkspace(ws: IWorkspace) {
 /** POST /api/workspaces */
 export const createWorkspace = asyncHandler(async (req: Request, res: Response) => {
   const { name, description, color } = req.body;
-  const workspace = await workspaceService.createWorkspace(req.user!.id, { name, description, color });
+  const workspace = await workspaceService.createWorkspace(req.user!.id, { name, description, color }, req.user!.role);
   sendSuccess(res, formatWorkspace(workspace), 201);
 });
 

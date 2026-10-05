@@ -28,7 +28,13 @@ export function getMemberRole(workspace: IWorkspace, userId: string): WorkspaceR
 export async function createWorkspace(
   userId: string,
   data: { name: string; description?: string; color: string },
+  userRole?: string,
 ): Promise<IWorkspace> {
+  // Block guests from creating workspaces
+  if (userRole === 'guest') {
+    throw new AppError('Guests cannot create workspaces', 403);
+  }
+
   const workspace = await Workspace.create({
     name: data.name,
     description: data.description || undefined,
@@ -259,7 +265,7 @@ export async function searchUsersToAdd(
   workspaceId: string,
   actorId: string,
   query: string,
-): Promise<{ _id: string; fullName: string; email: string; orgRole?: string }[]> {
+): Promise<{ _id: string; fullName: string; email: string; role?: string }[]> {
   if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
     throw new AppError('Invalid workspace ID', 400);
   }
@@ -285,14 +291,14 @@ export async function searchUsersToAdd(
       { email: { $regex: regex } },
     ],
   })
-    .select('_id fullName email orgRole')
+    .select('_id fullName email role')
     .limit(10);
 
   return users.map((u) => ({
     _id: u._id.toString(),
     fullName: u.fullName,
     email: u.email,
-    orgRole: u.orgRole,
+    role: u.role,
   }));
 }
 
@@ -300,7 +306,7 @@ export async function searchUsersToAdd(
 export async function searchUsersGlobal(
   actorId: string,
   query: string,
-): Promise<{ _id: string; fullName: string; email: string; orgRole: string }[]> {
+): Promise<{ _id: string; fullName: string; email: string; role: string }[]> {
   const regex = new RegExp(escapeRegex(query), 'i');
   const baseQuery = {
     isActive: true,
@@ -311,8 +317,8 @@ export async function searchUsersGlobal(
   };
 
   // Check if actor is a guest
-  const actor = await User.findById(actorId).select('orgRole');
-  const isGuest = actor?.orgRole === 'guest';
+  const actor = await User.findById(actorId).select('role');
+  const isGuest = actor?.role === 'guest';
 
   if (isGuest) {
     // Guest: find users who share a workspace or sheet with the requester
@@ -357,26 +363,26 @@ export async function searchUsersGlobal(
     };
 
     const users = await User.find(scopedQuery)
-      .select('_id fullName email orgRole')
+      .select('_id fullName email role')
       .limit(10);
 
     return users.map((u) => ({
       _id: u._id.toString(),
       fullName: u.fullName,
       email: u.email,
-      orgRole: u.orgRole,
+      role: u.role,
     }));
   }
 
   // Non-guests: full directory search
   const users = await User.find(baseQuery)
-    .select('_id fullName email orgRole')
+    .select('_id fullName email role')
     .limit(10);
 
   return users.map((u) => ({
     _id: u._id.toString(),
     fullName: u.fullName,
     email: u.email,
-    orgRole: u.orgRole,
+    role: u.role,
   }));
 }

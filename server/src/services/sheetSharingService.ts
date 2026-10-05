@@ -7,14 +7,14 @@ import type { SheetRole } from './permissionService';
 import { getMemberId, getMemberRole } from './workspaceService';
 import { AppError } from '../utils/AppError';
 
-const MEMBER_POPULATE = '_id fullName email orgRole guestExpiresAt';
+const MEMBER_POPULATE = '_id fullName email role guestExpiresAt';
 
 export interface DirectMemberInfo {
   id: string;
   fullName: string;
   email: string;
   role: string;
-  orgRole: string;
+  userRole: string;
   guestExpiresAt: Date | null;
 }
 
@@ -44,14 +44,14 @@ export async function getSheetMembers(
   const directMembers: DirectMemberInfo[] = [];
   if (populatedSheet) {
     for (const m of populatedSheet.members) {
-      const user = m.userId as unknown as { _id: mongoose.Types.ObjectId; fullName: string; email: string; orgRole: string; guestExpiresAt?: Date };
+      const user = m.userId as unknown as { _id: mongoose.Types.ObjectId; fullName: string; email: string; role: string; guestExpiresAt?: Date };
       if (!user || typeof user === 'string') continue;
       directMembers.push({
         id: user._id.toString(),
         fullName: user.fullName,
         email: user.email,
         role: m.role,
-        orgRole: user.orgRole || 'member',
+        userRole: user.role || 'member',
         guestExpiresAt: user.guestExpiresAt || null,
       });
     }
@@ -92,11 +92,11 @@ export async function addOrUpdateSheetMember(
   const { effectiveRole } = await requireSheetAccess(actorId, sheetId, 'admin');
 
   // Guests may only be shared as viewer or editor, never admin
-  const targetUser = await User.findById(data.userId).select('_id isActive orgRole');
+  const targetUser = await User.findById(data.userId).select('_id isActive role');
   if (!targetUser || !targetUser.isActive) {
     throw new AppError('User not found or inactive', 404);
   }
-  if (targetUser.orgRole === 'guest' && data.role === 'admin') {
+  if (targetUser.role === 'guest' && data.role === 'admin') {
     throw new AppError('Guests can be at most editor', 400);
   }
 
@@ -136,9 +136,9 @@ export async function updateSheetMemberRole(
   await requireSheetAccess(actorId, sheetId, 'admin');
 
   // Guests may only be viewer or editor
-  const targetUser = await User.findById(targetUserId).select('_id orgRole');
+  const targetUser = await User.findById(targetUserId).select('_id role');
   if (!targetUser) throw new AppError('User not found', 404);
-  if (targetUser.orgRole === 'guest' && role === 'admin') {
+  if (targetUser.role === 'guest' && role === 'admin') {
     throw new AppError('Guests can be at most editor', 400);
   }
 

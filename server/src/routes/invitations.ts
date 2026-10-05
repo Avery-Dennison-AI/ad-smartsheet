@@ -19,12 +19,8 @@ const router = Router();
 const createValidation = validate([
   body('email').isEmail().withMessage('Please provide a valid email address'),
   body('role')
-    .isIn(['admin', 'member'])
-    .withMessage('Role must be admin or member'),
-  body('orgRole')
-    .optional()
     .isIn(['admin', 'member', 'guest'])
-    .withMessage('orgRole must be admin, member, or guest'),
+    .withMessage('Role must be admin, member, or guest'),
   body('guestExpiresAt')
     .optional({ nullable: true })
     .isISO8601()

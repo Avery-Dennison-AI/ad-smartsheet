@@ -9,7 +9,7 @@ export type SheetRole = 'viewer' | 'editor' | 'admin' | 'owner';
 
 const ROLE_ORDER: SheetRole[] = ['viewer', 'editor', 'admin', 'owner'];
 
-const ROLE_LEVEL: Record<SheetRole, number> = {
+export const ROLE_LEVEL: Record<SheetRole, number> = {
   viewer: 1,
   editor: 2,
   admin: 3,
@@ -27,16 +27,63 @@ function higherRole(a: SheetRole, b: SheetRole): SheetRole {
 }
 
 /**
- * Returns the effective role for a user on a sheet.
+ * Pure function that calculates the effective role for a user on a sheet.
+ * No DB access — all data must be pre-loaded.
  *
  * Effective role = highest of workspace role + sheet-direct role.
- * - If user is a workspace member but has no direct sheet share → workspace role.
- * - If user has a direct sheet share but is not a workspace member → sheet role.
- * - If user has both → the higher of the two.
- * - Guest users (orgRole === 'guest') may only access sheets they are directly shared on.
- *   Their workspace membership alone gives NO access.
- * - Expired guests (guestExpiresAt in the past) → null (no access).
+ * - Guests may access via workspace OR sheet membership (capped at editor).
+ * - Expired guests → null.
+ * - Inactive users → null.
  * - No access anywhere → null.
+ */
+export function calculateEffectiveRole(
+  user: { role: string; isActive: boolean; guestExpiresAt?: Date | null },
+  workspace: { members: Array<{ user: any; role: string }> } | null,
+  sheet: { members: Array<{ userId: any; role: string }>; workspaceId?: any } | null,
+  userId: string,
+): SheetRole | null {
+  // 1. Inactive user → null
+  if (!user.isActive) return null;
+
+  // 2. Expired guest → null
+  if (user.role === 'guest' && user.guestExpiresAt && user.guestExpiresAt < new Date()) return null;
+
+  const isGuest = user.role === 'guest';
+  const GUEST_MAX: SheetRole = 'editor'; // guests can be at most editor
+
+  // 3. Workspace role
+  const wsMember = workspace?.members.find(m => String(m.user) === String(userId));
+  let wsRole = wsMember ? (wsMember.role as SheetRole) : null;
+  if (isGuest && wsRole) {
+    // Cap guest workspace role at editor
+    wsRole = hasMinRole(wsRole, 'admin') ? GUEST_MAX : wsRole;
+  }
+
+  // 4. Sheet-level direct role
+  const sheetMember = sheet?.members.find(m => String(m.userId) === String(userId));
+  let sheetRole = sheetMember ? (sheetMember.role as SheetRole) : null;
+  if (isGuest && sheetRole) {
+    sheetRole = hasMinRole(sheetRole, 'admin') ? GUEST_MAX : sheetRole;
+  }
+
+  // 5. Return highest, with guest requiring at least one explicit share
+  if (isGuest) {
+    // Guest must have explicit share on workspace OR sheet
+    if (!wsRole && !sheetRole) return null;
+    // Take highest (capped)
+    return ROLE_LEVEL[sheetRole ?? 'viewer'] >= ROLE_LEVEL[wsRole ?? 'viewer']
+      ? sheetRole : wsRole;
+  }
+
+  // Non-guest: take highest of workspace role and sheet role
+  if (!wsRole && !sheetRole) return null;
+  const candidates = [wsRole, sheetRole].filter(Boolean) as SheetRole[];
+  return candidates.reduce((best, r) => ROLE_LEVEL[r] > ROLE_LEVEL[best] ? r : best);
+}
+
+/**
+ * Returns the effective role for a user on a sheet.
+ * Loads sheet, workspace, and user from DB once and delegates to calculateEffectiveRole.
  */
 export async function getEffectiveRole(
   userId: string,
@@ -48,48 +95,18 @@ export async function getEffectiveRole(
   if (!sheet) return null;
 
   // Load user to check guest status
-  const user = await User.findById(userId).select('orgRole guestExpiresAt isActive');
-  if (!user || !user.isActive) return null;
+  const user = await User.findById(userId).select('role guestExpiresAt isActive');
+  if (!user) return null;
 
-  // Check guest expiry
-  if (user.orgRole === 'guest' && user.guestExpiresAt && user.guestExpiresAt < new Date()) {
-    return null;
-  }
-
-  const isGuest = user.orgRole === 'guest';
-
-  // Get workspace role
+  // Get workspace
   const workspace = await Workspace.findById(sheet.workspaceId).select('members');
-  let workspaceRole: SheetRole | null = null;
-  if (workspace) {
-    const wsRole = getMemberRole(workspace, userId);
-    if (wsRole) {
-      workspaceRole = wsRole as SheetRole;
-    }
-  }
 
-  // Get sheet-direct role
-  let sheetRole: SheetRole | null = null;
-  const sheetMember = sheet.members.find(
-    (m) => m.userId.toString() === userId,
+  return calculateEffectiveRole(
+    { role: user.role, isActive: user.isActive, guestExpiresAt: user.guestExpiresAt },
+    workspace ? { members: workspace.members.map(m => ({ user: m.user, role: m.role })) } : null,
+    { members: sheet.members.map(m => ({ userId: m.userId, role: m.role })) },
+    userId,
   );
-  if (sheetMember) {
-    sheetRole = sheetMember.role as SheetRole;
-  }
-
-  // Guests can ONLY access sheets via direct sharing
-  if (isGuest) {
-    return sheetRole; // null if no direct share
-  }
-
-  // Non-guests: effective = highest of workspace and sheet roles
-  if (workspaceRole && sheetRole) {
-    return higherRole(workspaceRole, sheetRole);
-  }
-  if (workspaceRole) return workspaceRole;
-  if (sheetRole) return sheetRole;
-
-  return null;
 }
 
 export interface SheetAccessResult {
@@ -101,11 +118,13 @@ export interface SheetAccessResult {
 /**
  * Validates sheet access. Throws 404 if no access (or sheet not found),
  * 403 if the user's role is below the required role.
+ * Accepts an optional preloaded user to avoid duplicate DB queries.
  */
 export async function requireSheetAccess(
   userId: string,
   sheetId: string,
   requiredRole: SheetRole = 'viewer',
+  preloadedUser?: { role: string; isActive: boolean; guestExpiresAt?: Date | null } | null,
 ): Promise<SheetAccessResult> {
   if (!mongoose.Types.ObjectId.isValid(sheetId)) {
     throw new AppError('Invalid sheet ID', 400);
@@ -117,7 +136,23 @@ export async function requireSheetAccess(
   const workspace = await Workspace.findById(sheet.workspaceId);
   if (!workspace) throw new AppError('Sheet not found', 404);
 
-  const effectiveRole = await getEffectiveRole(userId, sheetId);
+  // Use preloaded user if provided, otherwise load from DB
+  let userData: { role: string; isActive: boolean; guestExpiresAt?: Date | null };
+  if (preloadedUser) {
+    userData = preloadedUser;
+  } else {
+    const user = await User.findById(userId).select('role guestExpiresAt isActive');
+    if (!user) throw new AppError('Sheet not found', 404);
+    userData = { role: user.role, isActive: user.isActive, guestExpiresAt: user.guestExpiresAt };
+  }
+
+  const effectiveRole = calculateEffectiveRole(
+    userData,
+    { members: workspace.members.map(m => ({ user: m.user, role: m.role })) },
+    { members: sheet.members.map(m => ({ userId: m.userId, role: m.role })) },
+    userId,
+  );
+
   if (!effectiveRole) {
     throw new AppError('Sheet not found', 404);
   }

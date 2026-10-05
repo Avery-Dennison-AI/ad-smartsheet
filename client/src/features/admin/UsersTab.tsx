@@ -28,7 +28,7 @@ import {
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { formatRelativeTime } from '@/utils/formatRelativeTime';
 import { roleBadgeVariant, capitalize } from './helpers';
-import type { AdminUser, OrgRole } from '@/types';
+import type { AdminUser } from '@/types';
 
 export default function UsersTab() {
   const dispatch = useAppDispatch();
@@ -111,22 +111,14 @@ export default function UsersTab() {
       header: 'Role',
       noWrap: true,
       cell: (user) => (
-        <Badge variant={roleBadgeVariant(user.role)} data-icod-id={`admin_users_role_${user.id}`}>{capitalize(user.role)}</Badge>
-      ),
-    },
-    {
-      key: 'orgRole',
-      header: 'Org Role',
-      noWrap: true,
-      cell: (user) => (
         <div className="flex items-center gap-1.5" data-icod-id={`admin_users_orgrole_${user.id}`}>
           <Badge
-            variant={user.orgRole === 'guest' ? 'warning' : 'neutral'}
+            variant={user.role === 'guest' ? 'warning' : user.role === 'admin' ? 'status-blue' : 'neutral'}
             size="sm"
             data-icod-id="src_features_admin_userstab_tsx_2f90">
-            {capitalize(user.orgRole || 'member')}
+            {capitalize(user.role)}
           </Badge>
-          {user.orgRole === 'guest' && user.guestExpiresAt && (
+          {user.role === 'guest' && user.guestExpiresAt && (
             <span
               className="text-xs text-muted-foreground"
               data-icod-id="src_features_admin_userstab_tsx_967b">

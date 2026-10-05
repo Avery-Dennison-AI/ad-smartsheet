@@ -91,7 +91,7 @@ export const fetchAdminInvitations = createAsyncThunk(
 
 export const createAdminInvitation = createAsyncThunk(
   'admin/createInvitation',
-  async (data: { email: string; fullName?: string; role: 'admin' | 'member'; orgRole?: string; guestExpiresAt?: string }, { rejectWithValue }) => {
+  async (data: { email: string; fullName?: string; role: 'admin' | 'member' | 'guest'; guestExpiresAt?: string }, { rejectWithValue }) => {
     try {
       return await createInvitationApi(data);
     } catch (err: unknown) {

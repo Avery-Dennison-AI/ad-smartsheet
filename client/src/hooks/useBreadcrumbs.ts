@@ -17,7 +17,7 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
   const workspace = useAppSelector(selectCurrentWorkspace);
   const sheet = useAppSelector(selectCurrentSheet);
   const user = useAppSelector(selectCurrentUser);
-  const isGuest = user?.orgRole === 'guest';
+  const isGuest = user?.role === 'guest';
 
   if (pathname === '/home') {
     return [{ label: 'Home' }];

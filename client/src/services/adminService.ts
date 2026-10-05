@@ -40,8 +40,7 @@ export async function updateUserStatus(
 export async function createInvitation(data: {
   email: string;
   fullName?: string;
-  role: 'admin' | 'member';
-  orgRole?: string;
+  role: 'admin' | 'member' | 'guest';
   guestExpiresAt?: string;
 }): Promise<{ invitation: InvitationItem; invitePath: string }> {
   const { data: res } = await apiClient.post('/api/admin/invitations', data);

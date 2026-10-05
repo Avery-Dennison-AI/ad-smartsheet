@@ -71,7 +71,7 @@ function NonGuestRoute({ children }: { children: React.ReactNode }) {
   const user = useAppSelector(selectCurrentUser);
   const initialized = useAppSelector(selectAuthInitialized);
   const { addToast } = useToast();
-  const isGuest = initialized && user && user.orgRole === 'guest';
+  const isGuest = initialized && user && user.role === 'guest';
 
   useEffect(() => {
     if (isGuest) {

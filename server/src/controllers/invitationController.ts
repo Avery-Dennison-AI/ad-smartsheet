@@ -7,11 +7,11 @@ import { setSessionCookie } from '../config/cookies';
 
 /** POST /api/admin/invitations */
 export const createInvitation = asyncHandler(async (req: Request, res: Response) => {
-  const { email, fullName, role, orgRole, guestExpiresAt } = req.body;
+  const { email, fullName, role, guestExpiresAt } = req.body;
   const invitedBy = new mongoose.Types.ObjectId(req.user!.id);
 
   const result = await invitationService.createInvitation(
-    { email, fullName, role, orgRole, guestExpiresAt: guestExpiresAt ? new Date(guestExpiresAt) : undefined },
+    { email, fullName, role, guestExpiresAt: guestExpiresAt ? new Date(guestExpiresAt) : undefined },
     invitedBy,
   );
   // Strip tokenHash from the invitation object before sending

@@ -32,13 +32,15 @@ export interface SheetWithAccess {
  * Validates sheetId, loads the sheet and its workspace, checks membership,
  * and verifies the user has at least `requiredRole`.
  * Delegates to the central permissionService.
+ * Accepts an optional preloaded user to avoid duplicate DB queries.
  */
 export async function getSheetWithAccess(
   sheetId: string,
   userId: string,
   requiredRole: WorkspaceRole = 'viewer',
+  preloadedUser?: { role: string; isActive: boolean; guestExpiresAt?: Date | null } | null,
 ): Promise<SheetWithAccess> {
-  const result = await requireSheetAccess(userId, sheetId, requiredRole as SheetRole);
+  const result = await requireSheetAccess(userId, sheetId, requiredRole as SheetRole, preloadedUser);
   return {
     sheet: result.sheet,
     workspace: result.workspace,
