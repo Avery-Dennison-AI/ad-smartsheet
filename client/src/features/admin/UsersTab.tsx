@@ -28,7 +28,10 @@ import {
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { formatRelativeTime } from '@/utils/formatRelativeTime';
 import { roleBadgeVariant, capitalize } from './helpers';
+import DeleteUserDialog from './DeleteUserDialog';
 import type { AdminUser } from '@/types';
+
+type FilterStatus = 'active' | 'deactivated' | 'deleted' | 'all';
 
 export default function UsersTab() {
   const dispatch = useAppDispatch();
@@ -40,9 +43,10 @@ export default function UsersTab() {
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
-  const [filterStatus, setFilterStatus] = useState<'active' | 'deactivated' | 'all'>('all');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [page, setPage] = useState(1);
   const [confirmAction, setConfirmAction] = useState<{ userId: string; action: 'deactivate' | 'activate' | 'demote'; userName: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     dispatch(fetchAdminUsers({ search: debouncedSearch || undefined, status: filterStatus, page, limit: 20 }));
@@ -75,35 +79,40 @@ export default function UsersTab() {
   }
 
   const isCurrentUser = (user: AdminUser) => currentUser?.id === user.id;
+  const isDeletedView = filterStatus === 'deleted';
 
   const columns: DataTableColumn<AdminUser>[] = [
     {
       key: 'user',
       header: 'User',
+      className: 'max-w-[280px]',
+      noWrap: true,
+      tooltipText: (row) => row.email,
       cell: (user) => (
         <div
           className="flex items-center gap-3"
           data-icod-id={`admin_users_user_cell_${user.id}`}>
           <Avatar name={user.fullName} size="sm" data-icod-id={`admin_users_avatar_${user.id}`} />
-          <div className="flex flex-col" data-icod-id={`admin_users_info_${user.id}`}>
+          <div className="flex flex-col min-w-0" data-icod-id={`admin_users_info_${user.id}`}>
             <div className="flex items-center gap-2" data-icod-id={`admin_users_name_row_${user.id}`}>
-              <span className="font-medium text-foreground" data-icod-id={`admin_users_name_${user.id}`}>{user.fullName}</span>
+              <span className="font-medium text-foreground truncate" data-icod-id={`admin_users_name_${user.id}`}>
+                {user.fullName}
+                {user.isDeleted && (
+                  <span
+                    className="ml-1 text-muted-foreground font-normal"
+                    data-icod-id="src_features_admin_userstab_tsx_ed4d">(deleted)</span>
+                )}
+              </span>
               {isCurrentUser(user) && (
                 <Badge variant="neutral" size="sm" data-icod-id={`admin_users_you_badge_${user.id}`}>You</Badge>
               )}
+              {user.isDeleted && (
+                <Badge variant="status-gray" size="sm" data-icod-id={`admin_users_deleted_badge_${user.id}`}>Deleted</Badge>
+              )}
             </div>
-            <span className="text-xs text-muted-foreground" data-icod-id={`admin_users_email_${user.id}`}>{user.email}</span>
+            <span className="text-xs text-muted-foreground truncate" data-icod-id={`admin_users_email_${user.id}`}>{user.email}</span>
           </div>
         </div>
-      ),
-    },
-    {
-      key: 'email',
-      header: 'Email',
-      className: 'max-w-[260px]',
-      noWrap: true,
-      cell: (user) => (
-        <span className="text-muted-foreground" data-icod-id={`admin_users_email_col_${user.id}`}>{user.email}</span>
       ),
     },
     {
@@ -132,13 +141,22 @@ export default function UsersTab() {
       key: 'status',
       header: 'Status',
       noWrap: true,
-      cell: (user) => (
-        <Badge
-          variant={user.isActive ? 'status-green' : 'status-gray'}
-          data-icod-id={`admin_users_status_${user.id}`}>
-          {user.isActive ? 'Active' : 'Deactivated'}
-        </Badge>
-      ),
+      cell: (user) => {
+        if (user.isDeleted) {
+          return (
+            <Badge variant="status-gray" data-icod-id={`admin_users_status_${user.id}`}>
+              Deleted
+            </Badge>
+          );
+        }
+        return (
+          <Badge
+            variant={user.isActive ? 'status-green' : 'status-gray'}
+            data-icod-id={`admin_users_status_${user.id}`}>
+            {user.isActive ? 'Active' : 'Deactivated'}
+          </Badge>
+        );
+      },
     },
     {
       key: 'lastLogin',
@@ -156,7 +174,27 @@ export default function UsersTab() {
       align: 'right',
       noWrap: true,
       cell: (user) => {
-        if (isCurrentUser(user)) return null;
+        // No actions for deleted users or current user
+        if (isDeletedView || isCurrentUser(user)) return null;
+
+        const menuItems: Array<{ type?: 'item' | 'divider'; label?: string; onClick?: () => void; danger?: boolean }> = [
+          {
+            label: user.role === 'admin' ? 'Make member' : 'Make admin',
+            onClick: () => handleRoleChange(user, user.role === 'admin' ? 'member' : 'admin'),
+          },
+          {
+            label: user.isActive ? 'Deactivate' : 'Reactivate',
+            danger: user.isActive,
+            onClick: () => handleToggleStatus(user),
+          },
+          { type: 'divider' },
+          {
+            label: 'Delete user',
+            danger: true,
+            onClick: () => setDeleteTarget(user),
+          },
+        ];
+
         return (
           <DropdownMenu
             trigger={
@@ -167,17 +205,7 @@ export default function UsersTab() {
                 <MoreHorizontal className="h-4 w-4" data-icod-id={`admin_users_actions_icon_${user.id}`} />
               </IconButton>
             }
-            items={[
-              {
-                label: user.role === 'admin' ? 'Make member' : 'Make admin',
-                onClick: () => handleRoleChange(user, user.role === 'admin' ? 'member' : 'admin'),
-              },
-              {
-                label: user.isActive ? 'Deactivate' : 'Reactivate',
-                danger: user.isActive,
-                onClick: () => handleToggleStatus(user),
-              },
-            ]}
+            items={menuItems}
             data-icod-id={`admin_users_dropdown_${user.id}`} />
         );
       },
@@ -199,11 +227,12 @@ export default function UsersTab() {
         <Select
           className="w-40"
           value={filterStatus}
-          onChange={(e) => { setFilterStatus(e.target.value as typeof filterStatus); setPage(1); }}
+          onChange={(e) => { setFilterStatus(e.target.value as FilterStatus); setPage(1); }}
           data-icod-id="admin_users_status_filter">
           <option value="all" data-icod-id="admin_users_filter_all">All Users</option>
           <option value="active" data-icod-id="admin_users_filter_active">Active</option>
           <option value="deactivated" data-icod-id="admin_users_filter_deactivated">Deactivated</option>
+          <option value="deleted" data-icod-id="admin_users_filter_deleted">Deleted</option>
         </Select>
       </div>
       {error && <Alert variant="error" data-icod-id="admin_users_error">{error}</Alert>}
@@ -251,6 +280,16 @@ export default function UsersTab() {
         }
         onConfirm={executeConfirmAction}
         data-icod-id="admin_users_confirm" />
+      {/* Delete user dialog */}
+      <DeleteUserDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        user={deleteTarget}
+        onSuccess={() => {
+          // Refresh the list after successful deletion
+          dispatch(fetchAdminUsers({ search: debouncedSearch || undefined, status: filterStatus, page, limit: 20 }));
+        }}
+        data-icod-id="src_features_admin_userstab_tsx_32b4" />
     </div>
   );
 }

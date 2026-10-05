@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { body, query, param } from 'express-validator';
 import { requireRole } from '../middleware/authMiddleware';
 import { validate } from '../utils/validate';
-import { listUsers, updateUser } from '../controllers/adminUserController';
+import { listUsers, updateUser, deleteUser, getUserOwnedWorkspaces } from '../controllers/adminUserController';
 
 const router = Router();
 
@@ -21,8 +21,8 @@ const listUsersValidation = validate([
     .withMessage('Limit must be between 1 and 100'),
   query('status')
     .optional()
-    .isIn(['all', 'active', 'deactivated'])
-    .withMessage('Status must be all, active, or deactivated'),
+    .isIn(['all', 'active', 'deactivated', 'deleted'])
+    .withMessage('Status must be all, active, deactivated, or deleted'),
   query('search')
     .optional()
     .isString()
@@ -49,7 +49,27 @@ const updateUserValidation = validate([
     .withMessage('isActive must be a boolean'),
 ]);
 
+// DELETE /api/admin/users/:id — MongoId validation + optional transfer target
+const deleteUserValidation = validate([
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid user ID'),
+  body('transferToUserId')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid transfer target user ID'),
+]);
+
+// GET /api/admin/users/:id/owned-workspaces — MongoId validation
+const ownedWorkspacesValidation = validate([
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid user ID'),
+]);
+
 router.get('/users', listUsersValidation, listUsers);
 router.patch('/users/:id', updateUserValidation, updateUser);
+router.delete('/users/:id', deleteUserValidation, deleteUser);
+router.get('/users/:id/owned-workspaces', ownedWorkspacesValidation, getUserOwnedWorkspaces);
 
 export default router;

@@ -14,6 +14,8 @@ export interface IUser extends Document {
   isActive: boolean;
   accentColor: AccentColor;
   lastLoginAt?: Date;
+  isDeleted: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +37,8 @@ const userSchema = new Schema<IUser>(
     isActive: { type: Boolean, default: true },
     accentColor: { type: String, enum: ACCENT_COLORS, default: 'avery' },
     lastLoginAt: { type: Date },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: undefined },
   },
   { timestamps: true },
 );

@@ -3,6 +3,7 @@ import {
   fetchUsers as fetchUsersApi,
   updateUserRole,
   updateUserStatus,
+  deleteUser as deleteUserApi,
   fetchInvitations as fetchInvitationsApi,
   createInvitation as createInvitationApi,
   regenerateInvitation as regenerateInvitationApi,
@@ -33,7 +34,7 @@ const initialUsersState: UsersState = {
 
 export const fetchAdminUsers = createAsyncThunk(
   'admin/fetchUsers',
-  async (params: { search?: string; status?: 'active' | 'deactivated' | 'all'; page?: number; limit?: number }, { rejectWithValue }) => {
+  async (params: { search?: string; status?: 'active' | 'deactivated' | 'deleted' | 'all'; page?: number; limit?: number }, { rejectWithValue }) => {
     try {
       return await fetchUsersApi(params);
     } catch (err: unknown) {
@@ -58,6 +59,18 @@ export const updateAdminUserStatus = createAsyncThunk(
   async ({ userId, isActive }: { userId: string; isActive: boolean }, { rejectWithValue }) => {
     try {
       return await updateUserStatus(userId, isActive);
+    } catch (err: unknown) {
+      return rejectWithValue(parseApiError(err).message);
+    }
+  },
+);
+
+export const deleteAdminUser = createAsyncThunk(
+  'admin/deleteUser',
+  async ({ userId, transferToUserId }: { userId: string; transferToUserId?: string }, { rejectWithValue }) => {
+    try {
+      await deleteUserApi(userId, transferToUserId);
+      return userId;
     } catch (err: unknown) {
       return rejectWithValue(parseApiError(err).message);
     }
@@ -178,6 +191,17 @@ const adminSlice = createSlice({
       })
       .addCase(updateAdminUserStatus.rejected, (state, action) => {
         state.users.error = (action.payload as string) ?? 'Failed to update user status';
+      });
+
+    // ─── Delete User ──────────────────────────────────────────────────────
+    builder
+      .addCase(deleteAdminUser.fulfilled, (state, action) => {
+        const deletedUserId = action.payload as string;
+        state.users.items = state.users.items.filter((u) => u.id !== deletedUserId);
+        state.users.total = Math.max(0, state.users.total - 1);
+      })
+      .addCase(deleteAdminUser.rejected, (state, action) => {
+        state.users.error = (action.payload as string) ?? 'Failed to delete user';
       });
 
     // ─── Invitations ──────────────────────────────────────────────────────

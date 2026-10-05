@@ -57,15 +57,16 @@ export function calculateEffectiveRole(
   const wsMember = workspace?.members.find(m => String(m.user) === String(userId));
   let wsRole = wsMember ? (wsMember.role as SheetRole) : null;
   if (isGuest && wsRole) {
-    // Cap guest workspace role at editor
-    wsRole = hasMinRole(wsRole, 'admin') ? GUEST_MAX : wsRole;
+    // Cap guest workspace role at maxGuestRole
+    wsRole = ROLE_LEVEL[wsRole] > ROLE_LEVEL[GUEST_MAX] ? GUEST_MAX : wsRole;
   }
 
   // 4. Sheet-level direct role
   const sheetMember = sheet?.members.find(m => String(m.userId) === String(userId));
   let sheetRole = sheetMember ? (sheetMember.role as SheetRole) : null;
   if (isGuest && sheetRole) {
-    sheetRole = hasMinRole(sheetRole, 'admin') ? GUEST_MAX : sheetRole;
+    // Cap guest sheet role at maxGuestRole
+    sheetRole = ROLE_LEVEL[sheetRole] > ROLE_LEVEL[GUEST_MAX] ? GUEST_MAX : sheetRole;
   }
 
   // 5. Return highest, with guest requiring at least one explicit share
@@ -74,7 +75,9 @@ export function calculateEffectiveRole(
     if (!wsRole && !sheetRole) return null;
     // Take highest non-null role (same logic as non-guests)
     const candidates = [wsRole, sheetRole].filter(Boolean) as SheetRole[];
-    return candidates.reduce((best, r) => ROLE_LEVEL[r] > ROLE_LEVEL[best] ? r : best);
+    const result = candidates.reduce((best, r) => ROLE_LEVEL[r] > ROLE_LEVEL[best] ? r : best);
+    // Final cap for guests
+    return ROLE_LEVEL[result] > ROLE_LEVEL[GUEST_MAX] ? GUEST_MAX : result;
   }
 
   // Non-guest: take highest of workspace role and sheet role
@@ -156,30 +159,29 @@ export async function requireSheetAccess(
     userData = { role: user.role, isActive: user.isActive, guestExpiresAt: user.guestExpiresAt };
   }
 
+  // Fetch org policy for guest cap (only needed for guests)
+  let maxGuestRole: 'editor' | 'viewer' | undefined;
+  if (userData.role === 'guest') {
+    const orgPolicyService = await import('./orgPolicyService');
+    const policy = await orgPolicyService.getOrgPolicy();
+    maxGuestRole = policy.maxGuestRole;
+  }
+
   const effectiveRole = calculateEffectiveRole(
     userData,
     { members: workspace.members.map(m => ({ user: m.user, role: m.role })) },
     { members: sheet.members.map(m => ({ userId: m.userId, role: m.role })) },
     userId,
+    maxGuestRole,
   );
 
   if (!effectiveRole) {
     throw new AppError('Sheet not found', 404);
   }
 
-  // If the user is a guest, also cap against org policy maxGuestRole
-  let finalRole = effectiveRole;
-  if (userData.role === 'guest') {
-    const orgPolicyService = await import('./orgPolicyService');
-    const policy = await orgPolicyService.getOrgPolicy();
-    if (policy.maxGuestRole === 'viewer' && hasMinRole(finalRole, 'editor')) {
-      finalRole = 'viewer';
-    }
-  }
-
-  if (!hasMinRole(finalRole, requiredRole)) {
+  if (!hasMinRole(effectiveRole, requiredRole)) {
     throw new AppError('Access denied', 403);
   }
 
-  return { sheet, workspace, effectiveRole: finalRole };
+  return { sheet, workspace, effectiveRole };
 }

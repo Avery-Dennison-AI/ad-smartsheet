@@ -17,6 +17,8 @@ export interface AdminUser {
   role: UserRole;
   guestExpiresAt: string | null;
   isActive: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string;
   lastLoginAt: string | null;
   createdAt: string;
 }

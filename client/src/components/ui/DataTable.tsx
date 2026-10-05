@@ -1,4 +1,4 @@
-import type { ReactNode, KeyboardEvent, MouseEvent } from 'react';
+import { useState, useRef, type ReactNode, type KeyboardEvent, type MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import Skeleton from './Skeleton';
@@ -15,6 +15,8 @@ export interface DataTableColumn<T> {
   className?: string;
   /** When true, truncates cell content with ellipsis and shows full value in a Tooltip. */
   noWrap?: boolean;
+  /** Optional function to extract plain text for the tooltip. If not provided, uses cell value when it is a string or number. */
+  tooltipText?: (row: T) => string;
 }
 
 export interface DataTableProps<T> {
@@ -34,6 +36,58 @@ const alignClass: Record<string, string> = {
   center: 'text-center',
   right: 'text-right',
 };
+
+/** Helper component that wraps cell content with a smart tooltip.
+ *  Only shows tooltip when content is actually truncated AND text is valid. */
+function SmartTooltipCell<T>({
+  row,
+  column,
+  children,
+}: {
+  row: T;
+  column: DataTableColumn<T>;
+  children: ReactNode;
+}) {
+  const spanRef = useRef<HTMLSpanElement>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  // Resolve plain text for tooltip
+  let tooltipContent: string | undefined;
+  if (column.tooltipText) {
+    tooltipContent = column.tooltipText(row);
+  } else {
+    // Fallback: only use cell value if it's a string or number
+    const cellValue = column.cell(row);
+    if (typeof cellValue === 'string' || typeof cellValue === 'number') {
+      tooltipContent = String(cellValue);
+    }
+  }
+
+  const handleMouseEnter = () => {
+    if (spanRef.current) {
+      setIsTruncated(spanRef.current.scrollWidth > spanRef.current.clientWidth);
+    }
+  };
+
+  // Only show tooltip if we have valid text AND content is truncated
+  const showTooltip = !!tooltipContent && isTruncated;
+
+  return (
+    <span
+      ref={spanRef}
+      className="block truncate"
+      onMouseEnter={handleMouseEnter}
+      data-icod-id="src_components_ui_datatable_tsx_smartcell">
+      {showTooltip && tooltipContent ? (
+        <Tooltip
+          content={tooltipContent}
+          data-icod-id="src_components_ui_datatable_tsx_1c30">{children}</Tooltip>
+      ) : (
+        children
+      )}
+    </span>
+  );
+}
 
 /** Generic data table with loading skeleton and empty state support. */
 export default function DataTable<T>({
@@ -174,13 +228,12 @@ export default function DataTable<T>({
                       )}
                       data-icod-id={`src_components_ui_datatable_tsx_td_${rowKey(row)}_${col.key}`}>
                       {col.noWrap ? (
-                        <Tooltip
-                          content={String(cellContent)}
-                          data-icod-id={`src_components_ui_datatable_tsx_aa59_${__icodIdx0}_${col.key}`}>
-                          <span
-                            className="block truncate"
-                            data-icod-id={`src_components_ui_datatable_tsx_8478_${__icodIdx0}_${col.key}`}>{rendered}</span>
-                        </Tooltip>
+                        <SmartTooltipCell
+                          row={row}
+                          column={col}
+                          data-icod-id={`src_components_ui_datatable_tsx_9f87_${__icodIdx0}_${col.key}`}>
+                          {rendered}
+                        </SmartTooltipCell>
                       ) : (
                         rendered
                       )}

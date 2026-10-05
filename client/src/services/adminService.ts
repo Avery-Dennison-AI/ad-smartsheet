@@ -5,7 +5,7 @@ import type { AdminUser, UserListResponse, InvitationItem, InvitationPreview } f
 
 export async function fetchUsers(params: {
   search?: string;
-  status?: 'active' | 'deactivated' | 'all';
+  status?: 'active' | 'deactivated' | 'deleted' | 'all';
   page?: number;
   limit?: number;
 }): Promise<UserListResponse> {
@@ -33,6 +33,22 @@ export async function updateUserStatus(
 ): Promise<AdminUser> {
   const { data } = await apiClient.patch(`/api/admin/users/${userId}`, { isActive });
   return data.data as AdminUser;
+}
+
+export async function deleteUser(
+  userId: string,
+  transferToUserId?: string,
+): Promise<void> {
+  await apiClient.delete(`/api/admin/users/${userId}`, {
+    data: transferToUserId ? { transferToUserId } : undefined,
+  });
+}
+
+export async function getUserOwnedWorkspaces(
+  userId: string,
+): Promise<Array<{ _id: string; name: string }>> {
+  const { data } = await apiClient.get(`/api/admin/users/${userId}/owned-workspaces`);
+  return data.data as Array<{ _id: string; name: string }>;
 }
 
 // ─── Invitations ────────────────────────────────────────────────────────────
