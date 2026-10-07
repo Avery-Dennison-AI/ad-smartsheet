@@ -44,14 +44,14 @@ export async function createInvitation(
     }
   }
 
-  // Check active user
-  const existingUser = await User.findOne({ email, isActive: true });
+  // Check active user (exclude deleted users whose email was freed)
+  const existingUser = await User.findOne({ email, isActive: true, isDeleted: { $ne: true } });
   if (existingUser) {
     throw new AppError('A user with this email already exists', 409);
   }
 
-  // Check deactivated user — they should be reactivated instead
-  const deactivatedUser = await User.findOne({ email, isActive: false });
+  // Check deactivated user — they should be reactivated instead (exclude deleted)
+  const deactivatedUser = await User.findOne({ email, isActive: false, isDeleted: { $ne: true } });
   if (deactivatedUser) {
     throw new AppError(
       'This user already has an account but is deactivated. Reactivate them instead.',
@@ -180,8 +180,8 @@ export async function acceptInvitation(
     throw new AppError('This invitation link is invalid or has expired.', 404);
   }
 
-  // Check if user was created in the meantime
-  const existingUser = await User.findOne({ email: invitation.email });
+  // Check if user was created in the meantime (exclude deleted users)
+  const existingUser = await User.findOne({ email: invitation.email, isDeleted: { $ne: true } });
   if (existingUser) {
     // Roll back the claim
     await Invitation.findByIdAndUpdate(invitation._id, { status: 'pending', acceptedAt: undefined });

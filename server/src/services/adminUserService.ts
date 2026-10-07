@@ -37,7 +37,7 @@ export async function listUsers(params: {
 
   const total = await User.countDocuments(query);
   const users = await User.find(query)
-    .select('_id fullName email role guestExpiresAt isActive isDeleted deletedAt lastLoginAt createdAt')
+    .select('_id fullName email deletedEmail role guestExpiresAt isActive isDeleted deletedAt lastLoginAt createdAt')
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit);
@@ -46,7 +46,8 @@ export async function listUsers(params: {
     users: users.map((u) => ({
       id: u._id,
       fullName: u.fullName,
-      email: u.email,
+      // Show original email for deleted users (display purposes)
+      email: u.isDeleted && u.deletedEmail ? u.deletedEmail : u.email,
       role: u.role,
       guestExpiresAt: u.guestExpiresAt || null,
       isActive: u.isActive,
@@ -178,27 +179,34 @@ export function validateDeleteUser(
 
 /**
  * Soft-delete a user with ownership transfer support.
+ *
+ * Ordering guarantees (BUG 3):
+ *   1. Validate everything first (validateDeleteUser).
+ *   2. Transfer workspace ownership atomically per workspace (BUG 1).
+ *   3. Remove from all other workspace memberships.
+ *   4. Remove from all sheet memberships.
+ *   5. Clear favorites and recents.
+ *   6. Revoke pending invitations.
+ *   7. Mark user deleted and free the email (BUG 2) — LAST step so partial
+ *      failures leave the user still active and re-triggerable.
  */
 export async function deleteUser(
   targetUserId: string,
   requesterId: string,
   transferToUserId?: string,
 ): Promise<{ success: true }> {
-  // Fetch target user
-  const target = await User.findById(targetUserId).select('_id role isDeleted email isActive');
+  // ── Step 1: Fetch & validate ──────────────────────────────────────────────
+  const target = await User.findById(targetUserId).select('_id role isDeleted email isActive fullName');
   if (!target) throw new AppError('User not found', 404);
 
-  // Count active admins (excluding deleted users)
   const activeAdminCount = await User.countDocuments({
     role: 'admin',
     isActive: true,
     isDeleted: { $ne: true },
   });
 
-  // Get owned workspaces
   const ownedWorkspaces = await getUserOwnedWorkspaces(targetUserId);
 
-  // Fetch transfer target if provided
   let transferTarget = null;
   if (transferToUserId) {
     const tt = await User.findById(transferToUserId).select('_id role isActive isDeleted');
@@ -212,7 +220,6 @@ export async function deleteUser(
     }
   }
 
-  // Validate all guards
   validateDeleteUser(
     {
       id: target._id.toString(),
@@ -227,37 +234,77 @@ export async function deleteUser(
     transferToUserId,
   );
 
-  // Transfer workspace ownership if needed
+  // ── Step 2: Transfer workspace ownership (atomic per workspace) ───────────
   if (ownedWorkspaces.length > 0 && transferToUserId) {
-    await Workspace.updateMany(
-      { owner: targetUserId },
-      { $set: { owner: transferToUserId } },
-    );
+    const deletedOid = new mongoose.Types.ObjectId(targetUserId);
+    const transferOid = new mongoose.Types.ObjectId(transferToUserId);
+
+    for (const ws of ownedWorkspaces) {
+      // Atomic single-operation: remove deleted user's member entry,
+      // remove any existing entry for the transfer target (avoid duplicates),
+      // push fresh owner entry, set owner field.
+      await Workspace.findOneAndUpdate(
+        { _id: ws._id },
+        [
+          // Stage 1: filter out both old entries
+          {
+            $set: {
+              members: {
+                $filter: {
+                  input: '$members',
+                  cond: {
+                    $and: [
+                      { $ne: ['$$this.user', deletedOid] },
+                      { $ne: ['$$this.user', transferOid] },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+          // Stage 2: push the new owner entry and set owner field
+          {
+            $set: {
+              owner: transferOid,
+              members: {
+                $concatArrays: [
+                  '$members',
+                  [{ user: transferOid, role: 'owner' }],
+                ],
+              },
+            },
+          },
+        ],
+      );
+    }
   }
 
-  // Soft-delete the user
-  await User.findByIdAndUpdate(targetUserId, {
-    $set: {
-      isDeleted: true,
-      deletedAt: new Date(),
-      isActive: false,
-    },
-  });
-
-  // Remove from all workspaces
+  // ── Step 3: Remove from all remaining workspace memberships ───────────────
   await Workspace.updateMany({}, { $pull: { members: { user: targetUserId } } });
 
-  // Remove direct sheet memberships
+  // ── Step 4: Remove from all sheet memberships ─────────────────────────────
   await Sheet.updateMany({}, { $pull: { members: { userId: targetUserId } } });
 
-  // Clear favorites and recents
+  // ── Step 5: Clear favorites and recents ───────────────────────────────────
   await UserSheetMeta.deleteMany({ userId: targetUserId });
 
-  // Revoke pending invitations
+  // ── Step 6: Revoke pending invitations ────────────────────────────────────
   await Invitation.updateMany(
     { email: target.email, status: 'pending' },
     { $set: { status: 'revoked' } },
   );
+
+  // ── Step 7: Mark user deleted and free the email (LAST) ───────────────────
+  const originalEmail = target.email;
+  await User.findByIdAndUpdate(targetUserId, {
+    $set: {
+      deletedEmail: originalEmail,
+      email: `deleted+${target._id.toString()}@neo.invalid`,
+      isDeleted: true,
+      isActive: false,
+      deletedAt: new Date(),
+    },
+  });
 
   return { success: true };
 }

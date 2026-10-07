@@ -315,6 +315,7 @@ export async function searchUsersGlobal(
   const regex = new RegExp(escapeRegex(query), 'i');
   const baseQuery = {
     isActive: true,
+    isDeleted: { $ne: true },
     $or: [
       { fullName: { $regex: regex } },
       { email: { $regex: regex } },

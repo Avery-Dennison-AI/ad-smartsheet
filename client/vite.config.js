@@ -25,9 +25,9 @@ export default defineConfig(({ mode }) => {
   },
   server: {
     host: "0.0.0.0",
-    port: 3329,
+    port: 3327,
     strictPort: true,
-    allowedHosts: ["6ab6c4470002c467cfe3b0f7.icod.ai"],
+    allowedHosts: ['.icod.ai'],
     watch:{
         usePolling: true,
         interval: 300

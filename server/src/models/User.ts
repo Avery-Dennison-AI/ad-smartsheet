@@ -8,6 +8,7 @@ export const ACCENT_COLORS: AccentColor[] = ['avery', 'teal', 'blue', 'indigo', 
 export interface IUser extends Document {
   fullName: string;
   email: string;
+  deletedEmail?: string;
   passwordHash: string;
   role: UserRole;
   guestExpiresAt?: Date;
@@ -31,6 +32,7 @@ const userSchema = new Schema<IUser>(
       lowercase: true,
       set: (v: string) => v.trim().toLowerCase(),
     },
+    deletedEmail: { type: String, default: undefined },
     passwordHash: { type: String, required: true, select: false },
     role: { type: String, enum: ['admin', 'member', 'guest'], default: 'member' },
     guestExpiresAt: { type: Date, default: undefined },
