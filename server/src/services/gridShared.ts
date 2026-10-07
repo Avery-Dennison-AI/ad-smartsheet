@@ -94,6 +94,7 @@ export function serializeColumn(col: any): ColumnDef {
     options: col.options ? col.options.map((o: any) => ({ label: o.label, color: o.color })) : undefined,
     formatting: col.formatting ?? undefined,
     width: col.width ?? undefined,
+    systemField: col.systemField ?? undefined,
   };
 }
 

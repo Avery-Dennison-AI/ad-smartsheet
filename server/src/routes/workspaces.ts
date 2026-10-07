@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/authMiddleware';
 import { validate } from '../utils/validate';
 import { WORKSPACE_COLORS } from '../models/Workspace';
 import * as workspaceController from '../controllers/workspaceController';
+import { createProjectHandler } from '../controllers/projectController';
 
 const router = Router();
 
@@ -114,6 +115,25 @@ router.delete(
     mongoId('memberId'),
   ]),
   workspaceController.removeMember,
+);
+
+// POST /api/workspaces/:workspaceId/projects — create a project
+router.post(
+  '/:workspaceId/projects',
+  validate([
+    mongoId('workspaceId'),
+    body('name')
+      .trim()
+      .notEmpty().withMessage('Name is required')
+      .isLength({ max: 100 }).withMessage('Name must be at most 100 characters'),
+    body('keyPrefix')
+      .trim()
+      .notEmpty().withMessage('keyPrefix is required')
+      .matches(/^[A-Z]{2,6}$/).withMessage('keyPrefix must be 2 to 6 uppercase letters A–Z'),
+    body('template')
+      .isIn(['waterfall', 'scrum', 'kanban', 'tracker']).withMessage('template must be one of waterfall, scrum, kanban, tracker'),
+  ]),
+  createProjectHandler,
 );
 
 export default router;

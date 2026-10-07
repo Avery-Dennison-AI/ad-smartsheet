@@ -57,6 +57,7 @@ export async function repairBrokenColumns(): Promise<void> {
 
       needsRepair = true;
       return {
+        ...col,
         id: col.id ?? col._id?.toString() ?? `repaired-${Math.random().toString(36).slice(2, 10)}`,
         name: col.name || 'Column',
         type: col.type || 'text',
