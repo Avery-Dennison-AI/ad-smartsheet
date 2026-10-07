@@ -87,10 +87,18 @@ function makePopulatedSheet(sheetData: any) {
         createdBy: sheet.createdBy,
       };
     },
-    populate: vi.fn(),
   };
-  sheet.populate.mockResolvedValue(sheet);
   return sheet;
+}
+
+/**
+ * Creates a chainable query-like object that mimics Mongoose's Query API.
+ * Sheet.findById returns this, allowing .populate() to be chained.
+ */
+function makeChainableQuery(result: any) {
+  return {
+    populate: vi.fn().mockResolvedValue(result),
+  };
 }
 
 function setupDefaultMocks(role = 'editor') {
@@ -124,9 +132,8 @@ describe('createProject', () => {
         mockSheetCreate.mockImplementation((data: any) => {
           capturedCreateArgs = data;
           const sheet = makePopulatedSheet(data);
-          // Make populate return the same object
-          sheet.populate.mockResolvedValue(sheet);
-          mockSheetFindById.mockResolvedValue(sheet);
+          // Sheet.findById returns a chainable query with .populate()
+          mockSheetFindById.mockReturnValue(makeChainableQuery(sheet));
           return Promise.resolve(sheet);
         });
 
@@ -191,8 +198,8 @@ describe('createProject', () => {
         mockSheetCreate.mockImplementation((data: any) => {
           capturedCreateArgs = data;
           const sheet = makePopulatedSheet(data);
-          sheet.populate.mockResolvedValue(sheet);
-          mockSheetFindById.mockResolvedValue(sheet);
+          // Sheet.findById returns a chainable query with .populate()
+          mockSheetFindById.mockReturnValue(makeChainableQuery(sheet));
           return Promise.resolve(sheet);
         });
 
@@ -247,9 +254,9 @@ describe('createProject', () => {
       workspaceId: WORKSPACE_ID,
       name: 'Test Project',
     });
-    sheet.populate.mockResolvedValue(sheet);
     mockSheetCreate.mockResolvedValue(sheet);
-    mockSheetFindById.mockResolvedValue(sheet);
+    // Sheet.findById returns a chainable query with .populate()
+    mockSheetFindById.mockReturnValue(makeChainableQuery(sheet));
 
     const result = await createProject(WORKSPACE_ID, USER_ID, {
       name: 'Test Project',

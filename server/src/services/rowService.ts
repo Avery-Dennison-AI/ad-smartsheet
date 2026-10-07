@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Row, { type IRow } from '../models/Row';
+import Sheet, { type ISheet } from '../models/Sheet';
 import Workspace from '../models/Workspace';
 import { getSheetWithAccess, validateCellValue, formatRow } from './gridShared';
 import { AppError } from '../utils/AppError';
@@ -97,6 +98,34 @@ async function getSerializedRows(sheetId: string) {
   return rows.map(formatRow);
 }
 
+/**
+ * Assigns a project key to a row if the sheet is a project sheet.
+ * Uses atomic increment to ensure sequential, non-reusable keys.
+ */
+async function assignProjectKey(sheet: ISheet, row: IRow): Promise<void> {
+  if (sheet.kind !== 'project' || !sheet.project) return;
+
+  // Atomically increment the counter — never reuse numbers
+  const updated = await Sheet.findOneAndUpdate(
+    { _id: sheet._id },
+    { $inc: { 'project.nextKeyNumber': 1 } },
+    { new: false }, // returns doc BEFORE increment → old value IS the number to use
+  );
+  if (!updated || !updated.project) return;
+
+  const num = updated.project.nextKeyNumber; // pre-increment value
+  const key = `${updated.project.keyPrefix}-${num}`;
+
+  // Find the column with systemField === 'key'
+  const keyCol = sheet.columns.find((c) => c.systemField === 'key');
+  if (!keyCol) return;
+
+  // Write the key cell into the row document without re-triggering validation
+  await Row.findByIdAndUpdate(row._id, {
+    $set: { [`cells.${keyCol.id}`]: key },
+  });
+}
+
 // ─── addRow ───────────────────────────────────────────────────────────────
 
 /** Adds a row. Optionally insert after or before a specific row. Requires editor+. */
@@ -160,6 +189,9 @@ export async function addRow(
     assigneeIds,
   });
 
+  // Assign project key if this is a project sheet
+  await assignProjectKey(sheet, row);
+
   // Bulk-write hierarchy changes for all other rows
   await bulkWriteHierarchy(sheetId, result.filter((r) => r.id !== newId));
 
@@ -183,6 +215,11 @@ export async function updateCell(
   const columns = sheet.columns || [];
   const col = columns.find((c) => c.id === columnId);
   if (!col) throw new AppError('Column not found', 404);
+
+  // Prevent editing system key cells
+  if (col.systemField === 'key') {
+    throw new AppError("Work item keys can't be edited", 400);
+  }
 
   const row = await Row.findById(rowId);
   if (!row || row.sheetId.toString() !== sheetId) {
