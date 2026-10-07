@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Sheet, { type ColumnDef, type ColumnType } from '../models/Sheet';
 import Row from '../models/Row';
 import { getSheetWithAccess, serializeColumn } from './gridShared';
+import { computeAssigneeIds } from './rowService';
 import { AppError } from '../utils/AppError';
 
 /** Adds a column to the sheet. Requires editor+. */
@@ -84,6 +85,50 @@ export async function updateColumn(
     } else {
       col.options = undefined;
     }
+
+    // Recalculate assigneeIds when contact type is gained or lost
+    if (oldType === 'contact' || patch.type === 'contact') {
+      columns[colIndex] = col;
+      const updatedColumns = columns.map(serializeColumn);
+      const contactColumns = updatedColumns.filter((c) => c.type === 'contact');
+
+      if (contactColumns.length > 0) {
+        const BATCH_SIZE = 500;
+        const cursor = Row.find({ sheetId: new mongoose.Types.ObjectId(sheetId) }).cursor();
+        const batch: Array<{ rowId: string; assigneeIds: mongoose.Types.ObjectId[] }> = [];
+
+        for await (const row of cursor) {
+          const cells = (row.toObject().cells as unknown as Record<string, unknown>) ?? {};
+          const assigneeIds = computeAssigneeIds(cells, contactColumns);
+          batch.push({ rowId: row._id.toString(), assigneeIds });
+
+          if (batch.length >= BATCH_SIZE) {
+            await Row.bulkWrite(batch.map((item) => ({
+              updateOne: {
+                filter: { _id: item.rowId },
+                update: { $set: { assigneeIds: item.assigneeIds } },
+              },
+            })));
+            batch.length = 0;
+          }
+        }
+
+        if (batch.length > 0) {
+          await Row.bulkWrite(batch.map((item) => ({
+            updateOne: {
+              filter: { _id: item.rowId },
+              update: { $set: { assigneeIds: item.assigneeIds } },
+            },
+          })));
+        }
+      } else {
+        // No contact columns remain — clear assigneeIds on all rows
+        await Row.updateMany(
+          { sheetId: new mongoose.Types.ObjectId(sheetId) },
+          { $set: { assigneeIds: [] } },
+        );
+      }
+    }
   } else if (patch.options !== undefined && col.type === 'dropdown') {
     col.options = patch.options;
   }
@@ -158,6 +203,47 @@ export async function deleteColumn(
     { sheetId: new mongoose.Types.ObjectId(sheetId) },
     { $unset: { [`cells.${columnId}`]: '' } },
   );
+
+  // Recalculate assigneeIds for all rows in the sheet after removing a column
+  if (columns.some((c) => c.type === 'contact')) {
+    const contactColumns = remaining.filter((c) => c.type === 'contact');
+    if (contactColumns.length > 0) {
+      const BATCH_SIZE = 500;
+      const cursor = Row.find({ sheetId: new mongoose.Types.ObjectId(sheetId) }).cursor();
+      const batch: Array<{ rowId: string; assigneeIds: mongoose.Types.ObjectId[] }> = [];
+
+      for await (const row of cursor) {
+        const cells = (row.toObject().cells as unknown as Record<string, unknown>) ?? {};
+        const assigneeIds = computeAssigneeIds(cells, contactColumns);
+        batch.push({ rowId: row._id.toString(), assigneeIds });
+
+        if (batch.length >= BATCH_SIZE) {
+          await Row.bulkWrite(batch.map((item) => ({
+            updateOne: {
+              filter: { _id: item.rowId },
+              update: { $set: { assigneeIds: item.assigneeIds } },
+            },
+          })));
+          batch.length = 0;
+        }
+      }
+
+      if (batch.length > 0) {
+        await Row.bulkWrite(batch.map((item) => ({
+          updateOne: {
+            filter: { _id: item.rowId },
+            update: { $set: { assigneeIds: item.assigneeIds } },
+          },
+        })));
+      }
+    } else {
+      // No contact columns remain — clear assigneeIds on all rows
+      await Row.updateMany(
+        { sheetId: new mongoose.Types.ObjectId(sheetId) },
+        { $set: { assigneeIds: [] } },
+      );
+    }
+  }
 
   await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: remaining } });
   return { deleted: true, columnId };

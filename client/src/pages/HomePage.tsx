@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, FileSpreadsheet, Briefcase } from 'lucide-react';
+import { Plus, ChevronDown, Building2 } from 'lucide-react';
+import SheetIcon from '@/components/ui/SheetIcon';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer, Button, DropdownMenu } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
@@ -55,7 +56,9 @@ export default function HomePage() {
   const menuItems: DropdownMenuItem[] = [
     {
       label: 'New sheet',
-      icon: <FileSpreadsheet className="h-4 w-4" data-icod-id="src_pages_homepage_tsx_2b3d" />,
+      icon: <SheetIcon
+        className="h-4 w-4 text-muted-foreground"
+        data-icod-id="src_pages_homepage_tsx_ea08" />,
       onClick: () => navigate('/workspaces'),
     },
   ];
@@ -63,7 +66,9 @@ export default function HomePage() {
   if (canCreateWorkspaces) {
     menuItems.push({
       label: 'New workspace',
-      icon: <Briefcase className="h-4 w-4" data-icod-id="src_pages_homepage_tsx_d574" />,
+      icon: <Building2
+        className="h-4 w-4 text-muted-foreground"
+        data-icod-id="src_pages_homepage_tsx_f184" />,
       onClick: () => setCreateWsOpen(true),
     });
   }
@@ -91,9 +96,9 @@ export default function HomePage() {
             <Button
               variant="primary"
               size="sm"
-              leftIcon={<Plus className="h-4 w-4" data-icod-id="src_pages_homepage_tsx_adee" />}
+              leftIcon={<Plus className="h-4 w-4" data-icod-id="src_pages_homepage_tsx_4996" />}
               data-icod-id="src_pages_homepage_tsx_new_btn">
-              New +
+              New<ChevronDown className="ml-1 h-3 w-3" data-icod-id="src_pages_homepage_tsx_ed9a" />
             </Button>
           }
           items={menuItems}
