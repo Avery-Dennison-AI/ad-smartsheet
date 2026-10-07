@@ -43,47 +43,53 @@ export default function MyWorkRow({ item, className }: MyWorkRowProps) {
       type="button"
       onClick={() => navigate(`/sheets/${item.sheetId}?row=${item.rowId}`)}
       className={cn(
-        'flex w-full items-center gap-3 rounded-[var(--radius-sm)] px-3 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'flex w-full cursor-pointer items-center gap-4 rounded px-2 py-1.5 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className,
       )}
       data-icod-id={`src_features_home_myworkrow_tsx_${item.rowId}`}
     >
-      <div
-        className="min-w-0 flex-1"
-        data-icod-id="src_features_home_myworkrow_tsx_28f7">
-        <div
-          className="flex items-center gap-2"
-          data-icod-id="src_features_home_myworkrow_tsx_bfc7">
-          <span
-            className="truncate text-sm font-medium text-foreground"
-            data-icod-id="src_features_home_myworkrow_tsx_8467">
-            {item.taskName || 'Untitled'}
-          </span>
-          {item.status && (
-            <Pill
-              label={item.status.label}
-              color={item.status.color}
-              data-icod-id="src_features_home_myworkrow_tsx_b83f" />
-          )}
-        </div>
-        <div
-          className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground"
-          data-icod-id="src_features_home_myworkrow_tsx_7c5a">
-          <span className="truncate" data-icod-id="src_features_home_myworkrow_tsx_4a97">{item.sheetName}</span>
-          <span aria-hidden="true" data-icod-id="src_features_home_myworkrow_tsx_0053">&middot;</span>
-          <span className="truncate" data-icod-id="src_features_home_myworkrow_tsx_06d0">{item.workspaceName}</span>
-        </div>
-      </div>
-      {dueDateText && (
-        <span
-          className={cn(
-            'shrink-0 text-xs font-medium',
-            isOverdue ? 'text-destructive' : 'text-muted-foreground',
-          )}
-          data-icod-id="src_features_home_myworkrow_tsx_ccc7">
-          {dueDateText}
+      {/* Column 1: Task name (grows, truncates) */}
+      <div className="min-w-0 flex-1" data-icod-id="src_features_home_myworkrow_tsx_task">
+        <span className="block truncate text-sm font-medium text-foreground" data-icod-id="src_features_home_myworkrow_tsx_8467">
+          {item.taskName || 'Untitled'}
         </span>
-      )}
+        {item.rowKey && (
+          <span className="block truncate text-xs text-muted-foreground" data-icod-id="src_features_home_myworkrow_tsx_key">
+            {item.rowKey}
+          </span>
+        )}
+      </div>
+
+      {/* Column 2: Status pill (fixed ~100px) */}
+      <div className="w-[100px] shrink-0" data-icod-id="src_features_home_myworkrow_tsx_status">
+        {item.status && (
+          <Pill
+            label={item.status.label}
+            color={item.status.color}
+            data-icod-id="src_features_home_myworkrow_tsx_b83f" />
+        )}
+      </div>
+
+      {/* Column 3: Due date (fixed ~80px) */}
+      <div className="w-[80px] shrink-0" data-icod-id="src_features_home_myworkrow_tsx_due">
+        {dueDateText && (
+          <span
+            className={cn(
+              'text-xs font-medium',
+              isOverdue ? 'text-destructive' : 'text-muted-foreground',
+            )}
+            data-icod-id="src_features_home_myworkrow_tsx_ccc7">
+            {dueDateText}
+          </span>
+        )}
+      </div>
+
+      {/* Column 4: Sheet / workspace (fixed, right-aligned, muted) */}
+      <div className="shrink-0 text-right" data-icod-id="src_features_home_myworkrow_tsx_context">
+        <span className="block max-w-[140px] truncate text-xs text-muted-foreground" data-icod-id="src_features_home_myworkrow_tsx_ctx_text">
+          {item.sheetName} &middot; {item.workspaceName}
+        </span>
+      </div>
     </button>
   );
 }

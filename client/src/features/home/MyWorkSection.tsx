@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { Card, Alert, Button, Skeleton, EmptyState } from '@/components/ui';
+import Badge from '@/components/ui/Badge';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchMyWork, selectMyWorkGroups, selectMyWorkStatus, selectMyWorkError } from '@/store/slices/myWorkSlice';
 import MyWorkGroup from './MyWorkGroup';
@@ -19,32 +20,22 @@ export default function MyWorkSection() {
 
   if (status === 'loading') {
     return (
-      <Card className="flex flex-col gap-4" data-icod-id="src_features_home_myworksection_tsx_loading">
-        <div
-          className="flex items-center justify-between px-1"
-          data-icod-id="src_features_home_myworksection_tsx_ee75">
+      <Card className="p-6" data-icod-id="src_features_home_myworksection_tsx_loading">
+        <div className="flex flex-col gap-4" data-icod-id="src_features_home_myworksection_tsx_load_inner">
           <Skeleton width="120px" data-icod-id="src_features_home_myworksection_tsx_15ad" />
+          <Skeleton variant="tableRow" data-icod-id="src_features_home_myworksection_tsx_56d4" />
+          <Skeleton variant="tableRow" data-icod-id="src_features_home_myworksection_tsx_510f" />
+          <Skeleton variant="tableRow" data-icod-id="src_features_home_myworksection_tsx_55c1" />
         </div>
-        <Skeleton
-          variant="tableRow"
-          data-icod-id="src_features_home_myworksection_tsx_56d4" />
-        <Skeleton
-          variant="tableRow"
-          data-icod-id="src_features_home_myworksection_tsx_510f" />
-        <Skeleton
-          variant="tableRow"
-          data-icod-id="src_features_home_myworksection_tsx_55c1" />
       </Card>
     );
   }
 
   if (status === 'failed') {
     return (
-      <Card data-icod-id="src_features_home_myworksection_tsx_error">
+      <Card className="p-6" data-icod-id="src_features_home_myworksection_tsx_error">
         <Alert variant="error" data-icod-id="src_features_home_myworksection_tsx_4b84">
-          <div
-            className="flex items-center justify-between"
-            data-icod-id="src_features_home_myworksection_tsx_edf8">
+          <div className="flex items-center justify-between" data-icod-id="src_features_home_myworksection_tsx_edf8">
             <span data-icod-id="src_features_home_myworksection_tsx_7e95">{error || 'Failed to load your work'}</span>
             <Button
               size="sm"
@@ -61,33 +52,36 @@ export default function MyWorkSection() {
 
   if (!groups) return null;
 
-  const hasAnyItems =
+  const totalCount =
     groups.overdue.total +
     groups.dueToday.total +
     groups.dueThisWeek.total +
     groups.later.total +
     groups.noDueDate.total;
 
-  if (hasAnyItems === 0) {
+  if (totalCount === 0) {
     return (
-      <Card data-icod-id="src_features_home_myworksection_tsx_empty">
+      <Card className="p-6" data-icod-id="src_features_home_myworksection_tsx_empty">
         <EmptyState
-          icon={CheckCircle}
+          icon={CheckCircle2}
           title="You're all caught up"
-          description="Tasks assigned to you in any sheet will appear here."
+          description="Tasks assigned to you in any sheet will appear here"
           data-icod-id="src_features_home_myworksection_tsx_76aa" />
       </Card>
     );
   }
 
   return (
-    <Card className="flex flex-col" data-icod-id="src_features_home_myworksection_tsx_content">
-      <h2
-        className="mb-3 text-base font-semibold text-foreground"
-        data-icod-id="src_features_home_myworksection_tsx_6691">My Work</h2>
-      <div
-        className="flex flex-col"
-        data-icod-id="src_features_home_myworksection_tsx_5752">
+    <Card className="p-6" data-icod-id="src_features_home_myworksection_tsx_content">
+      <div className="mb-4 flex items-center gap-2" data-icod-id="src_features_home_myworksection_tsx_header">
+        <h2 className="text-base font-semibold text-foreground" data-icod-id="src_features_home_myworksection_tsx_6691">
+          My Work
+        </h2>
+        <Badge variant="neutral" size="sm" data-icod-id="src_features_home_myworksection_tsx_badge">
+          {totalCount}
+        </Badge>
+      </div>
+      <div className="flex flex-col" data-icod-id="src_features_home_myworksection_tsx_5752">
         <MyWorkGroup
           title="Overdue"
           items={groups.overdue.items}
@@ -105,6 +99,7 @@ export default function MyWorkSection() {
           title="Due This Week"
           items={groups.dueThisWeek.items}
           total={groups.dueThisWeek.total}
+          defaultOpen
           data-icod-id="src_features_home_myworksection_tsx_e39f" />
         <MyWorkGroup
           title="Later"

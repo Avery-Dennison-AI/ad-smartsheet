@@ -10,6 +10,7 @@ import { calculateEffectiveRole } from './permissionService';
 export interface MyWorkItem {
   rowId: string;
   taskName: string;
+  rowKey?: string;
   sheetId: string;
   sheetName: string;
   workspaceName: string;
@@ -259,9 +260,14 @@ export async function getMyWork(userId: string): Promise<MyWorkResponse> {
       }
     }
 
+    // Row key: system field 'key' column value (for project sheets)
+    const keyCol = sheetInfo.sheet.columns.find((c) => c.systemField === 'key');
+    const rowKey = keyCol ? (cells[keyCol.id] as string | undefined) ?? undefined : undefined;
+
     enrichedItems.push({
       rowId: (row._id as mongoose.Types.ObjectId).toString(),
       taskName,
+      rowKey,
       sheetId: sheetInfo.sheet._id.toString(),
       sheetName: sheetInfo.sheet.name,
       workspaceName: sheetInfo.workspaceName,

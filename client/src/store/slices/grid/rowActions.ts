@@ -48,7 +48,10 @@ export const updateCell = createAsyncThunk(
   ) => {
     try {
       const res = await gridService.updateCell(sheetId, rowId, columnId, value);
-      return res.data.data as { rowId: string; columnId: string; value: unknown };
+      // Server may return a single cell update or an array (for computed fields like Duration)
+      const raw = res.data.data;
+      const updates: Array<{ rowId: string; columnId: string; value: unknown }> = Array.isArray(raw) ? raw : [raw];
+      return updates;
     } catch (err: unknown) {
       return rejectWithValue(parseApiError(err).message);
     }
@@ -258,10 +261,12 @@ export function buildRowExtraReducers(builder: ActionReducerMapBuilder<GridSlice
     .addCase(updateCell.pending, (state) => { state.saving = true; state.saveError = null; })
     .addCase(updateCell.fulfilled, (state, action) => {
       state.saving = false;
-      const { rowId, columnId, value } = action.payload;
-      const row = state.rows.find((r) => r.id === rowId);
-      if (row) {
-        row.cells[columnId] = value as string | number | boolean | null;
+      const updates = action.payload;
+      for (const { rowId, columnId, value } of updates) {
+        const row = state.rows.find((r) => r.id === rowId);
+        if (row) {
+          row.cells[columnId] = value as string | number | boolean | null;
+        }
       }
     })
     .addCase(updateCell.rejected, (state, action) => {

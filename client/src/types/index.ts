@@ -220,6 +220,7 @@ export interface OrgPolicy {
 export interface MyWorkItem {
   rowId: string;
   taskName: string;
+  rowKey?: string;
   sheetId: string;
   sheetName: string;
   workspaceName: string;

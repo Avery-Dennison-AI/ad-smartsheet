@@ -99,11 +99,11 @@ async function getSerializedRows(sheetId: string) {
 }
 
 /**
- * Assigns a project key to a row if the sheet is a project sheet.
- * Uses atomic increment to ensure sequential, non-reusable keys.
+ * Generates a project key string by atomically incrementing the counter.
+ * Returns the key string, or null if the sheet is not a project sheet.
  */
-async function assignProjectKey(sheet: ISheet, row: IRow): Promise<void> {
-  if (sheet.kind !== 'project' || !sheet.project) return;
+async function generateProjectKey(sheet: ISheet): Promise<string | null> {
+  if (sheet.kind !== 'project' || !sheet.project) return null;
 
   // Atomically increment the counter — never reuse numbers
   const updated = await Sheet.findOneAndUpdate(
@@ -111,19 +111,40 @@ async function assignProjectKey(sheet: ISheet, row: IRow): Promise<void> {
     { $inc: { 'project.nextKeyNumber': 1 } },
     { new: false }, // returns doc BEFORE increment → old value IS the number to use
   );
-  if (!updated || !updated.project) return;
+  if (!updated || !updated.project) return null;
 
   const num = updated.project.nextKeyNumber; // pre-increment value
-  const key = `${updated.project.keyPrefix}-${num}`;
+  return `${updated.project.keyPrefix}-${num}`;
+}
 
-  // Find the column with systemField === 'key'
-  const keyCol = sheet.columns.find((c) => c.systemField === 'key');
-  if (!keyCol) return;
+/**
+ * Validates that a cell value conforms to project field constraints.
+ * Throws AppError(400) if the value is invalid for status or type system fields.
+ */
+function validateProjectFieldValue(
+  sheet: ISheet,
+  col: ColumnDef,
+  value: unknown,
+): void {
+  if (sheet.kind !== 'project' || !sheet.project) return;
+  if (!col.systemField) return;
 
-  // Write the key cell into the row document without re-triggering validation
-  await Row.findByIdAndUpdate(row._id, {
-    $set: { [`cells.${keyCol.id}`]: key },
-  });
+  // Allow empty/null/undefined values
+  if (value === null || value === undefined || value === '') return;
+
+  const strValue = String(value);
+
+  if (col.systemField === 'status') {
+    const validStatuses = sheet.project.statuses.map((s) => s.name);
+    if (!validStatuses.includes(strValue)) {
+      throw new AppError('Invalid status value for this project', 400);
+    }
+  } else if (col.systemField === 'type') {
+    const validTypes = sheet.project.itemTypes;
+    if (!validTypes.includes(strValue)) {
+      throw new AppError('Invalid type value for this project', 400);
+    }
+  }
 }
 
 // ─── addRow ───────────────────────────────────────────────────────────────
@@ -143,7 +164,9 @@ export async function addRow(
     for (const [colId, val] of Object.entries(data.cells)) {
       const col = colMap.get(colId);
       if (col) {
-        validatedCells[colId] = validateCellValue(col.type, val);
+        const validated = validateCellValue(col.type, val);
+        validateProjectFieldValue(sheet, col, validated);
+        validatedCells[colId] = validated;
       }
     }
   }
@@ -172,13 +195,20 @@ export async function addRow(
   // Find the new row's computed position
   const newRowHierarchy = result.find((r) => r.id === newId)!;
 
-  // Compute assigneeIds from contact cells if any
+  // Generate project key BEFORE creating the row so it's included in the initial document
   const columns = sheet.columns || [];
+  const keyCol = columns.find((c) => c.systemField === 'key');
+  const projectKey = await generateProjectKey(sheet);
+  if (projectKey && keyCol) {
+    validatedCells[keyCol.id] = projectKey;
+  }
+
+  // Compute assigneeIds from contact cells if any
   const assigneeIds = Object.keys(validatedCells).length > 0
     ? computeAssigneeIds(validatedCells, columns)
     : [];
 
-  // Create the row document
+  // Create the row document (already includes the key cell if applicable)
   const row = await Row.create({
     _id: newObjectId,
     sheetId: new mongoose.Types.ObjectId(sheetId),
@@ -188,9 +218,6 @@ export async function addRow(
     depth: newRowHierarchy.depth,
     assigneeIds,
   });
-
-  // Assign project key if this is a project sheet
-  await assignProjectKey(sheet, row);
 
   // Bulk-write hierarchy changes for all other rows
   await bulkWriteHierarchy(sheetId, result.filter((r) => r.id !== newId));
@@ -228,6 +255,9 @@ export async function updateCell(
 
   const validated = validateCellValue(col.type, value);
 
+  // Validate project field constraints (status, type)
+  validateProjectFieldValue(sheet, col, validated);
+
   if (col.type === 'contact' && validated !== null) {
     const workspace = await Workspace.findById(sheet.workspaceId);
     if (workspace) {
@@ -258,7 +288,62 @@ export async function updateCell(
     }
   }
 
-  return { rowId, columnId, value: validated };
+  // Collect all cell updates to return (includes the directly edited cell plus any computed cells)
+  const cellUpdates: Array<{ rowId: string; columnId: string; value: unknown }> = [
+    { rowId, columnId, value: validated },
+  ];
+
+  // Duration calculation for project sheets
+  if (sheet.kind === 'project' && col.systemField) {
+    const durationCol = columns.find((c) => c.systemField === 'duration');
+    const startCol = columns.find((c) => c.systemField === 'start');
+    const dueCol = columns.find((c) => c.systemField === 'due');
+
+    if (durationCol && startCol && dueCol) {
+      // Reload current row cells after the save
+      const updatedRow = await Row.findById(rowId).select('cells');
+      if (updatedRow) {
+        const currentCells = (updatedRow.toObject().cells as unknown as Record<string, unknown>) ?? {};
+        const startVal = currentCells[startCol.id] as string | null | undefined;
+        const dueVal = currentCells[dueCol.id] as string | null | undefined;
+        const durationVal = currentCells[durationCol.id] as number | null | undefined;
+
+        if (col.systemField === 'start' || col.systemField === 'due') {
+          // Recalculate Duration from Start and Due
+          if (startVal && dueVal) {
+            const startDate = new Date(startVal);
+            const dueDate = new Date(dueVal);
+            if (!isNaN(startDate.getTime()) && !isNaN(dueDate.getTime())) {
+              const newDuration = Math.round(
+                (dueDate.getTime() - startDate.getTime()) / 86_400_000,
+              ) + 1;
+              await Row.findByIdAndUpdate(rowId, {
+                $set: { [`cells.${durationCol.id}`]: newDuration },
+              });
+              cellUpdates.push({ rowId, columnId: durationCol.id, value: newDuration });
+            }
+          }
+        } else if (col.systemField === 'duration') {
+          // Recalculate Due from Start and Duration
+          if (startVal && validated != null) {
+            const startDate = new Date(startVal);
+            const dur = Number(validated);
+            if (!isNaN(startDate.getTime()) && !isNaN(dur)) {
+              const newDue = new Date(startDate);
+              newDue.setDate(newDue.getDate() + dur - 1);
+              const newDueStr = newDue.toISOString();
+              await Row.findByIdAndUpdate(rowId, {
+                $set: { [`cells.${dueCol.id}`]: newDueStr },
+              });
+              cellUpdates.push({ rowId, columnId: dueCol.id, value: newDueStr });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return cellUpdates;
 }
 
 // ─── deleteRows ───────────────────────────────────────────────────────────

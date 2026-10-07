@@ -133,7 +133,7 @@ function setupDefaultMocks(sheetOverride?: any) {
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('projectKeys — assignProjectKey', () => {
+describe('projectKeys — generateProjectKey', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -154,8 +154,11 @@ describe('projectKeys — assignProjectKey', () => {
         };
       });
 
-      // Track Row.create to capture created rows
+      // Track Row.create to capture created rows — key is now in cells at creation time
       mockRowCreate.mockImplementation(async (data: any) => {
+        // Capture the key from cells
+        const key = data.cells?.[KEY_COL_ID];
+        if (key) assignedKeys.push(key);
         const row = {
           _id: data._id,
           ...data,
@@ -164,14 +167,7 @@ describe('projectKeys — assignProjectKey', () => {
         return row;
       });
 
-      // Track Row.findByIdAndUpdate to capture key assignments
-      mockRowFindByIdAndUpdate.mockImplementation(async (_id: string, update: any) => {
-        if (update.$set && Object.keys(update.$set).some((k) => k.includes(KEY_COL_ID))) {
-          const key = update.$set[`cells.${KEY_COL_ID}`];
-          if (key) assignedKeys.push(key);
-        }
-        return {};
-      });
+      mockRowFindByIdAndUpdate.mockResolvedValue({});
 
       // Add 3 rows sequentially
       await addRow(SHEET_ID, USER_ID);
@@ -197,19 +193,17 @@ describe('projectKeys — assignProjectKey', () => {
         };
       });
 
-      mockRowCreate.mockImplementation(async (data: any) => ({
-        _id: data._id,
-        ...data,
-        toObject: () => data,
-      }));
-
-      mockRowFindByIdAndUpdate.mockImplementation(async (_id: string, update: any) => {
-        if (update.$set) {
-          const key = update.$set[`cells.${KEY_COL_ID}`];
-          if (key) assignedKeys.push(key);
-        }
-        return {};
+      mockRowCreate.mockImplementation(async (data: any) => {
+        const key = data.cells?.[KEY_COL_ID];
+        if (key) assignedKeys.push(key);
+        return {
+          _id: data._id,
+          ...data,
+          toObject: () => data,
+        };
       });
+
+      mockRowFindByIdAndUpdate.mockResolvedValue({});
 
       // Call addRow 20 times concurrently
       await Promise.all(Array.from({ length: 20 }, () => addRow(SHEET_ID, USER_ID)));
@@ -243,19 +237,17 @@ describe('projectKeys — assignProjectKey', () => {
         };
       });
 
-      mockRowCreate.mockImplementation(async (data: any) => ({
-        _id: data._id,
-        ...data,
-        toObject: () => data,
-      }));
-
-      mockRowFindByIdAndUpdate.mockImplementation(async (_id: string, update: any) => {
-        if (update.$set) {
-          const key = update.$set[`cells.${KEY_COL_ID}`];
-          if (key) assignedKeys.push(key);
-        }
-        return {};
+      mockRowCreate.mockImplementation(async (data: any) => {
+        const key = data.cells?.[KEY_COL_ID];
+        if (key) assignedKeys.push(key);
+        return {
+          _id: data._id,
+          ...data,
+          toObject: () => data,
+        };
       });
+
+      mockRowFindByIdAndUpdate.mockResolvedValue({});
 
       // After deleting HR-1, HR-2, HR-3, the next row should get HR-4
       await addRow(SHEET_ID, USER_ID);
@@ -294,19 +286,17 @@ describe('projectKeys — assignProjectKey', () => {
         };
       });
 
-      mockRowCreate.mockImplementation(async (data: any) => ({
-        _id: data._id,
-        ...data,
-        toObject: () => data,
-      }));
-
-      mockRowFindByIdAndUpdate.mockImplementation(async (_id: string, update: any) => {
-        if (update.$set) {
-          const key = update.$set[`cells.${KEY_COL_ID}`];
-          if (key) assignedKeys.push(key);
-        }
-        return {};
+      mockRowCreate.mockImplementation(async (data: any) => {
+        const key = data.cells?.[KEY_COL_ID];
+        if (key) assignedKeys.push(key);
+        return {
+          _id: data._id,
+          ...data,
+          toObject: () => data,
+        };
       });
+
+      mockRowFindByIdAndUpdate.mockResolvedValue({});
 
       // Insert after existing row
       await addRow(SHEET_ID, USER_ID, { afterRowId: existingRowId });
@@ -342,19 +332,17 @@ describe('projectKeys — assignProjectKey', () => {
         };
       });
 
-      mockRowCreate.mockImplementation(async (data: any) => ({
-        _id: data._id,
-        ...data,
-        toObject: () => data,
-      }));
-
-      mockRowFindByIdAndUpdate.mockImplementation(async (_id: string, update: any) => {
-        if (update.$set) {
-          const key = update.$set[`cells.${KEY_COL_ID}`];
-          if (key) assignedKeys.push(key);
-        }
-        return {};
+      mockRowCreate.mockImplementation(async (data: any) => {
+        const key = data.cells?.[KEY_COL_ID];
+        if (key) assignedKeys.push(key);
+        return {
+          _id: data._id,
+          ...data,
+          toObject: () => data,
+        };
       });
+
+      mockRowFindByIdAndUpdate.mockResolvedValue({});
 
       // Insert before existing row
       await addRow(SHEET_ID, USER_ID, { beforeRowId: existingRowId });
@@ -378,19 +366,17 @@ describe('projectKeys — assignProjectKey', () => {
         };
       });
 
-      mockRowCreate.mockImplementation(async (data: any) => ({
-        _id: data._id,
-        ...data,
-        toObject: () => data,
-      }));
-
-      mockRowFindByIdAndUpdate.mockImplementation(async (_id: string, update: any) => {
-        if (update.$set) {
-          const key = update.$set[`cells.${KEY_COL_ID}`];
-          if (key) assignedKeys.push(key);
-        }
-        return {};
+      mockRowCreate.mockImplementation(async (data: any) => {
+        const key = data.cells?.[KEY_COL_ID];
+        if (key) assignedKeys.push(key);
+        return {
+          _id: data._id,
+          ...data,
+          toObject: () => data,
+        };
       });
+
+      mockRowFindByIdAndUpdate.mockResolvedValue({});
 
       // Create blank row (no cells provided)
       await addRow(SHEET_ID, USER_ID);

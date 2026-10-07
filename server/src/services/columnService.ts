@@ -60,6 +60,11 @@ export async function updateColumn(
   }
 
   if (patch.type !== undefined && patch.type !== col.type) {
+    // Block type changes on system field columns
+    if (col.systemField) {
+      throw new AppError('This is a project field', 400);
+    }
+
     const oldType = col.type;
     col.type = patch.type;
 
@@ -187,6 +192,10 @@ export async function deleteColumn(
   const columns = [...(sheet.columns || [])];
   const colIndex = columns.findIndex((c) => c.id === columnId);
   if (colIndex === -1) throw new AppError('Column not found', 404);
+
+  if (columns[colIndex].systemField) {
+    throw new AppError('This is a project field', 400);
+  }
 
   if (columns[colIndex].isPrimary) {
     throw new AppError('Set another column as primary before deleting this one.', 400);
