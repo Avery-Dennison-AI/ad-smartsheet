@@ -20,6 +20,7 @@ import gridRouter from './routes/grid';
 import userPreferencesRouter from './routes/userPreferences';
 import usersRouter from './routes/users';
 import orgPolicyRouter from './routes/orgPolicy';
+import myWorkRouter from './routes/myWork';
 import { seedAdmin } from './config/seedAdmin';
 import { migrateWorkspaceColors, repairBrokenColumns, repairPrimaryColumnOrder, migrateUserRoles } from './config/migrations';
 import { sendSuccess } from './utils/response';
@@ -81,6 +82,7 @@ app.use('/api/user', userSheetsRouter);
 app.use('/api/user', userPreferencesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/org-policy', orgPolicyRouter);
+app.use('/api/my-work', myWorkRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use(errorHandler);

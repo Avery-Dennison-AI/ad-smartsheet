@@ -1,21 +1,23 @@
-import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { PageContainer, Button, EmptyState, Spinner } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSheet, selectCurrentSheet, selectSheetsLoading, selectSheetsError, selectSheetsErrorStatus, clearCurrentSheet } from '@/store/slices/sheetsSlice';
 import { setFavoriteMeta, selectRecents, selectFavorites } from '@/store/slices/userMetaSlice';
-import { selectGridSaving, selectGridSaveError, clearGrid } from '@/store/slices/gridSlice';
+import { selectGridSaving, selectGridSaveError, clearGrid, selectGridLoading } from '@/store/slices/gridSlice';
 import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 import SheetGrid from '@/features/sheets/grid/SheetGrid';
 import SheetToolbar from '@/features/sheets/grid/SheetToolbar';
 
 export default function SheetPage() {
   const { sheetId } = useParams<{ sheetId: string }>();
+  const [searchParams] = useSearchParams();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const sheet = useAppSelector(selectCurrentSheet);
   const loading = useAppSelector(selectSheetsLoading);
+  const gridLoading = useAppSelector(selectGridLoading);
   const error = useAppSelector(selectSheetsError);
   const errorStatus = useAppSelector(selectSheetsErrorStatus);
   const recents = useAppSelector(selectRecents);
@@ -23,6 +25,21 @@ export default function SheetPage() {
   const saving = useAppSelector(selectGridSaving);
   const saveError = useAppSelector(selectGridSaveError);
   const { handleSheetAccessLost, isAccessError } = useWorkspaceAccessLost();
+
+  // Row highlight from ?row=<rowId> URL param
+  const rowParam = searchParams.get('row');
+  const [highlightRowId, setHighlightRowId] = useState<string | null>(null);
+
+  // After grid loads, activate the highlight and clear it after 2 seconds
+  useEffect(() => {
+    if (rowParam && !gridLoading) {
+      setHighlightRowId(rowParam);
+      const timer = setTimeout(() => {
+        setHighlightRowId(null);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [rowParam, gridLoading]);
 
   // Derive favorite state from userMeta
   const isFavorite = sheetId
@@ -121,6 +138,7 @@ export default function SheetPage() {
         <SheetGrid
           sheetId={sheet.id}
           userRole={sheet.userRole || 'viewer'}
+          highlightRowId={highlightRowId}
           data-icod-id="src_pages_sheetpage_tsx_d329" />
       </div>
     </div>

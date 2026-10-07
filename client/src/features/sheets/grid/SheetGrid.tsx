@@ -33,9 +33,10 @@ const MIN_BLANK_ROWS = 50;
 interface SheetGridProps {
   sheetId: string;
   userRole: WorkspaceRole;
+  highlightRowId?: string | null;
 }
 
-export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
+export default function SheetGrid({ sheetId, userRole, highlightRowId }: SheetGridProps) {
   const dispatch = useAppDispatch();
   const columns = useAppSelector(selectGridColumns);
   const rows = useAppSelector(selectGridRows);
@@ -113,6 +114,18 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
     defaultRowHeight: DEFAULT_ROW_HEIGHT,
     effectiveRowHeights: wrapRowHeights,
   });
+
+  // ─── Highlight row from URL param ──────────────────────────────────────
+  useEffect(() => {
+    if (!highlightRowId) return;
+    const idx = visibleRows.findIndex((r) => r.id === highlightRowId);
+    if (idx < 0) return;
+    const scrollTop = virtualization.rowPositions.tops[idx] - HEADER_HEIGHT;
+    const node = virtualization.scrollNodeRef.current;
+    if (node) {
+      node.scrollTop = Math.max(0, scrollTop);
+    }
+  }, [highlightRowId, visibleRows, virtualization.rowPositions.tops, virtualization.scrollNodeRef]);
 
   // Selection hook
   const selection = useGridSelection({
@@ -453,6 +466,19 @@ export default function SheetGrid({ sheetId, userRole }: SheetGridProps) {
             dropTargetRowId={rowOps.dropTargetRowId}
             dropPosition={rowOps.dropPosition}
             data-icod-id="src_features_sheets_grid_sheetgrid_tsx_a98f" />
+          {/* Row highlight overlay for ?row= URL param */}
+          {highlightRowId && (() => {
+            const hIdx = visibleRows.findIndex((r) => r.id === highlightRowId);
+            if (hIdx < 0) return null;
+            const top = virtualization.rowPositions.tops[hIdx];
+            const rowH = wrapRowHeights[highlightRowId] ?? visibleRows[hIdx]?.height ?? DEFAULT_ROW_HEIGHT;
+            return (
+              <div
+                className="pointer-events-none absolute left-0 right-0 animate-pulse bg-primary/15"
+                style={{ top, height: rowH }}
+                data-icod-id="src_features_sheets_grid_sheetgrid_tsx_highlight" />
+            );
+          })()}
         </div>
       </div>
       {/* Dialogs */}

@@ -215,3 +215,28 @@ export interface OrgPolicy {
   maxGuestRole: 'editor' | 'viewer';
 }
 
+// ─── My Work Types ──────────────────────────────────────────────────────────
+
+export interface MyWorkItem {
+  rowId: string;
+  taskName: string;
+  sheetId: string;
+  sheetName: string;
+  workspaceName: string;
+  status: { label: string; color: string } | null;
+  dueDate: string | null;
+}
+
+export interface MyWorkGroup {
+  items: MyWorkItem[];
+  total: number;
+}
+
+export interface MyWorkResponse {
+  overdue: MyWorkGroup;
+  dueToday: MyWorkGroup;
+  dueThisWeek: MyWorkGroup;
+  later: MyWorkGroup;
+  noDueDate: MyWorkGroup;
+}
+
