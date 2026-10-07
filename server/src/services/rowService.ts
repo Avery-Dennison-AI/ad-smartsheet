@@ -12,8 +12,48 @@ import {
   deleteRows as pureDeleteRows,
   validateHierarchy,
 } from './hierarchy';
+import type { ColumnDef } from '../models/Sheet';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * Computes a deduplicated array of user ObjectIds from contact-type cell values.
+ * Exported for use in tests and the backfill migration.
+ */
+export function computeAssigneeIds(
+  cells: Record<string, unknown>,
+  columns: ColumnDef[],
+): mongoose.Types.ObjectId[] {
+  const seen = new Set<string>();
+  const result: mongoose.Types.ObjectId[] = [];
+
+  for (const col of columns) {
+    if (col.type !== 'contact') continue;
+    const val = cells[col.id];
+    if (val == null) continue;
+
+    const ids: string[] = [];
+    if (typeof val === 'string') {
+      ids.push(val);
+    } else if (Array.isArray(val)) {
+      for (const v of val) {
+        if (typeof v === 'string') ids.push(v);
+        else if (v && typeof v === 'object' && 'id' in v) ids.push(String((v as { id: unknown }).id));
+      }
+    } else if (typeof val === 'object' && val !== null && 'id' in val) {
+      ids.push(String((val as { id: unknown }).id));
+    }
+
+    for (const id of ids) {
+      if (!seen.has(id) && mongoose.Types.ObjectId.isValid(id)) {
+        seen.add(id);
+        result.push(new mongoose.Types.ObjectId(id));
+      }
+    }
+  }
+
+  return result;
+}
 
 /** Load all rows for a sheet as sorted HierarchyRow[]. */
 async function loadHierarchyRows(sheetId: string): Promise<HierarchyRow[]> {
@@ -103,6 +143,12 @@ export async function addRow(
   // Find the new row's computed position
   const newRowHierarchy = result.find((r) => r.id === newId)!;
 
+  // Compute assigneeIds from contact cells if any
+  const columns = sheet.columns || [];
+  const assigneeIds = Object.keys(validatedCells).length > 0
+    ? computeAssigneeIds(validatedCells, columns)
+    : [];
+
   // Create the row document
   const row = await Row.create({
     _id: newObjectId,
@@ -111,6 +157,7 @@ export async function addRow(
     cells: validatedCells,
     parentId: newRowHierarchy.parentId ? new mongoose.Types.ObjectId(newRowHierarchy.parentId) : null,
     depth: newRowHierarchy.depth,
+    assigneeIds,
   });
 
   // Bulk-write hierarchy changes for all other rows
@@ -162,6 +209,17 @@ export async function updateCell(
   await Row.findByIdAndUpdate(rowId, {
     $set: { [`cells.${columnId}`]: validated },
   });
+
+  // If the updated column is a contact type, recompute assigneeIds for this row
+  if (col.type === 'contact') {
+    const updatedRow = await Row.findById(rowId).select('cells');
+    if (updatedRow) {
+      const cells = (updatedRow.toObject().cells as unknown as Record<string, unknown>) ?? {};
+      const columns = sheet.columns || [];
+      const newAssigneeIds = computeAssigneeIds(cells, columns);
+      await Row.findByIdAndUpdate(rowId, { $set: { assigneeIds: newAssigneeIds } });
+    }
+  }
 
   return { rowId, columnId, value: validated };
 }

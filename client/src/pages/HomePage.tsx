@@ -1,8 +1,14 @@
-import { PageContainer } from '@/components/ui';
-import { useAppSelector } from '@/store/hooks';
+import { useState, useEffect } from 'react';
+import { Plus, FileSpreadsheet, Briefcase } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { PageContainer, Button, DropdownMenu } from '@/components/ui';
+import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 import { selectMyWorkGroups } from '@/store/slices/myWorkSlice';
-import { MyWorkSection, QuickActionsPanel, JumpBackInPanel, SharedWithMePanel } from '@/features/home';
+import { selectOrgPolicy, fetchOrgPolicy } from '@/store/slices/orgPolicySlice';
+import { CreateWorkspaceModal } from '@/features/workspaces';
+import { MyWorkSection, RecentStrip } from '@/features/home';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -12,8 +18,19 @@ function getGreeting(): string {
 }
 
 export default function HomePage() {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const user = useAppSelector(selectCurrentUser);
   const groups = useAppSelector(selectMyWorkGroups);
+  const orgPolicy = useAppSelector(selectOrgPolicy);
+  const [createWsOpen, setCreateWsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!orgPolicy) {
+      dispatch(fetchOrgPolicy());
+    }
+  }, [orgPolicy, dispatch]);
+
   const firstName = user?.fullName?.split(' ')[0] || 'there';
   const greeting = getGreeting();
 
@@ -30,34 +47,67 @@ export default function HomePage() {
     summary = `You have ${parts.join(' and ')}.`;
   }
 
+  // Determine workspace creation permission
+  const isAdmin = user?.role === 'admin';
+  const canCreateWorkspaces = orgPolicy?.whoCanCreateWorkspaces !== 'admins' || isAdmin;
+
+  // Build dropdown items
+  const menuItems: DropdownMenuItem[] = [
+    {
+      label: 'New sheet',
+      icon: <FileSpreadsheet className="h-4 w-4" data-icod-id="src_pages_homepage_tsx_2b3d" />,
+      onClick: () => navigate('/workspaces'),
+    },
+  ];
+
+  if (canCreateWorkspaces) {
+    menuItems.push({
+      label: 'New workspace',
+      icon: <Briefcase className="h-4 w-4" data-icod-id="src_pages_homepage_tsx_d574" />,
+      onClick: () => setCreateWsOpen(true),
+    });
+  }
+
   return (
     <PageContainer data-icod-id="src_pages_homepage_tsx_root">
-      {/* Greeting */}
-      <div className="mb-6" data-icod-id="src_pages_homepage_tsx_greeting">
-        <h1
-          className="text-xl font-bold text-foreground"
-          data-icod-id="src_pages_homepage_tsx_6b0b">
-          {greeting}, {firstName}
-        </h1>
-        <p
-          className="mt-1 text-sm text-muted-foreground"
-          data-icod-id="src_pages_homepage_tsx_1a19">{summary}</p>
-      </div>
-      {/* Two-column layout */}
+      {/* Page header */}
       <div
-        className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]"
-        data-icod-id="src_pages_homepage_tsx_layout"
+        className="mb-6 flex items-start justify-between"
+        data-icod-id="src_pages_homepage_tsx_header"
       >
-        {/* Main column — My Work */}
-        <MyWorkSection data-icod-id="src_pages_homepage_tsx_69e5" />
+        <div data-icod-id="src_pages_homepage_tsx_greeting">
+          <h1
+            className="text-xl font-bold text-foreground"
+            data-icod-id="src_pages_homepage_tsx_6b0b">
+            {greeting}, {firstName}
+          </h1>
+          <p
+            className="mt-1 text-sm text-muted-foreground"
+            data-icod-id="src_pages_homepage_tsx_1a19">{summary}</p>
+        </div>
 
-        {/* Right sidebar */}
-        <aside className="flex flex-col gap-4" data-icod-id="src_pages_homepage_tsx_sidebar">
-          <QuickActionsPanel data-icod-id="src_pages_homepage_tsx_fafc" />
-          <JumpBackInPanel data-icod-id="src_pages_homepage_tsx_3100" />
-          <SharedWithMePanel data-icod-id="src_pages_homepage_tsx_ca4b" />
-        </aside>
+        <DropdownMenu
+          trigger={
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus className="h-4 w-4" data-icod-id="src_pages_homepage_tsx_adee" />}
+              data-icod-id="src_pages_homepage_tsx_new_btn">
+              New +
+            </Button>
+          }
+          items={menuItems}
+          data-icod-id="src_pages_homepage_tsx_dropdown" />
       </div>
+      {/* Recent strip */}
+      <RecentStrip data-icod-id="src_pages_homepage_tsx_recent" />
+      {/* My Work — full width */}
+      <MyWorkSection data-icod-id="src_pages_homepage_tsx_mywork" />
+      {/* Create Workspace Modal */}
+      <CreateWorkspaceModal
+        open={createWsOpen}
+        onClose={() => setCreateWsOpen(false)}
+        data-icod-id="src_pages_homepage_tsx_create_ws_modal" />
     </PageContainer>
   );
 }

@@ -250,6 +250,7 @@ export async function duplicateSheet(sheetId: string, userId: string) {
         height: r.height ?? undefined,
         parentId: r.parentId ? (idMap.get(r.parentId.toString()) ?? r.parentId) : null,
         depth: r.depth ?? 0,
+        assigneeIds: r.assigneeIds || [],
       } as any);
     }
 

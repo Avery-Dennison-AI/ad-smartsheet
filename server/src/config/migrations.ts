@@ -1,7 +1,9 @@
 import Workspace, { WORKSPACE_COLORS } from '../models/Workspace';
 import Sheet from '../models/Sheet';
 import User from '../models/User';
+import Row from '../models/Row';
 import type { ColumnDef } from '../models/Sheet';
+import { computeAssigneeIds } from '../services/rowService';
 
 /** Hex-to-palette-name mapping for one-time colour migration. */
 const HEX_TO_PALETTE: Record<string, string> = {
@@ -147,5 +149,83 @@ export async function migrateUserRoles(): Promise<void> {
 
   if (migrated > 0) {
     console.log(`[startup] Migrated ${migrated} user(s) from orgRole to unified role field`);
+  }
+}
+
+/**
+ * Backfills the `assigneeIds` field on all existing rows that don't have it yet.
+ * For each row, looks up its sheet's columns, extracts contact column ids,
+ * and computes assigneeIds from cell values. Uses cursor-based batch iteration.
+ * Idempotent: skips rows that already have assigneeIds populated.
+ */
+export async function backfillRowAssigneeIds(): Promise<void> {
+  const BATCH_SIZE = 500;
+
+  // Build a map of sheetId → columns for sheets that have contact columns
+  const sheetsWithContact = await Sheet.find({
+    'columns': { $elemMatch: { type: 'contact' } },
+  }).select('_id columns');
+
+  if (sheetsWithContact.length === 0) return;
+
+  const sheetColumnsMap = new Map<string, ColumnDef[]>();
+  const sheetIds: string[] = [];
+  for (const sheet of sheetsWithContact) {
+    sheetColumnsMap.set(sheet._id.toString(), sheet.columns);
+    sheetIds.push(sheet._id.toString());
+  }
+
+  let updatedCount = 0;
+  let processedCount = 0;
+
+  // Process rows in batches using cursor
+  const cursor = Row.find({
+    sheetId: { $in: sheetIds },
+    $or: [
+      { assigneeIds: { $exists: false } },
+      { assigneeIds: { $size: 0 } },
+    ],
+  }).cursor();
+
+  const batch: Array<{ rowId: string; assigneeIds: ReturnType<typeof computeAssigneeIds> }> = [];
+
+  for await (const row of cursor) {
+    const sheetIdStr = row.sheetId.toString();
+    const columns = sheetColumnsMap.get(sheetIdStr);
+    if (!columns) continue;
+
+    const cells = (row.toObject().cells as unknown as Record<string, unknown>) ?? {};
+    const assigneeIds = computeAssigneeIds(cells, columns);
+
+    batch.push({ rowId: row._id.toString(), assigneeIds });
+    processedCount++;
+
+    if (batch.length >= BATCH_SIZE) {
+      const ops = batch.map((item) => ({
+        updateOne: {
+          filter: { _id: item.rowId },
+          update: { $set: { assigneeIds: item.assigneeIds } },
+        },
+      }));
+      const result = await Row.bulkWrite(ops);
+      updatedCount += result.modifiedCount;
+      batch.length = 0;
+    }
+  }
+
+  // Flush remaining batch
+  if (batch.length > 0) {
+    const ops = batch.map((item) => ({
+      updateOne: {
+        filter: { _id: item.rowId },
+        update: { $set: { assigneeIds: item.assigneeIds } },
+      },
+    }));
+    const result = await Row.bulkWrite(ops);
+    updatedCount += result.modifiedCount;
+  }
+
+  if (updatedCount > 0) {
+    console.log(`[startup] Backfilled assigneeIds on ${updatedCount} row(s) (processed ${processedCount})`);
   }
 }

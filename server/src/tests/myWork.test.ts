@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { groupMyWorkItems, isRowCompleted } from '../services/myWorkService';
 import type { MyWorkItem } from '../services/myWorkService';
 import type { ColumnDef } from '../models/Sheet';
+import { computeAssigneeIds } from '../services/rowService';
 
 // ─── Test helpers ────────────────────────────────────────────────────────────────
 
@@ -208,5 +209,114 @@ describe('isRowCompleted', () => {
     const columns = [makeCol({ id: 'c1', name: 'Done', type: 'checkbox' })];
     const row = { cells: { c1: 'true' } };
     expect(isRowCompleted(row, columns)).toBe(true);
+  });
+});
+
+// ─── computeAssigneeIds tests ────────────────────────────────────────────────────
+
+describe('computeAssigneeIds', () => {
+  function makeCol(id: string, type: ColumnDef['type']): ColumnDef {
+    return { id, name: `Col ${id}`, type, order: 0, isPrimary: false };
+  }
+
+  it('extracts user IDs from a single contact column with an array value', () => {
+    const columns = [
+      makeCol('col1', 'contact'),
+      makeCol('col2', 'contact'),
+      makeCol('col3', 'text'),
+    ];
+    const cells = { col1: ['507f1f77bcf86cd799439001', '507f1f77bcf86cd799439002'], col2: [] };
+    const result = computeAssigneeIds(cells, columns);
+    const ids = result.map((oid) => oid.toString());
+    expect(ids).toContain('507f1f77bcf86cd799439001');
+    expect(ids).toContain('507f1f77bcf86cd799439002');
+    expect(ids).toHaveLength(2);
+  });
+
+  it('deduplicates across multiple contact columns', () => {
+    const columns = [
+      makeCol('col1', 'contact'),
+      makeCol('col2', 'contact'),
+    ];
+    const cells = {
+      col1: ['507f1f77bcf86cd799439001', '507f1f77bcf86cd799439002'],
+      col2: ['507f1f77bcf86cd799439002', '507f1f77bcf86cd799439003'],
+    };
+    const result = computeAssigneeIds(cells, columns);
+    expect(result).toHaveLength(3);
+  });
+
+  it('ignores non-contact columns', () => {
+    const columns = [
+      makeCol('col1', 'contact'),
+      makeCol('col2', 'text'),
+      makeCol('col3', 'dropdown'),
+    ];
+    const cells = { col1: ['507f1f77bcf86cd799439001'], col2: 'some text', col3: 'option1' };
+    const result = computeAssigneeIds(cells, columns);
+    expect(result).toHaveLength(1);
+  });
+
+  it('returns empty array when no contact columns exist', () => {
+    const columns = [
+      makeCol('col1', 'text'),
+      makeCol('col2', 'number'),
+    ];
+    const cells = { col1: 'hello', col2: 42 };
+    const result = computeAssigneeIds(cells, columns);
+    expect(result).toHaveLength(0);
+  });
+
+  it('handles null and missing cell values gracefully', () => {
+    const columns = [makeCol('col1', 'contact')];
+    const cells = {};
+    const result = computeAssigneeIds(cells, columns);
+    expect(result).toHaveLength(0);
+  });
+
+  it('handles clearing all contact values', () => {
+    const columns = [makeCol('col1', 'contact')];
+    const cells = { col1: null };
+    const result = computeAssigneeIds(cells, columns);
+    expect(result).toHaveLength(0);
+  });
+
+  it('handles object-with-id format in contact cells', () => {
+    const columns = [makeCol('col1', 'contact')];
+    const cells = { col1: [{ id: '507f1f77bcf86cd799439011' }, { id: '507f1f77bcf86cd799439012' }] };
+    const result = computeAssigneeIds(cells, columns);
+    expect(result).toHaveLength(2);
+  });
+});
+
+// ─── My Work grouping determinism (assigneeIds query invariant) ──────────────────
+
+describe('groupMyWorkItems determinism', () => {
+  const NOW = new Date('2025-06-15T12:00:00Z');
+
+  it('produces the same groups regardless of input order', () => {
+    const items: MyWorkItem[] = [
+      makeItem({ rowId: 'a', taskName: 'Alpha', dueDate: utcDateOffset(NOW, -2) }),
+      makeItem({ rowId: 'b', taskName: 'Beta', dueDate: utcDateOffset(NOW, 0) }),
+      makeItem({ rowId: 'c', taskName: 'Gamma', dueDate: utcDateOffset(NOW, 3) }),
+      makeItem({ rowId: 'd', taskName: 'Delta', dueDate: utcDateOffset(NOW, 14) }),
+      makeItem({ rowId: 'e', taskName: 'Epsilon', dueDate: null }),
+    ];
+
+    const resultForward = groupMyWorkItems(items, NOW);
+    const resultReverse = groupMyWorkItems([...items].reverse(), NOW);
+
+    // Same totals
+    expect(resultForward.overdue.total).toBe(resultReverse.overdue.total);
+    expect(resultForward.dueToday.total).toBe(resultReverse.dueToday.total);
+    expect(resultForward.dueThisWeek.total).toBe(resultReverse.dueThisWeek.total);
+    expect(resultForward.later.total).toBe(resultReverse.later.total);
+    expect(resultForward.noDueDate.total).toBe(resultReverse.noDueDate.total);
+
+    // Same row IDs in each group
+    expect(resultForward.overdue.items.map((i) => i.rowId))
+      .toEqual(resultReverse.overdue.items.map((i) => i.rowId));
+    expect(resultForward.dueToday.items.map((i) => i.rowId))
+      .toEqual(resultReverse.dueToday.items.map((i) => i.rowId));
   });
 });

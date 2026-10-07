@@ -196,9 +196,12 @@ export async function getMyWork(userId: string): Promise<MyWorkResponse> {
     return emptyResponse();
   }
 
-  // 5. Query rows in bulk for accessible sheets
+  // 5. Query rows in bulk for accessible sheets, filtered by assigneeIds
   const accessibleSheetIds = accessibleSheets.map((s) => s.sheet._id);
-  const rows = await Row.find({ sheetId: { $in: accessibleSheetIds } })
+  const rows = await Row.find({
+    sheetId: { $in: accessibleSheetIds },
+    assigneeIds: new mongoose.Types.ObjectId(userId),
+  })
     .select('_id sheetId cells')
     .lean();
 
@@ -208,24 +211,14 @@ export async function getMyWork(userId: string): Promise<MyWorkResponse> {
     sheetLookup.set(as.sheet._id.toString(), as);
   }
 
-  // 6. Filter rows where any contact cell contains the user's ID
+  // 6. Process matching rows — all are already assigned to this user via assigneeIds
   const enrichedItems: MyWorkItem[] = [];
 
   for (const row of rows) {
     const sheetInfo = sheetLookup.get(row.sheetId.toString());
     if (!sheetInfo) continue;
 
-    // Check if any contact cell references this user
     const cells = (row.cells ?? {}) as Record<string, unknown>;
-    let assignedToUser = false;
-    for (const colId of sheetInfo.contactColumnIds) {
-      const cellVal = cells[colId];
-      if (isContactCellContainingUser(cellVal, userId)) {
-        assignedToUser = true;
-        break;
-      }
-    }
-    if (!assignedToUser) continue;
 
     // Exclude completed rows
     if (isRowCompleted({ cells }, sheetInfo.sheet.columns)) continue;

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { Card, Alert, Button, Skeleton, EmptyState } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchMyWork, selectMyWorkGroups, selectMyWorkStatus, selectMyWorkError } from '@/store/slices/myWorkSlice';
@@ -72,9 +72,9 @@ export default function MyWorkSection() {
     return (
       <Card data-icod-id="src_features_home_myworksection_tsx_empty">
         <EmptyState
-          compact
-          icon={AlertCircle}
-          title="No tasks assigned to you right now."
+          icon={CheckCircle}
+          title="You're all caught up"
+          description="Tasks assigned to you in any sheet will appear here."
           data-icod-id="src_features_home_myworksection_tsx_76aa" />
       </Card>
     );

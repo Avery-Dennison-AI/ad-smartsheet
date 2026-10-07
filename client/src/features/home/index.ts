@@ -4,3 +4,4 @@ export { default as MyWorkRow } from './MyWorkRow';
 export { default as QuickActionsPanel } from './QuickActionsPanel';
 export { default as JumpBackInPanel } from './JumpBackInPanel';
 export { default as SharedWithMePanel } from './SharedWithMePanel';
+export { default as RecentStrip } from './RecentStrip';

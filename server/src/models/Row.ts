@@ -8,6 +8,7 @@ export interface IRow extends Document {
   height?: number;
   parentId: mongoose.Types.ObjectId | null;
   depth: number;
+  assigneeIds: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,12 +22,16 @@ const rowSchema = new Schema<IRow>(
     height: { type: Number, default: undefined, min: 34, max: 400 },
     parentId: { type: Schema.Types.ObjectId, ref: 'Row', default: null },
     depth: { type: Number, default: 0, min: 0, max: 10 },
+    assigneeIds: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true },
 );
 
 // Compound index for efficient queries by sheet sorted by order
 rowSchema.index({ sheetId: 1, order: 1 });
+
+// Compound index for efficient My Work queries by assignee within a sheet
+rowSchema.index({ sheetId: 1, assigneeIds: 1 });
 
 const Row = mongoose.model<IRow>('Row', rowSchema);
 
