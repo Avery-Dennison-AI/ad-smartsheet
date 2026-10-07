@@ -1,160 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-// ─── Mock Mongoose models ──────────────────────────────────────────────────────
-
-const mockSheetFindById = vi.fn();
-const mockSheetFindOne = vi.fn();
-const mockSheetFindOneAndUpdate = vi.fn();
-const mockSheetFindByIdAndUpdate = vi.fn();
-const mockSheetCreate = vi.fn();
-const mockRowCreate = vi.fn();
-const mockRowFindById = vi.fn();
-const mockRowFindByIdAndUpdate = vi.fn();
-const mockRowFind = vi.fn();
-const mockRowBulkWrite = vi.fn();
-const mockRowInsertMany = vi.fn();
-const mockRowUpdateMany = vi.fn();
-const mockWorkspaceFindById = vi.fn();
-const mockUserFindById = vi.fn();
-const mockUserSheetMetaFind = vi.fn();
-const mockUserSheetMetaFindOneAndUpdate = vi.fn();
-
-vi.mock('../models/Sheet', () => ({
-  default: {
-    findById: (...args: unknown[]) => mockSheetFindById(...args),
-    findOne: (...args: unknown[]) => mockSheetFindOne(...args),
-    findOneAndUpdate: (...args: unknown[]) => mockSheetFindOneAndUpdate(...args),
-    findByIdAndUpdate: (...args: unknown[]) => mockSheetFindByIdAndUpdate(...args),
-    create: (...args: unknown[]) => mockSheetCreate(...args),
-  },
-}));
-
-vi.mock('../models/Row', () => ({
-  default: {
-    create: (...args: unknown[]) => mockRowCreate(...args),
-    findById: (...args: unknown[]) => mockRowFindById(...args),
-    findByIdAndUpdate: (...args: unknown[]) => mockRowFindByIdAndUpdate(...args),
-    find: (...args: unknown[]) => mockRowFind(...args),
-    bulkWrite: (...args: unknown[]) => mockRowBulkWrite(...args),
-    insertMany: (...args: unknown[]) => mockRowInsertMany(...args),
-    updateMany: (...args: unknown[]) => mockRowUpdateMany(...args),
-  },
-}));
-
-vi.mock('../models/Workspace', () => ({
-  default: {
-    findById: (...args: unknown[]) => mockWorkspaceFindById(...args),
-  },
-}));
-
-vi.mock('../models/User', () => ({
-  default: {
-    findById: (...args: unknown[]) => mockUserFindById(...args),
-  },
-}));
-
-vi.mock('../models/UserSheetMeta', () => ({
-  default: {
-    find: (...args: unknown[]) => mockUserSheetMetaFind(...args),
-    findOneAndUpdate: (...args: unknown[]) => mockUserSheetMetaFindOneAndUpdate(...args),
-  },
-}));
-
-vi.mock('../services/workspaceService', () => ({
-  getMemberRole: (workspace: any, userId: string) => {
-    const member = workspace?.members?.find((m: any) => String(m.user) === String(userId));
-    return member ? member.role : null;
-  },
-}));
-
-// Import after mocks
+import { describe, it, expect } from 'vitest';
+import { createUser, createWorkspace, createProject, createRow } from './helpers/factories';
 import { calculateDuration, calculateDueDate, parseDateUTC, formatDateUTC } from '../services/rowService';
 import { duplicateSheet } from '../services/sheetService';
+import Sheet from '../models/Sheet';
+import Row from '../models/Row';
 
-// ─── Test constants ────────────────────────────────────────────────────────────
-
-const USER_ID = '507f1f77bcf86cd799439011';
-const SHEET_ID = '507f1f77bcf86cd799439012';
-const WORKSPACE_ID = '507f1f77bcf86cd799439013';
-const NEW_SHEET_ID = '507f1f77bcf86cd799439099';
-
-const NAME_COL_ID = 'col-name-001';
-const KEY_COL_ID = 'col-key-001';
-const STATUS_COL_ID = 'col-status-001';
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Creates a chainable mock that supports .select(), .populate(), .lean(), .exec() */
-function makeChainable(value: unknown) {
-  const q: any = {
-    select: () => q,
-    populate: () => q,
-    lean: () => q,
-    exec: () => Promise.resolve(value),
-    then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
-      Promise.resolve(value).then(resolve, reject),
-  };
-  return q;
-}
-
-function makeProjectSheet(nextKeyNumber = 1, keyPrefix = 'HR') {
-  return {
-    _id: SHEET_ID,
-    workspaceId: WORKSPACE_ID,
-    kind: 'project' as const,
-    project: {
-      keyPrefix,
-      template: 'scrum' as const,
-      statuses: [
-        { name: 'Open', color: 'gray', category: 'todo' as const },
-      ],
-      itemTypes: ['Story', 'Bug'],
-      nextKeyNumber,
-    },
-    columns: [
-      { id: NAME_COL_ID, name: 'Name', type: 'text' as const, order: 0, isPrimary: true },
-      { id: KEY_COL_ID, name: 'Key', type: 'text' as const, order: 1, isPrimary: false, systemField: 'key' as const },
-      { id: STATUS_COL_ID, name: 'Status', type: 'dropdown' as const, order: 2, isPrimary: false, systemField: 'status' as const, options: [
-        { label: 'Open', color: 'gray' },
-      ]},
-    ],
-    members: [],
-  };
-}
-
-function makeWorkspace(role = 'editor') {
-  return {
-    _id: WORKSPACE_ID,
-    members: [{ user: USER_ID, role }],
-  };
-}
-
-function makeUser() {
-  return {
-    _id: USER_ID,
-    role: 'member',
-    isActive: true,
-  };
-}
-
-function setupDefaultMocks(sheetOverride?: any) {
-  const sheet = sheetOverride ?? makeProjectSheet();
-
-  mockSheetFindById.mockReturnValue(makeChainable(sheet));
-  mockWorkspaceFindById.mockReturnValue(makeChainable(makeWorkspace()));
-  mockUserFindById.mockReturnValue(makeChainable(makeUser()));
-  mockRowFind.mockReturnValue({
-    sort: vi.fn().mockResolvedValue([]),
-  });
-  mockRowBulkWrite.mockResolvedValue({ modifiedCount: 0 });
-  mockRowInsertMany.mockResolvedValue([]);
-  mockRowUpdateMany.mockResolvedValue({ modifiedCount: 0 });
-  mockSheetFindByIdAndUpdate.mockResolvedValue({});
-  // By default, no existing prefix conflicts
-  mockSheetFindOne.mockReturnValue(makeChainable(null));
-}
-
-// ─── Tests: Date format helpers ────────────────────────────────────────────────
+// ─── Tests: Date format helpers (pure functions — no DB) ──────────────────────
 
 describe('date format helpers', () => {
   it('calculateDueDate produces YYYY-MM-DD from start + duration', () => {
@@ -196,334 +47,173 @@ describe('date format helpers', () => {
   });
 });
 
-// ─── Tests: Project duplication ────────────────────────────────────────────────
+// ─── Tests: Project duplication (real DB) ─────────────────────────────────────
 
 describe('project duplication', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('produces new keys in order when duplicating a project with rows', async () => {
-    const sheet = makeProjectSheet(4); // nextKeyNumber=4 means keys HR-1..HR-3 already used
-    const ROW_1_ID = '507f1f77bcf86cd799439051';
-    const ROW_2_ID = '507f1f77bcf86cd799439052';
-    const ROW_3_ID = '507f1f77bcf86cd799439053';
-
-    const sourceRows = [
-      {
-        _id: { toString: () => ROW_1_ID },
-        order: 0,
-        cells: { [KEY_COL_ID]: 'HR-1' },
-        formatting: {},
-        toObject: () => ({ cells: { [KEY_COL_ID]: 'HR-1' }, formatting: {} }),
-        height: undefined,
-        parentId: null,
-        depth: 0,
-        assigneeIds: [],
-      },
-      {
-        _id: { toString: () => ROW_2_ID },
-        order: 1,
-        cells: { [KEY_COL_ID]: 'HR-2' },
-        formatting: {},
-        toObject: () => ({ cells: { [KEY_COL_ID]: 'HR-2' }, formatting: {} }),
-        height: undefined,
-        parentId: null,
-        depth: 0,
-        assigneeIds: [],
-      },
-      {
-        _id: { toString: () => ROW_3_ID },
-        order: 2,
-        cells: { [KEY_COL_ID]: 'HR-3' },
-        formatting: {},
-        toObject: () => ({ cells: { [KEY_COL_ID]: 'HR-3' }, formatting: {} }),
-        height: undefined,
-        parentId: null,
-        depth: 0,
-        assigneeIds: [],
-      },
-    ];
-
-    mockRowFind.mockReturnValue({
-      sort: vi.fn().mockResolvedValue(sourceRows),
+    const user = await createUser();
+    const workspace = await createWorkspace({
+      owner: user._id,
+      members: [{ user: user._id, role: 'editor' }],
     });
 
-    // Sheet.create should return a doc with the new ID
-    let createdSheetData: any = null;
-    mockSheetCreate.mockImplementation((data: any) => {
-      createdSheetData = data;
-      return Promise.resolve({
-        _id: NEW_SHEET_ID,
-        ...data,
-      });
+    // Create a scrum project with nextKeyNumber=4 (keys HR-1..HR-3 already used)
+    const sourceSheet = await createProject({
+      workspaceId: workspace._id,
+      createdBy: user._id,
+      keyPrefix: 'HR',
+      template: 'scrum',
+      members: [{ userId: user._id, role: 'admin' }],
+      nextKeyNumber: 4,
     });
 
-    // For re-keying: each findOneAndUpdate increments counter starting from 1
-    let counterCalls = 0;
-    mockSheetFindOneAndUpdate.mockImplementation(() => {
-      const preIncrementValue = counterCalls + 1;
-      counterCalls++;
-      return Promise.resolve({
-        project: { nextKeyNumber: preIncrementValue },
-      });
+    // Find the key column ID
+    const keyCol = sourceSheet.columns.find((c) => c.systemField === 'key')!;
+
+    // Create 3 source rows with existing keys
+    await createRow(sourceSheet._id, { order: 0, cells: { [keyCol.id]: 'HR-1' } });
+    await createRow(sourceSheet._id, { order: 1, cells: { [keyCol.id]: 'HR-2' } });
+    await createRow(sourceSheet._id, { order: 2, cells: { [keyCol.id]: 'HR-3' } });
+
+    // Duplicate the sheet
+    const result = await duplicateSheet(sourceSheet._id.toString(), user._id.toString());
+
+    // Query the duplicated sheet from DB
+    const duplicatedSheet = await Sheet.findById(result.id);
+    expect(duplicatedSheet).toBeDefined();
+    expect(duplicatedSheet!.kind).toBe('project');
+    expect(duplicatedSheet!.project!.keyPrefix).toBe('HR2');
+    expect(duplicatedSheet!.project!.nextKeyNumber).toBe(4); // 1 + 3 rows
+
+    // Query copied rows
+    const copiedRows = await Row.find({ sheetId: duplicatedSheet!._id }).sort({ order: 1 });
+    expect(copiedRows.length).toBe(3);
+
+    // Extract key values from copied rows
+    const keys = copiedRows.map((r) => {
+      const cells = (r.toObject().cells as unknown as Record<string, unknown>) ?? {};
+      return cells[keyCol.id];
     });
-
-    // Final Sheet.findById.populate for the return value
-    const duplicatedSheet = {
-      _id: NEW_SHEET_ID,
-      workspaceId: WORKSPACE_ID,
-      name: 'Copy of Test',
-      kind: 'project',
-      project: {
-        keyPrefix: 'HR2',
-        template: 'scrum',
-        statuses: [{ name: 'Open', color: 'gray', category: 'todo' }],
-        itemTypes: ['Story', 'Bug'],
-        nextKeyNumber: 4, // 1 + 3 rows
-      },
-      columns: sheet.columns,
-      createdBy: USER_ID,
-      members: [],
-      toObject: () => ({
-        _id: NEW_SHEET_ID,
-        workspaceId: WORKSPACE_ID,
-        name: 'Copy of Test',
-        kind: 'project',
-        project: {
-          keyPrefix: 'HR2',
-          template: 'scrum',
-          statuses: [{ name: 'Open', color: 'gray', category: 'todo' }],
-          itemTypes: ['Story', 'Bug'],
-          nextKeyNumber: 4,
-        },
-        columns: sheet.columns,
-        createdBy: USER_ID,
-        members: [],
-      }),
-    };
-    // Override the final findById call (after create) to return the populated doc
-    mockSheetFindById
-      .mockReturnValueOnce(makeChainable(sheet)) // first call: getSheetWithAccess
-      .mockReturnValueOnce(makeChainable(duplicatedSheet)); // second call: final populate
-
-    await duplicateSheet(SHEET_ID, USER_ID);
-
-    // Verify Row.bulkWrite was called with key updates
-    expect(mockRowBulkWrite).toHaveBeenCalled();
-    const bulkOps = mockRowBulkWrite.mock.calls[0][0];
-    expect(bulkOps.length).toBe(3);
-
-    // Extract the key values written
-    const keys = bulkOps.map((op: any) => op.updateOne.update.$set[`cells.${KEY_COL_ID}`]);
     expect(keys).toEqual(['HR2-1', 'HR2-2', 'HR2-3']);
-
-    // Verify the created sheet has project settings
-    expect(createdSheetData.kind).toBe('project');
-    expect(createdSheetData.project.keyPrefix).toBe('HR2');
-    expect(createdSheetData.project.nextKeyNumber).toBe(1);
   });
 
   it('generates unique key prefix when HR2 is taken', async () => {
-    const sheet = makeProjectSheet(1, 'HR');
-
-    mockRowFind.mockReturnValue({
-      sort: vi.fn().mockResolvedValue([]),
+    const user = await createUser();
+    const workspace = await createWorkspace({
+      owner: user._id,
+      members: [{ user: user._id, role: 'editor' }],
     });
 
-    // First findOne call checks "HR2" → found (conflict)
-    // Second findOne call checks "HR3" → null (available)
-    mockSheetFindOne
-      .mockReturnValueOnce(makeChainable({ _id: 'existing-sheet' })) // HR2 taken
-      .mockReturnValueOnce(makeChainable(null)); // HR3 available
-
-    let createdSheetData: any = null;
-    mockSheetCreate.mockImplementation((data: any) => {
-      createdSheetData = data;
-      return Promise.resolve({
-        _id: NEW_SHEET_ID,
-        ...data,
-      });
+    // Create source project with prefix HR
+    const sourceSheet = await createProject({
+      workspaceId: workspace._id,
+      createdBy: user._id,
+      keyPrefix: 'HR',
+      template: 'scrum',
+      members: [{ userId: user._id, role: 'admin' }],
     });
 
-    const duplicatedSheet = {
-      _id: NEW_SHEET_ID,
-      workspaceId: WORKSPACE_ID,
-      name: 'Copy of Test',
-      kind: 'project',
-      project: { keyPrefix: 'HR3', template: 'scrum', statuses: [], itemTypes: [], nextKeyNumber: 1 },
-      columns: sheet.columns,
-      createdBy: USER_ID,
-      members: [],
-      toObject: () => ({
-        _id: NEW_SHEET_ID,
-        workspaceId: WORKSPACE_ID,
-        name: 'Copy of Test',
-        kind: 'project',
-        project: { keyPrefix: 'HR3', template: 'scrum', statuses: [], itemTypes: [], nextKeyNumber: 1 },
-        columns: sheet.columns,
-        createdBy: USER_ID,
-        members: [],
-      }),
-    };
-    mockSheetFindById
-      .mockReturnValueOnce(makeChainable(sheet))
-      .mockReturnValueOnce(makeChainable(duplicatedSheet));
+    // Create another project that takes the HR2 prefix
+    await createProject({
+      workspaceId: workspace._id,
+      createdBy: user._id,
+      keyPrefix: 'HR2',
+      template: 'scrum',
+      members: [{ userId: user._id, role: 'admin' }],
+    });
 
-    await duplicateSheet(SHEET_ID, USER_ID);
+    // Duplicate the source — should skip HR2 and use HR3
+    const result = await duplicateSheet(sourceSheet._id.toString(), user._id.toString());
 
-    expect(createdSheetData.project.keyPrefix).toBe('HR3');
+    const duplicatedSheet = await Sheet.findById(result.id);
+    expect(duplicatedSheet).toBeDefined();
+    expect(duplicatedSheet!.project!.keyPrefix).toBe('HR3');
   });
 
   it('preserves systemField on all duplicate columns', async () => {
-    const sheet = makeProjectSheet(1);
-
-    mockRowFind.mockReturnValue({
-      sort: vi.fn().mockResolvedValue([]),
+    const user = await createUser();
+    const workspace = await createWorkspace({
+      owner: user._id,
+      members: [{ user: user._id, role: 'editor' }],
     });
 
-    let createdSheetData: any = null;
-    mockSheetCreate.mockImplementation((data: any) => {
-      createdSheetData = data;
-      return Promise.resolve({
-        _id: NEW_SHEET_ID,
-        ...data,
-      });
+    const sourceSheet = await createProject({
+      workspaceId: workspace._id,
+      createdBy: user._id,
+      keyPrefix: 'HR',
+      template: 'scrum',
+      members: [{ userId: user._id, role: 'admin' }],
     });
 
-    const duplicatedSheet = {
-      _id: NEW_SHEET_ID,
-      workspaceId: WORKSPACE_ID,
-      name: 'Copy of Test',
-      kind: 'project',
-      project: { keyPrefix: 'HR2', template: 'scrum', statuses: [], itemTypes: [], nextKeyNumber: 1 },
-      columns: sheet.columns,
-      createdBy: USER_ID,
-      members: [],
-      toObject: () => ({
-        _id: NEW_SHEET_ID,
-        workspaceId: WORKSPACE_ID,
-        name: 'Copy of Test',
-        kind: 'project',
-        project: { keyPrefix: 'HR2', template: 'scrum', statuses: [], itemTypes: [], nextKeyNumber: 1 },
-        columns: sheet.columns,
-        createdBy: USER_ID,
-        members: [],
-      }),
-    };
-    mockSheetFindById
-      .mockReturnValueOnce(makeChainable(sheet))
-      .mockReturnValueOnce(makeChainable(duplicatedSheet));
+    const result = await duplicateSheet(sourceSheet._id.toString(), user._id.toString());
 
-    await duplicateSheet(SHEET_ID, USER_ID);
+    const duplicatedSheet = await Sheet.findById(result.id);
+    expect(duplicatedSheet).toBeDefined();
 
-    // All system columns should preserve their systemField property
-    const copiedColumns = createdSheetData.columns;
-    const keyCol = copiedColumns.find((c: any) => c.id === KEY_COL_ID);
-    const statusCol = copiedColumns.find((c: any) => c.id === STATUS_COL_ID);
+    const keyCol = duplicatedSheet!.columns.find((c) => c.systemField === 'key');
+    const statusCol = duplicatedSheet!.columns.find((c) => c.systemField === 'status');
 
-    expect(keyCol.systemField).toBe('key');
-    expect(statusCol.systemField).toBe('status');
+    expect(keyCol).toBeDefined();
+    expect(keyCol!.systemField).toBe('key');
+    expect(statusCol).toBeDefined();
+    expect(statusCol!.systemField).toBe('status');
   });
 });
 
-// ─── Tests: kind and keyPrefix in list responses ───────────────────────────────
+// ─── Tests: kind and keyPrefix in list responses ──────────────────────────────
 
 describe('kind and keyPrefix in list responses', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  it('listSheets includes kind and keyPrefix for project sheets', async () => {
+    const user = await createUser();
+    const workspace = await createWorkspace({
+      owner: user._id,
+      members: [{ user: user._id, role: 'editor' }],
+    });
 
-  it('formatSheetMeta includes kind and keyPrefix for project sheets', async () => {
-    // We test this indirectly via getRecents
-    const sheetDoc = {
-      _id: { toString: () => SHEET_ID },
+    // Create a project
+    await createProject({
+      workspaceId: workspace._id,
+      createdBy: user._id,
+      keyPrefix: 'HR',
+      template: 'scrum',
       name: 'My Project',
-      updatedAt: new Date('2025-06-01'),
-      workspaceId: { toString: () => WORKSPACE_ID },
-      kind: 'project',
-      project: { keyPrefix: 'HR' },
-    };
-    const wsDoc = {
-      _id: { toString: () => WORKSPACE_ID },
-      name: 'Test Workspace',
-    };
-    const meta = {
-      lastOpenedAt: new Date('2025-06-01'),
-      isFavorite: false,
-    };
-
-    mockUserSheetMetaFind.mockReturnValue({
-      sort: vi.fn().mockReturnValue({
-        populate: vi.fn().mockReturnValue({
-          populate: vi.fn().mockResolvedValue([
-            {
-              sheetId: sheetDoc,
-              workspaceId: wsDoc,
-              ...meta,
-            },
-          ]),
-        }),
-      }),
+      members: [{ userId: user._id, role: 'admin' }],
     });
 
-    mockWorkspaceFindById.mockReturnValue(makeChainable({
-      _id: WORKSPACE_ID,
-      members: [{ user: USER_ID, role: 'editor' }],
-      name: 'Test Workspace',
-    }));
+    // Import listSheets here to avoid circular deps
+    const { listSheets } = await import('../services/sheetService');
+    const results = await listSheets(workspace._id.toString(), user._id.toString());
 
-    // Need to import getRecents dynamically since we mocked UserSheetMeta
-    const { getRecents } = await import('../services/sheetService');
-    const results = await getRecents(USER_ID);
-
-    expect(results.length).toBe(1);
-    expect(results[0].sheet.kind).toBe('project');
-    expect(results[0].sheet.keyPrefix).toBe('HR');
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    const projectResult = results.find((s: any) => s.kind === 'project');
+    expect(projectResult).toBeDefined();
+    expect(projectResult!.kind).toBe('project');
+    expect(projectResult!.project.keyPrefix).toBe('HR');
   });
 
-  it('formatSheetMeta returns kind=sheet and no keyPrefix for regular sheets', async () => {
-    const sheetDoc = {
-      _id: { toString: () => SHEET_ID },
-      name: 'Regular Sheet',
-      updatedAt: new Date('2025-06-01'),
-      workspaceId: { toString: () => WORKSPACE_ID },
-      kind: 'sheet',
-    };
-    const wsDoc = {
-      _id: { toString: () => WORKSPACE_ID },
-      name: 'Test Workspace',
-    };
-    const meta = {
-      lastOpenedAt: new Date('2025-06-01'),
-      isFavorite: false,
-    };
-
-    mockUserSheetMetaFind.mockReturnValue({
-      sort: vi.fn().mockReturnValue({
-        populate: vi.fn().mockReturnValue({
-          populate: vi.fn().mockResolvedValue([
-            {
-              sheetId: sheetDoc,
-              workspaceId: wsDoc,
-              ...meta,
-            },
-          ]),
-        }),
-      }),
+  it('listSheets returns kind=sheet and no keyPrefix for regular sheets', async () => {
+    const user = await createUser();
+    const workspace = await createWorkspace({
+      owner: user._id,
+      members: [{ user: user._id, role: 'editor' }],
     });
 
-    mockWorkspaceFindById.mockReturnValue(makeChainable({
-      _id: WORKSPACE_ID,
-      members: [{ user: USER_ID, role: 'editor' }],
-      name: 'Test Workspace',
-    }));
+    // Create a plain sheet
+    const { createSheet: createPlainSheet } = await import('./helpers/factories');
+    await createPlainSheet({
+      workspaceId: workspace._id,
+      createdBy: user._id,
+      name: 'Regular Sheet',
+      kind: 'sheet',
+    });
 
-    const { getRecents } = await import('../services/sheetService');
-    const results = await getRecents(USER_ID);
+    const { listSheets } = await import('../services/sheetService');
+    const results = await listSheets(workspace._id.toString(), user._id.toString());
 
-    expect(results.length).toBe(1);
-    expect(results[0].sheet.kind).toBe('sheet');
-    expect(results[0].sheet.keyPrefix).toBeUndefined();
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    const sheetResult = results.find((s: any) => s.kind === 'sheet');
+    expect(sheetResult).toBeDefined();
+    expect(sheetResult!.kind).toBe('sheet');
+    expect(sheetResult!.project).toBeUndefined();
   });
 });

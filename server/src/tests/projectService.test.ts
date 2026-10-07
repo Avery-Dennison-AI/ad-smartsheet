@@ -1,150 +1,38 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { TemplateKey } from '../services/projectTemplates';
 import { PROJECT_TEMPLATES, buildTemplateColumns } from '../services/projectTemplates';
 import { serializeColumn } from '../services/gridShared';
 import type { ColumnDef } from '../models/Sheet';
-
-// ─── Mock Mongoose models ──────────────────────────────────────────────────────
-
-const mockSheetCreate = vi.fn();
-const mockSheetFindById = vi.fn();
-const mockSheetFindOne = vi.fn();
-const mockSheetFindByIdAndUpdate = vi.fn();
-const mockUserSheetMetaFindOneAndUpdate = vi.fn();
-const mockWorkspaceFindById = vi.fn();
-const mockOrgPolicyGetOrCreate = vi.fn();
-
-vi.mock('../models/Sheet', () => ({
-  default: {
-    create: (...args: unknown[]) => mockSheetCreate(...args),
-    findById: (...args: unknown[]) => mockSheetFindById(...args),
-    findOne: (...args: unknown[]) => mockSheetFindOne(...args),
-    findByIdAndUpdate: (...args: unknown[]) => mockSheetFindByIdAndUpdate(...args),
-  },
-}));
-
-vi.mock('../models/UserSheetMeta', () => ({
-  default: {
-    findOneAndUpdate: (...args: unknown[]) => mockUserSheetMetaFindOneAndUpdate(...args),
-  },
-}));
-
-vi.mock('../models/Workspace', () => ({
-  default: {
-    findById: (...args: unknown[]) => mockWorkspaceFindById(...args),
-  },
-}));
-
-vi.mock('../models/OrgPolicy', () => ({
-  default: {
-    getOrCreate: (...args: unknown[]) => mockOrgPolicyGetOrCreate(...args),
-  },
-}));
-
-// Mock workspaceService.getMemberRole
-vi.mock('../services/workspaceService', () => ({
-  getMemberRole: (workspace: any, userId: string) => {
-    const member = workspace?.members?.find((m: any) => String(m.user) === String(userId));
-    return member ? member.role : null;
-  },
-}));
-
-// Import after mocks
+import { createUser, createWorkspace, createProject as factoryCreateProject } from './helpers/factories';
 import { createProject } from '../services/projectService';
-
-// ─── Test constants ────────────────────────────────────────────────────────────
-
-const USER_ID = '507f1f77bcf86cd799439011';
-const WORKSPACE_ID = '507f1f77bcf86cd799439012';
-const OTHER_WORKSPACE_ID = '507f1f77bcf86cd799439013';
+import Sheet from '../models/Sheet';
 
 const TEMPLATE_KEYS: TemplateKey[] = ['waterfall', 'scrum', 'kanban', 'tracker'];
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-
-function makeWorkspace(role = 'editor') {
-  return {
-    _id: WORKSPACE_ID,
-    members: [{ user: USER_ID, role }],
-  };
-}
-
-function makePopulatedSheet(sheetData: any) {
-  const sheet: any = {
-    ...sheetData,
-    _id: { toString: () => sheetData._id || 'new-sheet-id' },
-    workspaceId: { toString: () => sheetData.workspaceId || WORKSPACE_ID },
-    createdBy: {
-      _id: USER_ID,
-      fullName: 'Test User',
-      email: 'test@example.com',
-    },
-    toObject() {
-      return {
-        ...sheetData,
-        _id: sheet._id,
-        workspaceId: sheet.workspaceId,
-        createdBy: sheet.createdBy,
-      };
-    },
-  };
-  return sheet;
-}
-
-/**
- * Creates a chainable query-like object that mimics Mongoose's Query API.
- * Sheet.findById returns this, allowing .populate() to be chained.
- */
-function makeChainableQuery(result: any) {
-  return {
-    populate: vi.fn().mockResolvedValue(result),
-  };
-}
-
-function setupDefaultMocks(role = 'editor') {
-  mockWorkspaceFindById.mockResolvedValue(makeWorkspace(role));
-  mockSheetFindOne.mockResolvedValue(null); // no duplicate prefix
-  mockOrgPolicyGetOrCreate.mockResolvedValue({
-    whoCanCreateWorkspaces: 'all',
-    whoCanInviteGuests: 'admins',
-    guestAccessExpiry: 'optional',
-    defaultGuestExpiryDays: 30,
-    allowedGuestEmailDomains: [],
-    maxGuestRole: 'viewer',
-  });
-  mockUserSheetMetaFindOneAndUpdate.mockResolvedValue({});
-}
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('createProject', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    setupDefaultMocks();
-  });
-
   // ── Template columns tests ─────────────────────────────────────────────────
 
   for (const templateKey of TEMPLATE_KEYS) {
     describe(`template: ${templateKey}`, () => {
       it('creates a sheet with correct columns including Key and Status system fields', async () => {
-        let capturedCreateArgs: any = null;
-        mockSheetCreate.mockImplementation((data: any) => {
-          capturedCreateArgs = data;
-          const sheet = makePopulatedSheet(data);
-          // Sheet.findById returns a chainable query with .populate()
-          mockSheetFindById.mockReturnValue(makeChainableQuery(sheet));
-          return Promise.resolve(sheet);
+        const user = await createUser();
+        const workspace = await createWorkspace({
+          owner: user._id,
+          members: [{ user: user._id, role: 'editor' }],
         });
 
-        await createProject(WORKSPACE_ID, USER_ID, {
+        const result = await createProject(workspace._id.toString(), user._id.toString(), {
           name: 'Test Project',
           keyPrefix: 'TP',
           template: templateKey,
         });
 
-        expect(mockSheetCreate).toHaveBeenCalledOnce();
-        const columns: ColumnDef[] = capturedCreateArgs.columns;
+        // Query the created sheet from DB to verify columns
+        const sheet = await Sheet.findById(result.id);
+        expect(sheet).toBeDefined();
+        const columns = sheet!.columns;
 
         // First column is primary Name column
         expect(columns[0].name).toBe('Name');
@@ -194,23 +82,23 @@ describe('createProject', () => {
       });
 
       it('saves project.statuses and project.itemTypes matching the template', async () => {
-        let capturedCreateArgs: any = null;
-        mockSheetCreate.mockImplementation((data: any) => {
-          capturedCreateArgs = data;
-          const sheet = makePopulatedSheet(data);
-          // Sheet.findById returns a chainable query with .populate()
-          mockSheetFindById.mockReturnValue(makeChainableQuery(sheet));
-          return Promise.resolve(sheet);
+        const user = await createUser();
+        const workspace = await createWorkspace({
+          owner: user._id,
+          members: [{ user: user._id, role: 'editor' }],
         });
 
-        await createProject(WORKSPACE_ID, USER_ID, {
+        const result = await createProject(workspace._id.toString(), user._id.toString(), {
           name: 'Test Project',
           keyPrefix: 'TP',
           template: templateKey,
         });
 
+        const sheet = await Sheet.findById(result.id);
+        expect(sheet).toBeDefined();
+
         const tpl = PROJECT_TEMPLATES[templateKey];
-        const projectSettings = capturedCreateArgs.project;
+        const projectSettings = sheet!.project!;
 
         expect(projectSettings.statuses).toEqual(tpl.statuses);
         expect(projectSettings.itemTypes).toEqual(tpl.itemTypes);
@@ -224,19 +112,31 @@ describe('createProject', () => {
   // ── Duplicate key prefix tests ─────────────────────────────────────────────
 
   it('throws 409 when key prefix already exists in the same workspace', async () => {
-    mockSheetFindOne.mockResolvedValue({ _id: 'existing-sheet' });
+    const user = await createUser();
+    const workspace = await createWorkspace({
+      owner: user._id,
+      members: [{ user: user._id, role: 'editor' }],
+    });
 
+    // Create first project with TP prefix
+    await createProject(workspace._id.toString(), user._id.toString(), {
+      name: 'First Project',
+      keyPrefix: 'TP',
+      template: 'scrum',
+    });
+
+    // Try to create another with same prefix → should fail
     await expect(
-      createProject(WORKSPACE_ID, USER_ID, {
-        name: 'Test Project',
+      createProject(workspace._id.toString(), user._id.toString(), {
+        name: 'Second Project',
         keyPrefix: 'TP',
         template: 'scrum',
       }),
     ).rejects.toThrow('This key prefix is already used in this workspace');
 
     try {
-      await createProject(WORKSPACE_ID, USER_ID, {
-        name: 'Test Project',
+      await createProject(workspace._id.toString(), user._id.toString(), {
+        name: 'Second Project',
         keyPrefix: 'TP',
         template: 'scrum',
       });
@@ -246,35 +146,44 @@ describe('createProject', () => {
   });
 
   it('allows the same prefix in a different workspace (no conflict)', async () => {
-    // Sheet.findOne returns null — no conflict
-    mockSheetFindOne.mockResolvedValue(null);
-
-    const sheet = makePopulatedSheet({
-      _id: 'new-sheet-id',
-      workspaceId: WORKSPACE_ID,
-      name: 'Test Project',
+    const user = await createUser();
+    const ws1 = await createWorkspace({
+      owner: user._id,
+      members: [{ user: user._id, role: 'editor' }],
     });
-    mockSheetCreate.mockResolvedValue(sheet);
-    // Sheet.findById returns a chainable query with .populate()
-    mockSheetFindById.mockReturnValue(makeChainableQuery(sheet));
+    const ws2 = await createWorkspace({
+      owner: user._id,
+      members: [{ user: user._id, role: 'editor' }],
+    });
 
-    const result = await createProject(WORKSPACE_ID, USER_ID, {
-      name: 'Test Project',
+    // Create project in ws1
+    const r1 = await createProject(ws1._id.toString(), user._id.toString(), {
+      name: 'Project WS1',
       keyPrefix: 'TP',
       template: 'scrum',
     });
+    expect(r1).toBeDefined();
 
-    expect(result).toBeDefined();
-    expect(mockSheetCreate).toHaveBeenCalledOnce();
+    // Same prefix in ws2 should succeed
+    const r2 = await createProject(ws2._id.toString(), user._id.toString(), {
+      name: 'Project WS2',
+      keyPrefix: 'TP',
+      template: 'scrum',
+    });
+    expect(r2).toBeDefined();
   });
 
   // ── Permission tests ───────────────────────────────────────────────────────
 
   it('throws 403 when user has viewer role', async () => {
-    setupDefaultMocks('viewer');
+    const user = await createUser();
+    const workspace = await createWorkspace({
+      owner: user._id,
+      members: [{ user: user._id, role: 'viewer' }],
+    });
 
     await expect(
-      createProject(WORKSPACE_ID, USER_ID, {
+      createProject(workspace._id.toString(), user._id.toString(), {
         name: 'Test Project',
         keyPrefix: 'TP',
         template: 'scrum',
@@ -282,7 +191,7 @@ describe('createProject', () => {
     ).rejects.toThrow('Only editors and above can create projects');
 
     try {
-      await createProject(WORKSPACE_ID, USER_ID, {
+      await createProject(workspace._id.toString(), user._id.toString(), {
         name: 'Test Project',
         keyPrefix: 'TP',
         template: 'scrum',
@@ -372,5 +281,52 @@ describe('systemField preservation', () => {
 
     const nameCol = reordered.find((c) => c.id === 'col-name');
     expect(nameCol!.systemField).toBeUndefined();
+  });
+});
+
+// ── listSheets includes keyPrefix for projects ────────────────────────────────
+
+describe('listSheets keyPrefix', () => {
+  it('returns keyPrefix for project sheets and no keyPrefix for plain sheets', async () => {
+    const user = await createUser();
+    const workspace = await createWorkspace({
+      owner: user._id,
+      members: [{ user: user._id, role: 'editor' }],
+    });
+
+    // Create a plain sheet
+    const { createSheet: createPlainSheetFactory } = await import('./helpers/factories');
+    await createPlainSheetFactory({
+      workspaceId: workspace._id,
+      createdBy: user._id,
+      name: 'Plain Sheet',
+      kind: 'sheet',
+    });
+
+    // Create a project with key prefix PROJ
+    await factoryCreateProject({
+      workspaceId: workspace._id,
+      createdBy: user._id,
+      keyPrefix: 'PROJ',
+      template: 'waterfall',
+      name: 'My Project',
+      members: [{ userId: user._id, role: 'admin' }],
+    });
+
+    const { listSheets } = await import('../services/sheetService');
+    const results = await listSheets(workspace._id.toString(), user._id.toString());
+
+    expect(results.length).toBe(2);
+
+    const plainSheet = results.find((s: any) => s.kind === 'sheet');
+    expect(plainSheet).toBeDefined();
+    expect(plainSheet!.kind).toBe('sheet');
+    // Plain sheets should not have keyPrefix at the top level of the formatted output
+    // The formatSheet function spreads obj which includes project sub-doc only if it exists
+
+    const projectSheet = results.find((s: any) => s.kind === 'project');
+    expect(projectSheet).toBeDefined();
+    expect(projectSheet!.kind).toBe('project');
+    expect(projectSheet!.project.keyPrefix).toBe('PROJ');
   });
 });

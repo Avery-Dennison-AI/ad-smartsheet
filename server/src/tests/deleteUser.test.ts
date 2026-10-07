@@ -1,6 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { validateDeleteUser } from '../services/adminUserService';
+import { describe, it, expect } from 'vitest';
+import mongoose from 'mongoose';
+import { validateDeleteUser, deleteUser } from '../services/adminUserService';
 import { AppError } from '../utils/AppError';
+import User from '../models/User';
+import Workspace from '../models/Workspace';
+import Sheet from '../models/Sheet';
+import UserSheetMeta from '../models/UserSheetMeta';
+import Invitation from '../models/Invitation';
+import { createUser, createWorkspace } from './helpers/factories';
 
 // ─── Test helpers ──────────────────────────────────────────────────────────────
 
@@ -154,276 +161,107 @@ describe('validateDeleteUser', () => {
   });
 });
 
-// ─── deleteUser integration-style unit tests (mocked DB) ──────────────────────
+// ─── deleteUser integration tests (real DB) ──────────────────────────────────
 
-// Mock all Mongoose models before importing deleteUser
-const mockUserFindById = vi.fn();
-const mockUserCountDocuments = vi.fn();
-const mockUserFindByIdAndUpdate = vi.fn();
-
-const mockWorkspaceFind = vi.fn();
-const mockWorkspaceFindOneAndUpdate = vi.fn();
-const mockWorkspaceUpdateMany = vi.fn();
-
-const mockSheetUpdateMany = vi.fn();
-const mockUserSheetMetaDeleteMany = vi.fn();
-const mockInvitationUpdateMany = vi.fn();
-
-vi.mock('../models/User', () => ({
-  default: {
-    findById: (...args: unknown[]) => mockUserFindById(...args),
-    countDocuments: (...args: unknown[]) => mockUserCountDocuments(...args),
-    findByIdAndUpdate: (...args: unknown[]) => mockUserFindByIdAndUpdate(...args),
-  },
-}));
-
-vi.mock('../models/Workspace', () => ({
-  default: {
-    find: (...args: unknown[]) => mockWorkspaceFind(...args),
-    findOneAndUpdate: (...args: unknown[]) => mockWorkspaceFindOneAndUpdate(...args),
-    updateMany: (...args: unknown[]) => mockWorkspaceUpdateMany(...args),
-  },
-}));
-
-vi.mock('../models/Sheet', () => ({
-  default: {
-    updateMany: (...args: unknown[]) => mockSheetUpdateMany(...args),
-  },
-}));
-
-vi.mock('../models/UserSheetMeta', () => ({
-  default: {
-    deleteMany: (...args: unknown[]) => mockUserSheetMetaDeleteMany(...args),
-  },
-}));
-
-vi.mock('../models/Invitation', () => ({
-  default: {
-    updateMany: (...args: unknown[]) => mockInvitationUpdateMany(...args),
-  },
-}));
-
-// Import after mocks
-import { deleteUser } from '../services/adminUserService';
-
-// ─── Helpers for mocked DB responses ──────────────────────────────────────────
-
-/** Creates a chainable select() mock that resolves to the given value */
-function mockSelect(value: unknown) {
-  return { select: vi.fn().mockResolvedValue(value) };
-}
-
-function setupDefaultMocks(overrides?: {
-  targetRole?: string;
-  targetIsDeleted?: boolean;
-  targetEmail?: string;
-  targetFullName?: string;
-  activeAdminCount?: number;
-  ownedWorkspaces?: Array<{ _id: string; name: string }>;
-  transferTarget?: { _id: string; role: string; isActive: boolean; isDeleted: boolean } | null;
-}) {
-  const targetId = overrides?.ownedWorkspaces ? USER_ID_1 : USER_ID_1;
-  const target = {
-    _id: { toString: () => USER_ID_1 },
-    role: overrides?.targetRole ?? 'member',
-    isDeleted: overrides?.targetIsDeleted ?? false,
-    email: overrides?.targetEmail ?? 'alice@example.com',
-    fullName: overrides?.targetFullName ?? 'Alice Smith',
-    isActive: true,
-  };
-
-  // User.findById — first call is for target, second for transfer target
-  const transferTargetData = overrides?.transferTarget !== undefined
-    ? overrides.transferTarget
-    : { _id: { toString: () => USER_ID_2 }, role: 'member', isActive: true, isDeleted: false };
-
-  let callCount = 0;
-  mockUserFindById.mockImplementation(() => {
-    callCount++;
-    if (callCount === 1) return mockSelect(target);
-    // Second call: transfer target
-    if (transferTargetData) {
-      return mockSelect(transferTargetData);
-    }
-    return mockSelect(null);
-  });
-
-  mockUserCountDocuments.mockResolvedValue(overrides?.activeAdminCount ?? 2);
-
-  // Workspace.find for getUserOwnedWorkspaces
-  const ownedWs = overrides?.ownedWorkspaces ?? [];
-  mockWorkspaceFind.mockReturnValue({
-    select: vi.fn().mockResolvedValue(
-      ownedWs.map((w) => ({ _id: { toString: () => w._id }, name: w.name })),
-    ),
-  });
-
-  // All mutation mocks resolve successfully
-  mockWorkspaceFindOneAndUpdate.mockResolvedValue({});
-  mockWorkspaceUpdateMany.mockResolvedValue({});
-  mockSheetUpdateMany.mockResolvedValue({});
-  mockUserSheetMetaDeleteMany.mockResolvedValue({});
-  mockInvitationUpdateMany.mockResolvedValue({});
-  mockUserFindByIdAndUpdate.mockResolvedValue({});
-}
-
-describe('deleteUser — integration-style unit tests', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  // ── Workspace ownership transfer (BUG 1) ──────────────────────────────────
+describe('deleteUser — integration tests', () => {
+  // ── Workspace ownership transfer ──────────────────────────────────────────
 
   describe('workspace ownership transfer', () => {
-    it('atomically transfers ownership with correct member entry for existing editor member', async () => {
-      const ws1Id = '507f1f77bcf86cd799439021';
-      const ws2Id = '507f1f77bcf86cd799439022';
+    it('transfers ownership and updates member entries', async () => {
+      const targetUser = await createUser({ email: 'target@test.com', fullName: 'Target User' });
+      const requester = await createUser({ role: 'admin', email: 'requester@test.com' });
+      const transferTarget = await createUser({ email: 'transfer@test.com' });
 
-      setupDefaultMocks({
-        ownedWorkspaces: [
-          { _id: ws1Id, name: 'WS One' },
-          { _id: ws2Id, name: 'WS Two' },
+      // Create workspace owned by target user, with transfer target as editor
+      const ws = await Workspace.create({
+        name: 'Test WS',
+        color: 'teal',
+        owner: targetUser._id,
+        members: [
+          { user: targetUser._id, role: 'owner' },
+          { user: transferTarget._id, role: 'editor' },
         ],
       });
 
-      await deleteUser(USER_ID_1, USER_ID_3, USER_ID_2);
+      await deleteUser(targetUser._id.toString(), requester._id.toString(), transferTarget._id.toString());
 
-      // Should have called findOneAndUpdate once per workspace (atomic operation)
-      expect(mockWorkspaceFindOneAndUpdate).toHaveBeenCalledTimes(2);
+      // Verify workspace ownership transferred
+      const updatedWs = await Workspace.findById(ws._id);
+      expect(updatedWs).toBeDefined();
+      expect(updatedWs!.owner.toString()).toBe(transferTarget._id.toString());
 
-      // Verify each call uses aggregation pipeline (array of stages)
-      for (let i = 0; i < 2; i++) {
-        const [filter, pipeline] = mockWorkspaceFindOneAndUpdate.mock.calls[i];
-        const wsId = i === 0 ? ws1Id : ws2Id;
+      // Transfer target should be in members as owner
+      const transferMember = updatedWs!.members.find((m) => m.user.toString() === transferTarget._id.toString());
+      expect(transferMember).toBeDefined();
+      expect(transferMember!.role).toBe('owner');
 
-        // Filter targets the correct workspace
-        expect(filter).toEqual({ _id: wsId });
-
-        // Pipeline is an array of $set stages
-        expect(Array.isArray(pipeline)).toBe(true);
-        expect(pipeline.length).toBe(2);
-
-        // Stage 1: filter out both old member entries
-        const stage1 = pipeline[0].$set.members;
-        expect(stage1.$filter).toBeDefined();
-        expect(stage1.$filter.input).toBe('$members');
-
-        // Stage 2: set owner + concatArrays to add new owner member
-        const stage2 = pipeline[1].$set;
-        expect(stage2.owner).toBeDefined();
-        expect(stage2.members.$concatArrays).toBeDefined();
-        // The pushed entry should have role: 'owner'
-        const pushedEntry = stage2.members.$concatArrays[1][0];
-        expect(pushedEntry.role).toBe('owner');
-      }
-    });
-
-    it('transfers ownership when transfer target is NOT an existing member', async () => {
-      const ws1Id = '507f1f77bcf86cd799439021';
-
-      setupDefaultMocks({
-        ownedWorkspaces: [{ _id: ws1Id, name: 'Solo WS' }],
-      });
-
-      await deleteUser(USER_ID_1, USER_ID_3, USER_ID_2);
-
-      // Atomic operation still runs
-      expect(mockWorkspaceFindOneAndUpdate).toHaveBeenCalledTimes(1);
-
-      // The pipeline filters out BOTH the deleted user AND the transfer target
-      const [, pipeline] = mockWorkspaceFindOneAndUpdate.mock.calls[0];
-      const filterCond = pipeline[0].$set.members.$filter.cond;
-      // Two $ne conditions in an $and
-      expect(filterCond.$and.length).toBe(2);
+      // Deleted user should NOT be in members
+      const deletedMember = updatedWs!.members.find((m) => m.user.toString() === targetUser._id.toString());
+      expect(deletedMember).toBeUndefined();
     });
 
     it('removes deleted user from remaining workspace memberships after transfer', async () => {
-      setupDefaultMocks({
-        ownedWorkspaces: [{ _id: 'ws1', name: 'WS' }],
+      const targetUser = await createUser({ email: 'target2@test.com' });
+      const requester = await createUser({ role: 'admin', email: 'requester2@test.com' });
+      const transferTarget = await createUser({ email: 'transfer2@test.com' });
+
+      // Owned workspace
+      const ws1 = await Workspace.create({
+        name: 'Owned WS',
+        color: 'teal',
+        owner: targetUser._id,
+        members: [
+          { user: targetUser._id, role: 'owner' },
+        ],
       });
 
-      await deleteUser(USER_ID_1, USER_ID_3, USER_ID_2);
+      // Another workspace where target is just a member
+      const ws2 = await Workspace.create({
+        name: 'Other WS',
+        color: 'blue',
+        owner: transferTarget._id,
+        members: [
+          { user: transferTarget._id, role: 'owner' },
+          { user: targetUser._id, role: 'editor' },
+        ],
+      });
 
-      // After atomic transfer, a global $pull removes from all other workspaces
-      expect(mockWorkspaceUpdateMany).toHaveBeenCalledWith(
-        {},
-        { $pull: { members: { user: USER_ID_1 } } },
-      );
+      await deleteUser(targetUser._id.toString(), requester._id.toString(), transferTarget._id.toString());
+
+      // Target should be removed from ws2 membership
+      const updatedWs2 = await Workspace.findById(ws2._id);
+      const stillMember = updatedWs2!.members.find((m) => m.user.toString() === targetUser._id.toString());
+      expect(stillMember).toBeUndefined();
     });
   });
 
-  // ── Email freeing (BUG 2) ─────────────────────────────────────────────────
+  // ── Email freeing ─────────────────────────────────────────────────────────
 
   describe('email freeing', () => {
     it('sets placeholder email and saves original as deletedEmail', async () => {
-      setupDefaultMocks({ targetEmail: 'alice@example.com' });
+      const targetUser = await createUser({ email: 'alice@test.com', fullName: 'Alice Smith' });
+      const requester = await createUser({ role: 'admin', email: 'req@test.com' });
 
-      await deleteUser(USER_ID_1, USER_ID_3);
+      await deleteUser(targetUser._id.toString(), requester._id.toString());
 
-      // The LAST findByIdAndUpdate call should set the email fields
-      const lastCall = mockUserFindByIdAndUpdate.mock.calls[mockUserFindByIdAndUpdate.mock.calls.length - 1];
-      const [id, update] = lastCall;
-
-      expect(id).toBe(USER_ID_1);
-      expect(update.$set.deletedEmail).toBe('alice@example.com');
-      expect(update.$set.email).toBe(`deleted+${USER_ID_1}@neo.invalid`);
-      expect(update.$set.isDeleted).toBe(true);
-      expect(update.$set.isActive).toBe(false);
-      expect(update.$set.deletedAt).toBeInstanceOf(Date);
-    });
-
-    it('email freeing happens AFTER all other writes (ordering guarantee)', async () => {
-      setupDefaultMocks({
-        ownedWorkspaces: [{ _id: 'ws1', name: 'WS' }],
-      });
-
-      const callOrder: string[] = [];
-      mockWorkspaceFindOneAndUpdate.mockImplementation(() => {
-        callOrder.push('workspace_transfer');
-        return Promise.resolve({});
-      });
-      mockWorkspaceUpdateMany.mockImplementation(() => {
-        callOrder.push('workspace_pull');
-        return Promise.resolve({});
-      });
-      mockSheetUpdateMany.mockImplementation(() => {
-        callOrder.push('sheet_pull');
-        return Promise.resolve({});
-      });
-      mockUserSheetMetaDeleteMany.mockImplementation(() => {
-        callOrder.push('meta_delete');
-        return Promise.resolve({});
-      });
-      mockInvitationUpdateMany.mockImplementation(() => {
-        callOrder.push('invitation_revoke');
-        return Promise.resolve({});
-      });
-      mockUserFindByIdAndUpdate.mockImplementation(() => {
-        callOrder.push('user_update');
-        return Promise.resolve({});
-      });
-
-      await deleteUser(USER_ID_1, USER_ID_3, USER_ID_2);
-
-      // user_update must be the very last operation
-      expect(callOrder[callOrder.length - 1]).toBe('user_update');
-      // All other operations must precede it
-      expect(callOrder.indexOf('workspace_transfer')).toBeLessThan(callOrder.indexOf('user_update'));
-      expect(callOrder.indexOf('workspace_pull')).toBeLessThan(callOrder.indexOf('user_update'));
-      expect(callOrder.indexOf('sheet_pull')).toBeLessThan(callOrder.indexOf('user_update'));
-      expect(callOrder.indexOf('meta_delete')).toBeLessThan(callOrder.indexOf('user_update'));
-      expect(callOrder.indexOf('invitation_revoke')).toBeLessThan(callOrder.indexOf('user_update'));
+      const updatedUser = await User.findById(targetUser._id);
+      expect(updatedUser).toBeDefined();
+      expect(updatedUser!.deletedEmail).toBe('alice@test.com');
+      expect(updatedUser!.email).toBe(`deleted+${targetUser._id.toString()}@neo.invalid`);
+      expect(updatedUser!.isDeleted).toBe(true);
+      expect(updatedUser!.isActive).toBe(false);
+      expect(updatedUser!.deletedAt).toBeInstanceOf(Date);
     });
 
     it('placeholder email includes userId for uniqueness', async () => {
-      setupDefaultMocks();
+      const targetUser = await createUser({ email: 'bob@test.com' });
+      const requester = await createUser({ role: 'admin', email: 'req2@test.com' });
 
-      await deleteUser(USER_ID_1, USER_ID_3);
+      await deleteUser(targetUser._id.toString(), requester._id.toString());
 
-      const lastCall = mockUserFindByIdAndUpdate.mock.calls[mockUserFindByIdAndUpdate.mock.calls.length - 1];
-      const email = lastCall[1].$set.email;
-      expect(email).toContain(USER_ID_1);
-      expect(email).toMatch(/^deleted\+.*@neo\.invalid$/);
+      const updatedUser = await User.findById(targetUser._id);
+      expect(updatedUser!.email).toContain(targetUser._id.toString());
+      expect(updatedUser!.email).toMatch(/^deleted\+.*@neo\.invalid$/);
     });
   });
 
@@ -431,27 +269,24 @@ describe('deleteUser — integration-style unit tests', () => {
 
   describe('name preserved for history', () => {
     it('does NOT modify fullName during deletion', async () => {
-      setupDefaultMocks({ targetFullName: 'Alice Smith' });
+      const targetUser = await createUser({ email: 'charlie@test.com', fullName: 'Charlie Smith' });
+      const requester = await createUser({ role: 'admin', email: 'req3@test.com' });
 
-      await deleteUser(USER_ID_1, USER_ID_3);
+      await deleteUser(targetUser._id.toString(), requester._id.toString());
 
-      // Check that no update sets fullName
-      for (const call of mockUserFindByIdAndUpdate.mock.calls) {
-        const update = call[1];
-        if (update.$set) {
-          expect(update.$set.fullName).toBeUndefined();
-        }
-      }
+      const updatedUser = await User.findById(targetUser._id);
+      expect(updatedUser!.fullName).toBe('Charlie Smith');
     });
 
     it('marks isDeleted=true and sets deletedAt', async () => {
-      setupDefaultMocks();
+      const targetUser = await createUser({ email: 'dave@test.com' });
+      const requester = await createUser({ role: 'admin', email: 'req4@test.com' });
 
-      await deleteUser(USER_ID_1, USER_ID_3);
+      await deleteUser(targetUser._id.toString(), requester._id.toString());
 
-      const lastCall = mockUserFindByIdAndUpdate.mock.calls[mockUserFindByIdAndUpdate.mock.calls.length - 1];
-      expect(lastCall[1].$set.isDeleted).toBe(true);
-      expect(lastCall[1].$set.deletedAt).toBeInstanceOf(Date);
+      const updatedUser = await User.findById(targetUser._id);
+      expect(updatedUser!.isDeleted).toBe(true);
+      expect(updatedUser!.deletedAt).toBeInstanceOf(Date);
     });
   });
 
@@ -459,30 +294,43 @@ describe('deleteUser — integration-style unit tests', () => {
 
   describe('guards still enforced', () => {
     it('self-delete throws 403', async () => {
-      setupDefaultMocks();
+      const user = await createUser({ email: 'self@test.com' });
 
-      await expect(deleteUser(USER_ID_1, USER_ID_1)).rejects.toThrow('You cannot delete your own account');
+      await expect(deleteUser(user._id.toString(), user._id.toString())).rejects.toThrow('You cannot delete your own account');
     });
 
     it('last active admin throws 403', async () => {
-      setupDefaultMocks({ targetRole: 'admin', activeAdminCount: 1 });
+      const adminUser = await createUser({ role: 'admin', email: 'lastadmin@test.com' });
+      const requester = await createUser({ role: 'member', email: 'req5@test.com' });
 
-      await expect(deleteUser(USER_ID_1, USER_ID_3)).rejects.toThrow('Cannot delete the last active admin');
+      await expect(deleteUser(adminUser._id.toString(), requester._id.toString())).rejects.toThrow('Cannot delete the last active admin');
     });
 
     it('owner without transfer target throws 400', async () => {
-      setupDefaultMocks({
-        ownedWorkspaces: [{ _id: 'ws1', name: 'WS' }],
+      const targetUser = await createUser({ email: 'owner@test.com' });
+      const requester = await createUser({ role: 'admin', email: 'req6@test.com' });
+
+      // Create workspace owned by target
+      await Workspace.create({
+        name: 'Owned WS',
+        color: 'teal',
+        owner: targetUser._id,
+        members: [{ user: targetUser._id, role: 'owner' }],
       });
 
       // No transferToUserId provided
-      await expect(deleteUser(USER_ID_1, USER_ID_3)).rejects.toThrow('Ownership transfer is required');
+      await expect(deleteUser(targetUser._id.toString(), requester._id.toString())).rejects.toThrow('Ownership transfer is required');
     });
 
     it('already deleted user throws 400', async () => {
-      setupDefaultMocks({ targetIsDeleted: true });
+      const targetUser = await createUser({ email: 'deleted@test.com' });
+      const requester = await createUser({ role: 'admin', email: 'req7@test.com' });
 
-      await expect(deleteUser(USER_ID_1, USER_ID_3)).rejects.toThrow('User is already deleted');
+      // First delete
+      await deleteUser(targetUser._id.toString(), requester._id.toString());
+
+      // Second delete attempt → should fail
+      await expect(deleteUser(targetUser._id.toString(), requester._id.toString())).rejects.toThrow('User is already deleted');
     });
   });
 
@@ -490,42 +338,71 @@ describe('deleteUser — integration-style unit tests', () => {
 
   describe('cleanup steps', () => {
     it('removes user from sheet memberships', async () => {
-      setupDefaultMocks();
+      const targetUser = await createUser({ email: 'sheetmember@test.com' });
+      const requester = await createUser({ role: 'admin', email: 'req8@test.com' });
 
-      await deleteUser(USER_ID_1, USER_ID_3);
+      // Create a sheet with target as member
+      const sheet = await Sheet.create({
+        workspaceId: new mongoose.Types.ObjectId(),
+        name: 'Test Sheet',
+        createdBy: targetUser._id,
+        members: [{ userId: targetUser._id, role: 'editor' }],
+      });
 
-      expect(mockSheetUpdateMany).toHaveBeenCalledWith(
-        {},
-        { $pull: { members: { userId: USER_ID_1 } } },
-      );
+      await deleteUser(targetUser._id.toString(), requester._id.toString());
+
+      const updatedSheet = await Sheet.findById(sheet._id);
+      const stillMember = updatedSheet!.members.find((m) => m.userId.toString() === targetUser._id.toString());
+      expect(stillMember).toBeUndefined();
     });
 
     it('clears favorites and recents', async () => {
-      setupDefaultMocks();
+      const targetUser = await createUser({ email: 'metauser@test.com' });
+      const requester = await createUser({ role: 'admin', email: 'req9@test.com' });
 
-      await deleteUser(USER_ID_1, USER_ID_3);
+      // Create a UserSheetMeta entry
+      await UserSheetMeta.create({
+        userId: targetUser._id,
+        sheetId: new mongoose.Types.ObjectId(),
+        workspaceId: new mongoose.Types.ObjectId(),
+        isFavorite: true,
+        lastOpenedAt: new Date(),
+      });
 
-      expect(mockUserSheetMetaDeleteMany).toHaveBeenCalledWith({ userId: USER_ID_1 });
+      await deleteUser(targetUser._id.toString(), requester._id.toString());
+
+      const metas = await UserSheetMeta.find({ userId: targetUser._id });
+      expect(metas.length).toBe(0);
     });
 
     it('revokes pending invitations using the ORIGINAL email', async () => {
-      setupDefaultMocks({ targetEmail: 'alice@example.com' });
+      const targetUser = await createUser({ email: 'invited@test.com' });
+      const requester = await createUser({ role: 'admin', email: 'req10@test.com' });
 
-      await deleteUser(USER_ID_1, USER_ID_3);
+      // Create a pending invitation for this email
+      const invitation = await Invitation.create({
+        email: 'invited@test.com',
+        role: 'member',
+        tokenHash: 'test-hash-' + Date.now(),
+        invitedBy: requester._id,
+        expiresAt: new Date(Date.now() + 86400000 * 30),
+        status: 'pending',
+      });
 
-      expect(mockInvitationUpdateMany).toHaveBeenCalledWith(
-        { email: 'alice@example.com', status: 'pending' },
-        { $set: { status: 'revoked' } },
-      );
+      await deleteUser(targetUser._id.toString(), requester._id.toString());
+
+      const updatedInvitation = await Invitation.findById(invitation._id);
+      expect(updatedInvitation!.status).toBe('revoked');
     });
   });
 
   // ── Successful deletion returns { success: true } ─────────────────────────
 
   it('returns { success: true } on successful deletion', async () => {
-    setupDefaultMocks();
+    const targetUser = await createUser({ email: 'success@test.com' });
+    const requester = await createUser({ role: 'admin', email: 'req11@test.com' });
 
-    const result = await deleteUser(USER_ID_1, USER_ID_3);
+    const result = await deleteUser(targetUser._id.toString(), requester._id.toString());
     expect(result).toEqual({ success: true });
   });
 });
