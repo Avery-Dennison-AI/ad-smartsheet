@@ -18,6 +18,56 @@ import type { ColumnDef } from '../models/Sheet';
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 /**
+ * Parses a YYYY-MM-DD string into a UTC millisecond timestamp without
+ * any local-timezone offset. Returns NaN for invalid input.
+ */
+export function parseDateUTC(dateStr: string): number {
+  if (!dateStr || typeof dateStr !== 'string') return NaN;
+  // Accept both YYYY-MM-DD and ISO timestamp formats
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return NaN;
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10) - 1;
+  const day = parseInt(match[3], 10);
+  return Date.UTC(year, month, day);
+}
+
+/**
+ * Formats a UTC millisecond timestamp as YYYY-MM-DD using UTC getters
+ * (no timezone shift, no .toISOString()).
+ */
+export function formatDateUTC(ms: number): string {
+  const d = new Date(ms);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Calculates duration (inclusive days) between two YYYY-MM-DD strings.
+ * Uses pure UTC arithmetic — no local-timezone offset.
+ */
+export function calculateDuration(startStr: string, dueStr: string): number | null {
+  const startMs = parseDateUTC(startStr);
+  const dueMs = parseDateUTC(dueStr);
+  if (isNaN(startMs) || isNaN(dueMs)) return null;
+  return Math.round((dueMs - startMs) / 86_400_000) + 1;
+}
+
+/**
+ * Calculates the Due date (YYYY-MM-DD) from a Start date and Duration.
+ * Duration is inclusive (duration=1 means same day).
+ * Uses pure UTC arithmetic — no local-timezone offset.
+ */
+export function calculateDueDate(startStr: string, duration: number): string | null {
+  const startMs = parseDateUTC(startStr);
+  if (isNaN(startMs) || !isFinite(duration)) return null;
+  const dueMs = startMs + (duration - 1) * 86_400_000;
+  return formatDateUTC(dueMs);
+}
+
+/**
  * Computes a deduplicated array of user ObjectIds from contact-type cell values.
  * Exported for use in tests and the backfill migration.
  */
@@ -309,14 +359,10 @@ export async function updateCell(
         const durationVal = currentCells[durationCol.id] as number | null | undefined;
 
         if (col.systemField === 'start' || col.systemField === 'due') {
-          // Recalculate Duration from Start and Due
+          // Recalculate Duration from Start and Due using pure UTC date math
           if (startVal && dueVal) {
-            const startDate = new Date(startVal);
-            const dueDate = new Date(dueVal);
-            if (!isNaN(startDate.getTime()) && !isNaN(dueDate.getTime())) {
-              const newDuration = Math.round(
-                (dueDate.getTime() - startDate.getTime()) / 86_400_000,
-              ) + 1;
+            const newDuration = calculateDuration(String(startVal), String(dueVal));
+            if (newDuration !== null) {
               await Row.findByIdAndUpdate(rowId, {
                 $set: { [`cells.${durationCol.id}`]: newDuration },
               });
@@ -324,14 +370,11 @@ export async function updateCell(
             }
           }
         } else if (col.systemField === 'duration') {
-          // Recalculate Due from Start and Duration
+          // Recalculate Due from Start and Duration using pure UTC date math
           if (startVal && validated != null) {
-            const startDate = new Date(startVal);
             const dur = Number(validated);
-            if (!isNaN(startDate.getTime()) && !isNaN(dur)) {
-              const newDue = new Date(startDate);
-              newDue.setDate(newDue.getDate() + dur - 1);
-              const newDueStr = newDue.toISOString();
+            const newDueStr = calculateDueDate(String(startVal), dur);
+            if (newDueStr !== null) {
               await Row.findByIdAndUpdate(rowId, {
                 $set: { [`cells.${dueCol.id}`]: newDueStr },
               });

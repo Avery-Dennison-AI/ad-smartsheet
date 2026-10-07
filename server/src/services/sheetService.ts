@@ -80,6 +80,8 @@ interface SheetMetaResponse {
     name: string;
     updatedAt: Date;
     workspaceId: string;
+    kind: 'sheet' | 'project';
+    keyPrefix?: string;
   };
   workspace: {
     id: string;
@@ -90,16 +92,18 @@ interface SheetMetaResponse {
 }
 
 function formatSheetMeta(
-  sheetDoc: { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId },
+  sheetDoc: { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId; kind?: string; project?: { keyPrefix?: string } },
   workspaceDoc: { _id: mongoose.Types.ObjectId; name: string },
   meta: IUserSheetMeta,
 ): SheetMetaResponse {
-  return {
+  const kind = (sheetDoc.kind === 'project' ? 'project' : 'sheet') as 'sheet' | 'project';
+  const result: SheetMetaResponse = {
     sheet: {
       id: sheetDoc._id.toString(),
       name: sheetDoc.name,
       updatedAt: sheetDoc.updatedAt,
       workspaceId: sheetDoc.workspaceId.toString(),
+      kind,
     },
     workspace: {
       id: workspaceDoc._id.toString(),
@@ -108,6 +112,10 @@ function formatSheetMeta(
     lastOpenedAt: meta.lastOpenedAt,
     isFavorite: meta.isFavorite,
   };
+  if (kind === 'project' && sheetDoc.project?.keyPrefix) {
+    result.sheet.keyPrefix = sheetDoc.project.keyPrefix;
+  }
+  return result;
 }
 
 // ─── Public service functions ──────────────────────────────────────────────
@@ -216,27 +224,38 @@ export async function duplicateSheet(sheetId: string, userId: string) {
     : sheet.name;
   const copyName = `${prefix}${truncatedName}`;
 
-  const newSheet = await Sheet.create({
+  // Build the new sheet document data
+  const createData: Record<string, unknown> = {
     workspaceId: sheet.workspaceId,
     name: copyName,
     createdBy: new mongoose.Types.ObjectId(userId),
-    columns: sheet.columns || [],
-  });
+    // Preserve all column properties including systemField, formatting, width
+    columns: (sheet.columns || []).map((col) => ({ ...col })),
+  };
+
+  // Handle project-specific duplication
+  if (sheet.kind === 'project' && sheet.project) {
+    // Generate a unique key prefix
+    const newKeyPrefix = await generateUniqueKeyPrefix(sheet.workspaceId, sheet.project.keyPrefix);
+
+    createData.kind = 'project';
+    createData.project = {
+      keyPrefix: newKeyPrefix,
+      template: sheet.project.template,
+      statuses: sheet.project.statuses.map((s) => ({ ...s })),
+      itemTypes: [...sheet.project.itemTypes],
+      nextKeyNumber: 1,
+    };
+  }
+
+  const newSheet = await Sheet.create(createData);
 
   // Copy all rows from the original sheet, preserving hierarchy
   const sourceRows = await Row.find({ sheetId: sheet._id }).sort({ order: 1 });
   if (sourceRows.length > 0) {
     // First pass: create new rows and build old→new ID mapping
     const idMap = new Map<string, mongoose.Types.ObjectId>();
-    const newRows: Array<{
-      sheetId: mongoose.Types.ObjectId;
-      order: number;
-      cells: Record<string, unknown>;
-      formatting: Record<string, unknown>;
-      height?: number;
-      parentId: mongoose.Types.ObjectId | null;
-      depth: number;
-    }> = [];
+    const newRows: Array<Record<string, unknown>> = [];
 
     for (const r of sourceRows) {
       const newId = new mongoose.Types.ObjectId();
@@ -245,13 +264,13 @@ export async function duplicateSheet(sheetId: string, userId: string) {
         _id: newId,
         sheetId: newSheet._id,
         order: r.order,
-        cells: r.cells || {},
+        cells: r.cells instanceof Map ? Object.fromEntries(r.cells) : (r.toObject().cells || {}),
         formatting: r.formatting instanceof Map ? Object.fromEntries(r.formatting) : (r.toObject().formatting || {}),
         height: r.height ?? undefined,
-        parentId: r.parentId ? (idMap.get(r.parentId.toString()) ?? r.parentId) : null,
+        parentId: null, // will be fixed up below
         depth: r.depth ?? 0,
         assigneeIds: r.assigneeIds || [],
-      } as any);
+      });
     }
 
     // Fix up parentId references to use new IDs
@@ -259,16 +278,76 @@ export async function duplicateSheet(sheetId: string, userId: string) {
       const srcRow = sourceRows[i];
       if (srcRow.parentId) {
         const newParentId = idMap.get(srcRow.parentId.toString());
-        (newRows[i] as any).parentId = newParentId ?? null;
+        newRows[i].parentId = newParentId ?? null;
       }
     }
 
     await Row.insertMany(newRows as any[]);
+
+    // For project sheets, re-key all copied rows in order
+    if (sheet.kind === 'project' && sheet.project) {
+      const keyCol = (sheet.columns || []).find((c) => c.systemField === 'key');
+      if (keyCol) {
+        const newProject = createData.project as { keyPrefix: string; nextKeyNumber: number };
+        const bulkOps: Array<{ updateOne: { filter: { _id: mongoose.Types.ObjectId }; update: Record<string, unknown> } }> = [];
+
+        for (let i = 0; i < newRows.length; i++) {
+          // Atomically increment the counter — new: false returns pre-increment value
+          const updated = await Sheet.findOneAndUpdate(
+            { _id: newSheet._id },
+            { $inc: { 'project.nextKeyNumber': 1 } },
+            { new: false },
+          );
+          if (updated && updated.project) {
+            const num = updated.project.nextKeyNumber; // pre-increment value
+            const newKey = `${newProject.keyPrefix}-${num}`;
+            const rowId = newRows[i]._id as mongoose.Types.ObjectId;
+            bulkOps.push({
+              updateOne: {
+                filter: { _id: rowId },
+                update: { $set: { [`cells.${keyCol.id}`]: newKey } },
+              },
+            });
+          }
+        }
+
+        if (bulkOps.length > 0) {
+          await Row.bulkWrite(bulkOps);
+        }
+      }
+    }
   }
 
   const populated = await Sheet.findById(newSheet._id).populate('createdBy', CREATED_BY_POPULATE);
   if (!populated) throw new AppError('Failed to duplicate sheet', 500);
   return formatSheet(populated);
+}
+
+/**
+ * Generates a unique key prefix for a duplicated project sheet.
+ * Appends "2", "3", etc. to the base prefix; truncates base if over 6 chars total.
+ */
+async function generateUniqueKeyPrefix(workspaceId: mongoose.Types.ObjectId, originalPrefix: string): Promise<string> {
+  let candidate = `${originalPrefix}2`;
+  if (candidate.length > 6) {
+    candidate = `${originalPrefix.slice(0, 5)}2`;
+  }
+
+  let suffix = 2;
+  while (true) {
+    const existing = await Sheet.findOne({
+      workspaceId,
+      'project.keyPrefix': candidate,
+    }).select('_id');
+    if (!existing) return candidate;
+
+    suffix++;
+    candidate = `${originalPrefix}${suffix}`;
+    if (candidate.length > 6) {
+      const maxBase = 6 - String(suffix).length;
+      candidate = `${originalPrefix.slice(0, Math.max(1, maxBase))}${suffix}`;
+    }
+  }
 }
 
 /** Deletes a sheet and its associated user meta and rows. Requires admin/owner membership. */
@@ -308,7 +387,7 @@ export async function getRecents(userId: string, limit = 20) {
     lastOpenedAt: { $ne: null },
   })
     .sort({ lastOpenedAt: -1 })
-    .populate('sheetId', 'name updatedAt workspaceId')
+    .populate('sheetId', 'name updatedAt workspaceId kind project')
     .populate('workspaceId', 'name');
 
   // Filter out entries where the sheet or workspace no longer exists
@@ -334,7 +413,7 @@ export async function getRecents(userId: string, limit = 20) {
     // Check workspace membership first
     const wsRole = getMemberRole(workspace, userId);
     if (wsRole) {
-      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId };
+      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId; kind?: string; project?: { keyPrefix?: string } };
       const wsObj = meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId; name: string };
       results.push(formatSheetMeta(sheetObj, wsObj, meta));
       continue;
@@ -345,7 +424,7 @@ export async function getRecents(userId: string, limit = 20) {
       ?? meta.sheetId.toString();
     const effectiveRole = await getEffectiveRole(userId, sheetId);
     if (effectiveRole) {
-      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId };
+      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId; kind?: string; project?: { keyPrefix?: string } };
       const wsObj = meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId; name: string };
       results.push(formatSheetMeta(sheetObj, wsObj, meta));
     }
@@ -360,7 +439,7 @@ export async function getFavorites(userId: string) {
     userId: new mongoose.Types.ObjectId(userId),
     isFavorite: true,
   })
-    .populate('sheetId', 'name updatedAt workspaceId')
+    .populate('sheetId', 'name updatedAt workspaceId kind project')
     .populate('workspaceId', 'name');
 
   // Filter out entries where the sheet or workspace no longer exists
@@ -386,7 +465,7 @@ export async function getFavorites(userId: string) {
     // Check workspace membership first
     const wsRole = getMemberRole(workspace, userId);
     if (wsRole) {
-      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId };
+      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId; kind?: string; project?: { keyPrefix?: string } };
       const wsObj = meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId; name: string };
       results.push(formatSheetMeta(sheetObj, wsObj, meta));
       continue;
@@ -397,7 +476,7 @@ export async function getFavorites(userId: string) {
       ?? meta.sheetId.toString();
     const effectiveRole = await getEffectiveRole(userId, sheetId);
     if (effectiveRole) {
-      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId };
+      const sheetObj = meta.sheetId as unknown as { _id: mongoose.Types.ObjectId; name: string; updatedAt: Date; workspaceId: mongoose.Types.ObjectId; kind?: string; project?: { keyPrefix?: string } };
       const wsObj = meta.workspaceId as unknown as { _id: mongoose.Types.ObjectId; name: string };
       results.push(formatSheetMeta(sheetObj, wsObj, meta));
     }

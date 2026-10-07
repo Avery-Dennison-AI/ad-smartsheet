@@ -193,7 +193,7 @@ export async function getSharedWithMe(userId: string) {
     .populate('createdBy', '_id fullName email');
 
   const results: Array<{
-    sheet: { id: string; name: string; updatedAt: Date; workspaceId: string };
+    sheet: { id: string; name: string; updatedAt: Date; workspaceId: string; kind: 'sheet' | 'project'; keyPrefix?: string };
     workspace: { id: string; name: string };
     lastOpenedAt: null;
     isFavorite: boolean;
@@ -212,13 +212,20 @@ export async function getSharedWithMe(userId: string) {
     const memberEntry = sheet.members.find((m) => m.userId.toString() === userId);
     const role = memberEntry?.role || 'viewer';
 
+    const kind = (sheet.kind === 'project' ? 'project' : 'sheet') as 'sheet' | 'project';
+    const sheetEntry: { id: string; name: string; updatedAt: Date; workspaceId: string; kind: 'sheet' | 'project'; keyPrefix?: string } = {
+      id: sheet._id.toString(),
+      name: sheet.name,
+      updatedAt: sheet.updatedAt,
+      workspaceId: sheet.workspaceId.toString(),
+      kind,
+    };
+    if (kind === 'project' && sheet.project?.keyPrefix) {
+      sheetEntry.keyPrefix = sheet.project.keyPrefix;
+    }
+
     results.push({
-      sheet: {
-        id: sheet._id.toString(),
-        name: sheet.name,
-        updatedAt: sheet.updatedAt,
-        workspaceId: sheet.workspaceId.toString(),
-      },
+      sheet: sheetEntry,
       workspace: {
         id: workspace._id.toString(),
         name: workspace.name,

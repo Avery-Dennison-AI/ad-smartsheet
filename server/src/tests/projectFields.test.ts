@@ -73,6 +73,19 @@ const DURATION_COL_ID = 'col-duration-001';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+/** Creates a chainable mock that supports .select(), .populate(), .lean(), .exec() */
+function makeChainable(value: unknown) {
+  const q: any = {
+    select: () => q,
+    populate: () => q,
+    lean: () => q,
+    exec: () => Promise.resolve(value),
+    then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+      Promise.resolve(value).then(resolve, reject),
+  };
+  return q;
+}
+
 function makeProjectSheet() {
   return {
     _id: SHEET_ID,
@@ -110,7 +123,7 @@ function makeProjectSheet() {
   };
 }
 
-function makeWorkspace(role = 'editor') {
+function makeWorkspace(role = 'admin') {
   return {
     _id: WORKSPACE_ID,
     members: [{ user: USER_ID, role }],
@@ -128,11 +141,12 @@ function makeUser() {
 function setupDefaultMocks(sheetOverride?: any) {
   const sheet = sheetOverride ?? makeProjectSheet();
 
-  mockSheetFindById.mockResolvedValue(sheet);
-  mockWorkspaceFindById.mockResolvedValue(makeWorkspace());
-  mockUserFindById.mockReturnValue({
-    select: vi.fn().mockResolvedValue(makeUser()),
-  });
+  // Sheet.findById must be chainable (some callers use .select())
+  mockSheetFindById.mockReturnValue(makeChainable(sheet));
+  // Workspace.findById must be chainable
+  mockWorkspaceFindById.mockReturnValue(makeChainable(makeWorkspace()));
+  // User.findById must be chainable (.select('role guestExpiresAt isActive'))
+  mockUserFindById.mockReturnValue(makeChainable(makeUser()));
   mockRowFind.mockReturnValue({
     sort: vi.fn().mockResolvedValue([]),
   });
@@ -216,12 +230,12 @@ describe('projectFields — status and type validation', () => {
   });
 
   it('returns 400 when setting Status to an invalid value', async () => {
-    mockRowFindById.mockResolvedValue({
+    mockRowFindById.mockReturnValue(makeChainable({
       _id: ROW_ID,
       sheetId: SHEET_ID,
       cells: {},
       toObject: () => ({ cells: {} }),
-    });
+    }));
 
     await expect(
       updateCell(SHEET_ID, USER_ID, ROW_ID, STATUS_COL_ID, 'InvalidStatus'),
@@ -235,12 +249,12 @@ describe('projectFields — status and type validation', () => {
   });
 
   it('succeeds when setting Status to a valid value', async () => {
-    mockRowFindById.mockResolvedValue({
+    mockRowFindById.mockReturnValue(makeChainable({
       _id: ROW_ID,
       sheetId: SHEET_ID,
       cells: {},
       toObject: () => ({ cells: {} }),
-    });
+    }));
     mockRowFindByIdAndUpdate.mockResolvedValue({});
 
     const result = await updateCell(SHEET_ID, USER_ID, ROW_ID, STATUS_COL_ID, 'Open');
@@ -252,12 +266,12 @@ describe('projectFields — status and type validation', () => {
   });
 
   it('returns 400 when setting Type to an invalid value', async () => {
-    mockRowFindById.mockResolvedValue({
+    mockRowFindById.mockReturnValue(makeChainable({
       _id: ROW_ID,
       sheetId: SHEET_ID,
       cells: {},
       toObject: () => ({ cells: {} }),
-    });
+    }));
 
     await expect(
       updateCell(SHEET_ID, USER_ID, ROW_ID, TYPE_COL_ID, 'Epic'),
@@ -271,12 +285,12 @@ describe('projectFields — status and type validation', () => {
   });
 
   it('succeeds when setting Type to empty value', async () => {
-    mockRowFindById.mockResolvedValue({
+    mockRowFindById.mockReturnValue(makeChainable({
       _id: ROW_ID,
       sheetId: SHEET_ID,
       cells: {},
       toObject: () => ({ cells: {} }),
-    });
+    }));
     mockRowFindByIdAndUpdate.mockResolvedValue({});
 
     const result = await updateCell(SHEET_ID, USER_ID, ROW_ID, TYPE_COL_ID, '');
@@ -296,24 +310,24 @@ describe('projectFields — duration calculation', () => {
   });
 
   it('calculates Duration when Start is changed and Due is set', async () => {
-    const startDate = '2025-01-01T00:00:00.000Z';
-    const dueDate = '2025-01-05T00:00:00.000Z';
+    const startDate = '2025-01-01';
+    const dueDate = '2025-01-05';
 
     // First call: Row.findById for the initial check
-    // Second call: Row.findById for reload after save (for assignee/duration calc)
+    // Second call: Row.findById.select('cells') for reload after save (for assignee/duration calc)
     mockRowFindById
-      .mockResolvedValueOnce({
+      .mockReturnValueOnce(makeChainable({
         _id: ROW_ID,
         sheetId: SHEET_ID,
         cells: { [DUE_COL_ID]: dueDate },
         toObject: () => ({ cells: { [DUE_COL_ID]: dueDate } }),
-      })
-      .mockResolvedValueOnce({
+      }))
+      .mockReturnValueOnce(makeChainable({
         _id: ROW_ID,
         sheetId: SHEET_ID,
         cells: { [START_COL_ID]: startDate, [DUE_COL_ID]: dueDate },
         toObject: () => ({ cells: { [START_COL_ID]: startDate, [DUE_COL_ID]: dueDate } }),
-      });
+      }));
     mockRowFindByIdAndUpdate.mockResolvedValue({});
 
     const result = await updateCell(SHEET_ID, USER_ID, ROW_ID, START_COL_ID, startDate);
@@ -326,22 +340,22 @@ describe('projectFields — duration calculation', () => {
   });
 
   it('calculates Duration when Due is changed and Start is set', async () => {
-    const startDate = '2025-01-01T00:00:00.000Z';
-    const dueDate = '2025-01-10T00:00:00.000Z';
+    const startDate = '2025-01-01';
+    const dueDate = '2025-01-10';
 
     mockRowFindById
-      .mockResolvedValueOnce({
+      .mockReturnValueOnce(makeChainable({
         _id: ROW_ID,
         sheetId: SHEET_ID,
         cells: { [START_COL_ID]: startDate },
         toObject: () => ({ cells: { [START_COL_ID]: startDate } }),
-      })
-      .mockResolvedValueOnce({
+      }))
+      .mockReturnValueOnce(makeChainable({
         _id: ROW_ID,
         sheetId: SHEET_ID,
         cells: { [START_COL_ID]: startDate, [DUE_COL_ID]: dueDate },
         toObject: () => ({ cells: { [START_COL_ID]: startDate, [DUE_COL_ID]: dueDate } }),
-      });
+      }));
     mockRowFindByIdAndUpdate.mockResolvedValue({});
 
     const result = await updateCell(SHEET_ID, USER_ID, ROW_ID, DUE_COL_ID, dueDate);
@@ -353,31 +367,29 @@ describe('projectFields — duration calculation', () => {
   });
 
   it('calculates Due when Duration is changed and Start is set', async () => {
-    const startDate = '2025-01-01T00:00:00.000Z';
+    const startDate = '2025-01-01';
     const duration = 7;
 
     mockRowFindById
-      .mockResolvedValueOnce({
+      .mockReturnValueOnce(makeChainable({
         _id: ROW_ID,
         sheetId: SHEET_ID,
         cells: { [START_COL_ID]: startDate },
         toObject: () => ({ cells: { [START_COL_ID]: startDate } }),
-      })
-      .mockResolvedValueOnce({
+      }))
+      .mockReturnValueOnce(makeChainable({
         _id: ROW_ID,
         sheetId: SHEET_ID,
         cells: { [START_COL_ID]: startDate, [DURATION_COL_ID]: duration },
         toObject: () => ({ cells: { [START_COL_ID]: startDate, [DURATION_COL_ID]: duration } }),
-      });
+      }));
     mockRowFindByIdAndUpdate.mockResolvedValue({});
 
     const result = await updateCell(SHEET_ID, USER_ID, ROW_ID, DURATION_COL_ID, duration);
 
     const dueUpdate = result.find((u: any) => u.columnId === DUE_COL_ID);
     expect(dueUpdate).toBeDefined();
-    // Start Jan 1 + 7 days - 1 = Jan 7
-    const expectedDue = new Date(startDate);
-    expectedDue.setDate(expectedDue.getDate() + duration - 1);
-    expect(dueUpdate!.value).toBe(expectedDue.toISOString());
+    // Start Jan 1 + 7 days - 1 = Jan 7 → "2025-01-07"
+    expect(dueUpdate!.value).toBe('2025-01-07');
   });
 });
