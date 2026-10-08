@@ -38,10 +38,23 @@ export default function MyWorkRow({ item, className }: MyWorkRowProps) {
   const dueDateText = formatDueDate(item.dueDate);
   const isOverdue = item.dueDate != null && dueDateText?.includes('overdue');
 
+  const handleNavigate = () => {
+    navigate(`/sheets/${item.sheetId}?row=${item.rowId}`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleNavigate();
+    }
+  };
+
   return (
-    <button
-      type="button"
-      onClick={() => navigate(`/sheets/${item.sheetId}?row=${item.rowId}`)}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleNavigate}
+      onKeyDown={handleKeyDown}
       className={cn(
         'flex w-full cursor-pointer items-center gap-4 rounded px-2 py-1.5 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className,
@@ -90,6 +103,6 @@ export default function MyWorkRow({ item, className }: MyWorkRowProps) {
           {item.sheetName} &middot; {item.workspaceName}
         </span>
       </div>
-    </button>
+    </div>
   );
 }

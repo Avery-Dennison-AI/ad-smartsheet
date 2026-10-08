@@ -1,12 +1,16 @@
+import React from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentWorkspace } from '@/store/slices/workspaceSlice';
 import { selectCurrentSheet } from '@/store/slices/sheetsSlice';
 import { selectCurrentUser } from '@/store/slices/authSlice';
+import ProjectIcon from '@/features/projects/ProjectIcon';
+import SheetIcon from '@/components/ui/SheetIcon';
 
 export interface BreadcrumbItem {
   label: string;
   to?: string;
+  icon?: React.ReactNode;
 }
 
 /** Derives breadcrumb items from the current route. */
@@ -39,6 +43,10 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
     const sheetName = sheet?.name || params.sheetId || 'Sheet';
     const workspaceId = sheet?.workspaceId;
     const workspaceName = workspace?.name || 'Workspace';
+    const isProject = sheet?.kind === 'project';
+    const icon = isProject
+      ? React.createElement(ProjectIcon, { className: 'h-3.5 w-3.5' })
+      : React.createElement(SheetIcon, { className: 'h-3.5 w-3.5' });
     const items: BreadcrumbItem[] = [];
     if (workspaceId && !isGuest) {
       items.push({ label: workspaceName, to: `/workspaces/${workspaceId}` });
@@ -46,7 +54,7 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
       // Guests see workspace name as plain text, not a link
       items.push({ label: workspaceName });
     }
-    items.push({ label: sheetName });
+    items.push({ label: sheetName, icon });
     return items;
   }
 

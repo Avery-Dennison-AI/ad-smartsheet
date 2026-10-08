@@ -1,9 +1,10 @@
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-interface BreadcrumbItem {
+export interface BreadcrumbItem {
   label: string;
   to?: string;
+  icon?: React.ReactNode;
 }
 
 interface BreadcrumbsProps {
@@ -34,21 +35,24 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
               {isLast ? (
                 <span
                   aria-current="page"
-                  className="font-medium text-[var(--color-gray-900)]"
+                  className="flex items-center gap-1 font-medium text-[var(--color-gray-900)]"
                   data-icod-id={`src_components_ui_breadcrumbs_tsx_ec14_${index}`}>
+                  {item.icon}
                   {item.label}
                 </span>
               ) : item.to ? (
                 <Link
                   to={item.to}
-                  className="text-[var(--color-gray-600)] hover:text-[var(--color-primary)] transition-colors"
+                  className="flex items-center gap-1 text-[var(--color-gray-600)] hover:text-[var(--color-primary)] transition-colors"
                   data-icod-id={`src_components_ui_breadcrumbs_tsx_8a65_${index}`}>
+                  {item.icon}
                   {item.label}
                 </Link>
               ) : (
                 <span
-                  className="text-[var(--color-gray-600)]"
+                  className="flex items-center gap-1 text-[var(--color-gray-600)]"
                   data-icod-id={`src_components_ui_breadcrumbs_tsx_0440_${index}`}>
+                  {item.icon}
                   {item.label}
                 </span>
               )}

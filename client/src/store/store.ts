@@ -8,7 +8,7 @@ import userMetaReducer from './slices/userMetaSlice';
 import gridReducer from './slices/gridSlice';
 import orgPolicyReducer from './slices/orgPolicySlice';
 import myWorkReducer from './slices/myWorkSlice';
-import projectsReducer from '../features/projects/projectsSlice';
+import projectsReducer from './slices/projectsSlice';
 
 export const store = configureStore({
   reducer: {

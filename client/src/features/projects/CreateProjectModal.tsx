@@ -1,28 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GanttChart, LayoutList, Columns, ClipboardList } from 'lucide-react';
-import { Modal, Button, Field, Input, Select, Alert, Tooltip } from '@/components/ui';
+import { Modal, Button, Field, Input, Select, Alert, Tooltip, SelectableCard } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 import { selectWorkspaceList, fetchWorkspaces, selectWorkspaceStatus } from '@/store/slices/workspaceSlice';
-import { createProject, clearCreateError } from './projectsSlice';
-import type { Workspace, WorkspaceRole } from '@/types';
-import { cn } from '@/utils/cn';
+import { createProject, clearCreateError } from '@/store/slices/projectsSlice';
+import { PROJECT_TEMPLATES, type TemplateId } from './projectTemplates';
+import type { Workspace } from '@/types';
 
 interface CreateProjectModalProps {
   open: boolean;
   onClose: () => void;
   workspaceId?: string;
 }
-
-const TEMPLATES = [
-  { id: 'waterfall', icon: GanttChart, name: 'Waterfall', description: 'Plan with dates, durations, and milestones' },
-  { id: 'scrum', icon: LayoutList, name: 'Scrum', description: 'Backlog, story points, and sprints' },
-  { id: 'kanban', icon: Columns, name: 'Kanban', description: 'Simple flow from to do to done' },
-  { id: 'tracker', icon: ClipboardList, name: 'Tracker', description: 'Track records and requests' },
-] as const;
-
-type TemplateId = typeof TEMPLATES[number]['id'];
 
 /** Extracts uppercase initials from a name (max 6 chars). */
 function suggestKeyPrefix(name: string): string {
@@ -56,47 +46,6 @@ function getEditableWorkspaces(workspaces: Workspace[], userId: string | undefin
     const role = member?.role;
     return role === 'editor' || role === 'admin' || role === 'owner';
   });
-}
-
-// ─── Template Card Component ──────────────────────────────────────────────
-
-interface TemplateCardProps {
-  template: typeof TEMPLATES[number];
-  selected: boolean;
-  onSelect: (id: TemplateId) => void;
-}
-
-function TemplateCard({ template, selected, onSelect }: TemplateCardProps) {
-  const Icon = template.icon;
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(template.id)}
-      className={cn(
-        'flex flex-col items-start gap-2 rounded-lg border p-3 text-left transition-all',
-        selected
-          ? 'border-primary bg-primary/5 ring-1 ring-primary'
-          : 'border-border bg-card hover:border-muted-foreground/30 hover:bg-muted/30',
-      )}
-      data-icod-id={`src_features_projects_createprojectmodal_tsx_template_${template.id}`}
-    >
-      <div
-        className="flex items-center gap-2"
-        data-icod-id="src_features_projects_createprojectmodal_tsx_407c">
-        <Icon
-          className={cn('h-4 w-4', selected ? 'text-primary' : 'text-muted-foreground')}
-          data-icod-id="src_features_projects_createprojectmodal_tsx_8166" />
-        <span
-          className={cn('text-sm font-medium', selected ? 'text-foreground' : 'text-foreground')}
-          data-icod-id="src_features_projects_createprojectmodal_tsx_943a">
-          {template.name}
-        </span>
-      </div>
-      <p
-        className="text-xs text-muted-foreground leading-snug"
-        data-icod-id="src_features_projects_createprojectmodal_tsx_582c">{template.description}</p>
-    </button>
-  );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────
@@ -323,15 +272,30 @@ export default function CreateProjectModal({ open, onClose, workspaceId }: Creat
             className="text-destructive"
             data-icod-id="src_features_projects_createprojectmodal_tsx_1695">*</span>
           </label>
-          <div className="grid grid-cols-2 gap-3" data-icod-id="src_features_projects_createprojectmodal_tsx_template_grid">
-            {TEMPLATES.map((t) => (
-              <TemplateCard
-                key={t.id}
-                template={t}
-                selected={selectedTemplate === t.id}
-                onSelect={setSelectedTemplate}
-                data-icod-id={`src_features_projects_createprojectmodal_tsx_dd69_${t.id}`} />
-            ))}
+          <div
+            className="grid grid-cols-2 gap-3"
+            role="radiogroup"
+            aria-label="Project template"
+            data-icod-id="src_features_projects_createprojectmodal_tsx_template_grid"
+          >
+            {PROJECT_TEMPLATES.map((t) => {
+              const Icon = t.icon;
+              return (
+                <SelectableCard
+                  key={t.id}
+                  icon={<Icon
+                    className="h-4 w-4"
+                    data-icod-id={`src_features_projects_createprojectmodal_tsx_17cc_${t.id}`} />}
+                  title={t.name}
+                  description={t.description}
+                  selected={selectedTemplate === t.id}
+                  onSelect={() => setSelectedTemplate(t.id)}
+                  name="template"
+                  value={t.id}
+                  data-icod-id={`src_features_projects_createprojectmodal_tsx_dd69_${t.id}`}
+                />
+              );
+            })}
           </div>
         </div>
       </form>

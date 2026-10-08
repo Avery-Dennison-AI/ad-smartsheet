@@ -50,6 +50,7 @@ import {
   ColorSwatchGroup,
   AnimatedBrandBackground,
   PermissionMatrix,
+  SelectableCard,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
@@ -62,6 +63,7 @@ import type { DropdownOption } from '@/types';
 import { ACCENTS, ACCENT_META } from '@/utils/theme';
 import type { Accent } from '@/utils/theme';
 import { ORG_ROLE_MATRIX, WORKSPACE_SHEET_ROLE_MATRIX } from '@/utils/permissionsDefinition';
+import { PROJECT_TEMPLATES } from '@/features/projects/projectTemplates';
 
 /* ─── Section wrapper ─────────────────────────────────────────────────────── */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -1035,6 +1037,15 @@ export default function DesignSystemPage() {
         <Breadcrumbs
           items={[{ label: 'Workspace', to: '#' }, { label: 'My Sheet' }]}
           data-icod-id="src_pages_designsystempage_tsx_be52" />
+      </Section>
+      {/* ─── SelectableCard ──────────────────────────────────────────────── */}
+      <Section title="SelectableCard" data-icod-id="ds_selectablecard_section">
+        <div className="space-y-4" data-icod-id="ds_selectablecard_wrap">
+          <p className="text-sm text-muted-foreground" data-icod-id="ds_selectablecard_desc">
+            A radio-group card for selecting from a set of options. Keyboard accessible (Enter/Space).
+          </p>
+          <SelectableCardDemo data-icod-id="ds_selectablecard_demo" />
+        </div>
       </Section>
       {/* ─── PageHeader ──────────────────────────────────────────────────── */}
       <Section title="PageHeader" data-icod-id="src_pages_designsystempage_tsx_pageheader">
@@ -2050,5 +2061,37 @@ function ColorSwatchGroupDemo() {
       value={selected}
       onChange={setSelected}
       data-icod-id="ds_colorswatchgroup_demo_instance" />
+  );
+}
+
+/* ─── SelectableCard interactive demo ──────────────────────────────────────── */
+function SelectableCardDemo() {
+  const [selected, setSelected] = useState<string>(PROJECT_TEMPLATES[0].id);
+  return (
+    <div
+      className="grid grid-cols-2 gap-3"
+      role="radiogroup"
+      aria-label="Template selection demo"
+      data-icod-id="ds_selectablecard_grid"
+    >
+      {PROJECT_TEMPLATES.map((t) => {
+        const Icon = t.icon;
+        return (
+          <SelectableCard
+            key={t.id}
+            icon={<Icon
+              className="h-4 w-4"
+              data-icod-id={`src_pages_designsystempage_tsx_3404_${t.id}`} />}
+            title={t.name}
+            description={t.description}
+            selected={selected === t.id}
+            onSelect={() => setSelected(t.id)}
+            name="demo-template"
+            value={t.id}
+            data-icod-id={`ds_selectablecard_${t.id}`}
+          />
+        );
+      })}
+    </div>
   );
 }

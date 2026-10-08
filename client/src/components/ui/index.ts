@@ -9,7 +9,7 @@ export {
   type ButtonSize,
   type ButtonVariant,
 } from './Button';
-export { default as Breadcrumbs } from './Breadcrumbs';
+export { default as Breadcrumbs, type BreadcrumbItem } from './Breadcrumbs';
 export { default as Card, type CardProps } from './Card';
 export { default as EmptyState, type EmptyStateProps } from './EmptyState';
 export { default as Field, type FieldProps } from './Field';
@@ -56,3 +56,4 @@ export { default as ResizeHandle } from './ResizeHandle';
 export { default as ColorSwatchGroup, type ColorSwatchGroupProps, type ColorSwatchOption } from './ColorSwatchGroup';
 export { default as AnimatedBrandBackground, type AnimatedBrandBackgroundProps } from './AnimatedBrandBackground';
 export { default as PermissionMatrix, type PermissionMatrixProps, type PermissionRow } from './PermissionMatrix';
+export { default as SelectableCard, type SelectableCardProps } from './SelectableCard';
