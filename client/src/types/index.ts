@@ -158,6 +158,7 @@ export interface GridRow {
   depth: number;
   createdAt?: string;
   updatedAt?: string;
+  commentCount?: number;
 }
 
 export interface CellFormatting {
@@ -291,5 +292,30 @@ export interface ItemTypeEntry {
 export interface ProjectUsage {
   statusUsage: Record<string, number>;
   typeUsage: Record<string, number>;
+}
+
+// ─── Comment Types ──────────────────────────────────────────────────────────
+
+export interface FormattedComment {
+  _id: string;
+  body: string;
+  authorId: string;
+  authorName: string;
+  parentId?: string;
+  mentions: { userId: string; name: string }[];
+  editedAt?: string;
+  deletedAt?: string;
+  createdAt: string;
+  replies: FormattedComment[];
+}
+
+// ─── Activity Types ─────────────────────────────────────────────────────────
+
+export interface ActivityEntry {
+  _id: string;
+  action: string;
+  details: Record<string, unknown>;
+  actorName: string;
+  createdAt: string;
 }
 

@@ -3,6 +3,8 @@ import GridCell from './GridCell';
 import { getColWidth, getRowHeight } from './gridHelpers';
 import type { Column, GridRow as GridRowType, WorkspaceRole } from '@/types';
 import type { DropPosition } from './useRowOperations';
+import { PanelRightOpen, MessageSquare } from 'lucide-react';
+import { IconButton } from '@/components/ui';
 
 interface GridMember {
   id: string;
@@ -62,6 +64,8 @@ interface GridRowProps {
   draggedRowIds?: Set<string>;
   dropTargetRowId?: string | null;
   dropPosition?: DropPosition | null;
+  /** Open item detail panel callback */
+  onOpenItem?: (rowId: string, tab?: 'comments' | 'activity') => void;
 }
 
 export default function GridRow({
@@ -112,6 +116,7 @@ export default function GridRow({
   draggedRowIds,
   dropTargetRowId,
   dropPosition,
+  onOpenItem,
 }: GridRowProps) {
   const isBlankRow = !row;
   const rowH = liveRowHeights && row && liveRowHeights[row.id] !== undefined
@@ -196,6 +201,7 @@ export default function GridRow({
           onToggleCollapse={!isBlankRow ? onToggleCollapse : undefined}
           onExpandAll={onExpandAll}
           onCollapseAll={onCollapseAll}
+          onOpenItem={!isBlankRow && row?.id && onOpenItem ? (rowId) => onOpenItem(rowId) : undefined}
           data-icod-id="src_features_sheets_grid_gridrow_tsx_994c" />
       </div>
       {/* Data cells */}
@@ -253,6 +259,47 @@ export default function GridRow({
               isCollapsed={col.isPrimary ? rowIsCollapsed : undefined}
               onToggleCollapse={col.isPrimary && !isBlankRow && row?.id ? () => onToggleCollapse?.(row.id) : undefined}
               data-icod-id={`src_features_sheets_grid_gridrow_tsx_4e48_${col.id}`} />
+            {/* Open details button and comment badge on primary cell */}
+            {col.isPrimary && !isBlankRow && row?.id && (
+              <>
+                {/* Open details button - visible on hover */}
+                {isRowHovered && (
+                  <div
+                    className="absolute right-1 top-1/2 -translate-y-1/2 z-10"
+                    data-icod-id={`src_features_sheets_grid_gridrow_tsx_openbtn_${row.id}`}>
+                    <IconButton
+                      size="sm"
+                      tooltip="Open details"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenItem?.(row.id);
+                      }}
+                      data-icod-id={`src_features_sheets_grid_gridrow_tsx_1dcd_${col.id}`}>
+                      <PanelRightOpen
+                        className="h-3.5 w-3.5"
+                        data-icod-id={`src_features_sheets_grid_gridrow_tsx_1b53_${col.id}`} />
+                    </IconButton>
+                  </div>
+                )}
+                {/* Comment count badge */}
+                {(row.commentCount ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenItem?.(row.id, 'comments');
+                    }}
+                    className="absolute right-1 bottom-0.5 flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/50"
+                    title="View comments"
+                    data-icod-id={`src_features_sheets_grid_gridrow_tsx_comments_${row.id}`}>
+                    <MessageSquare
+                      className="h-3 w-3"
+                      data-icod-id={`src_features_sheets_grid_gridrow_tsx_6b07_${col.id}`} />
+                    <span data-icod-id={`src_features_sheets_grid_gridrow_tsx_4fe6_${col.id}`}>{row.commentCount}</span>
+                  </button>
+                )}
+              </>
+            )}
           </div>
         );
       })}

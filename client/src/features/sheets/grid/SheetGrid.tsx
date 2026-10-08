@@ -14,6 +14,7 @@ import {
   selectGridLoading,
   selectGridMembers,
 } from '@/store/slices/gridSlice';
+import { openItem, closeItem, selectOpenRowId } from '@/store/slices/itemDetailSlice';
 import { useGridSelection } from './useGridSelection';
 import { useGridVirtualization } from './useGridVirtualization';
 import { useWrapRowHeights } from './useWrapRowHeights';
@@ -25,6 +26,7 @@ import GridHeaderRow from './GridHeaderRow';
 import GridBody from './GridBody';
 import GridDialogs from './GridDialogs';
 import FormattingToolbar from './FormattingToolbar';
+import ItemDetailPanel from '@/features/itemDetail/ItemDetailPanel';
 import { getColWidth, DEFAULT_ROW_HEIGHT, HEADER_HEIGHT } from './gridHelpers';
 import type { WorkspaceRole } from '@/types';
 
@@ -42,6 +44,7 @@ export default function SheetGrid({ sheetId, userRole, highlightRowId }: SheetGr
   const rows = useAppSelector(selectGridRows);
   const loading = useAppSelector(selectGridLoading);
   const workspaceMembers = useAppSelector(selectGridMembers);
+  const openRowId = useAppSelector(selectOpenRowId);
 
   const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number; rowIndex: number } | null>(null);
@@ -285,10 +288,21 @@ export default function SheetGrid({ sheetId, userRole, highlightRowId }: SheetGr
           rowOps.outdentRows(rowIds);
         }
       }
+      // Shift+Space → open item detail panel
+      if (e.key === ' ' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (!virtualization.scrollNodeRef.current?.contains(document.activeElement as Node)) return;
+        if (selection.selectedRowIndices.size !== 1) return;
+        e.preventDefault();
+        const idx = [...selection.selectedRowIndices][0];
+        const row = visibleRows[idx];
+        if (row) {
+          dispatch(openItem({ rowId: row.id }));
+        }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selection.selectedRowIndices, visibleRows, virtualization.scrollNodeRef, rowOps, canEdit]);
+  }, [selection.selectedRowIndices, visibleRows, virtualization.scrollNodeRef, rowOps, canEdit, dispatch]);
 
   // Row resize start wrapper that passes selectedRowIndices
   const handleRowResizeStartWrapper = useCallback(
@@ -465,6 +479,7 @@ export default function SheetGrid({ sheetId, userRole, highlightRowId }: SheetGr
             draggedRowIds={rowOps.draggedRowIds}
             dropTargetRowId={rowOps.dropTargetRowId}
             dropPosition={rowOps.dropPosition}
+            onOpenItem={(rowId, tab) => dispatch(openItem({ rowId, tab }))}
             data-icod-id="src_features_sheets_grid_sheetgrid_tsx_a98f" />
           {/* Row highlight overlay for ?row= URL param */}
           {highlightRowId && (() => {
@@ -500,6 +515,11 @@ export default function SheetGrid({ sheetId, userRole, highlightRowId }: SheetGr
         if (!ctxRow) return null;
 
         const ctxItems: DropdownMenuItem[] = [];
+        // "Open details" is available for all users
+        ctxItems.push(
+          { label: 'Open details', onClick: () => dispatch(openItem({ rowId: ctxRow.id })) },
+          { type: 'divider' },
+        );
         if (canEdit) {
           ctxItems.push(
             { label: 'Insert row above', onClick: () => rowOps.handleInsertRowAbove(ctxRow.id) },
@@ -572,6 +592,18 @@ export default function SheetGrid({ sheetId, userRole, highlightRowId }: SheetGr
           document.body,
         );
       })()}
+      {/* Item detail side panel */}
+      <ItemDetailPanel
+        sheetId={sheetId}
+        userRole={userRole}
+        data-icod-id="src_features_sheets_grid_sheetgrid_tsx_871f" />
+      {/* Click outside panel to close */}
+      {openRowId && (
+        <div
+          className="fixed inset-0 z-20"
+          onClick={() => dispatch(closeItem())}
+          data-icod-id="src_features_sheets_grid_sheetgrid_tsx_backdrop" />
+      )}
     </div>
   );
 }

@@ -39,7 +39,7 @@ export default function MyWorkRow({ item, className }: MyWorkRowProps) {
   const isOverdue = item.dueDate != null && dueDateText?.includes('overdue');
 
   const handleNavigate = () => {
-    navigate(`/sheets/${item.sheetId}?row=${item.rowId}`);
+    navigate(`/sheets/${item.sheetId}?item=${item.rowId}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

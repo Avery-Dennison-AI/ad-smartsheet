@@ -9,6 +9,8 @@ import gridReducer from './slices/gridSlice';
 import orgPolicyReducer from './slices/orgPolicySlice';
 import myWorkReducer from './slices/myWorkSlice';
 import projectsReducer from './slices/projectsSlice';
+import itemDetailReducer from './slices/itemDetailSlice';
+import commentsReducer from './slices/commentsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +24,8 @@ export const store = configureStore({
     orgPolicy: orgPolicyReducer,
     myWork: myWorkReducer,
     projects: projectsReducer,
+    itemDetail: itemDetailReducer,
+    comments: commentsReducer,
   },
 });
 

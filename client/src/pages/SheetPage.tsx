@@ -6,13 +6,14 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSheet, selectCurrentSheet, selectSheetsLoading, selectSheetsError, selectSheetsErrorStatus, clearCurrentSheet } from '@/store/slices/sheetsSlice';
 import { setFavoriteMeta, selectRecents, selectFavorites } from '@/store/slices/userMetaSlice';
 import { selectGridSaving, selectGridSaveError, clearGrid, selectGridLoading } from '@/store/slices/gridSlice';
+import { openItem, closeItem, selectOpenRowId } from '@/store/slices/itemDetailSlice';
 import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 import SheetGrid from '@/features/sheets/grid/SheetGrid';
 import SheetToolbar from '@/features/sheets/grid/SheetToolbar';
 
 export default function SheetPage() {
   const { sheetId } = useParams<{ sheetId: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const sheet = useAppSelector(selectCurrentSheet);
@@ -24,11 +25,38 @@ export default function SheetPage() {
   const favorites = useAppSelector(selectFavorites);
   const saving = useAppSelector(selectGridSaving);
   const saveError = useAppSelector(selectGridSaveError);
+  const openRowId = useAppSelector(selectOpenRowId);
   const { handleSheetAccessLost, isAccessError } = useWorkspaceAccessLost();
 
   // Row highlight from ?row=<rowId> URL param
   const rowParam = searchParams.get('row');
   const [highlightRowId, setHighlightRowId] = useState<string | null>(null);
+
+  // Open item detail panel from ?item=<rowId> URL param on mount
+  useEffect(() => {
+    const itemParam = searchParams.get('item');
+    if (itemParam && !gridLoading) {
+      dispatch(openItem({ rowId: itemParam }));
+    }
+  }, [searchParams, gridLoading, dispatch]);
+
+  // Sync openRowId state to URL query param
+  useEffect(() => {
+    const currentParam = searchParams.get('item');
+    if (openRowId && openRowId !== currentParam) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('item', openRowId);
+        return next;
+      }, { replace: true });
+    } else if (!openRowId && currentParam) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
+        return next;
+      }, { replace: true });
+    }
+  }, [openRowId, searchParams, setSearchParams]);
 
   // After grid loads, activate the highlight and clear it after 2 seconds
   useEffect(() => {

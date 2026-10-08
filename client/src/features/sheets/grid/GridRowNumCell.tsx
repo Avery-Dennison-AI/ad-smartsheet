@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { GripVertical, MoreHorizontal, ChevronRight, ChevronDown } from 'lucide-react';
+import { GripVertical, MoreHorizontal, ChevronRight, ChevronDown, PanelRightOpen } from 'lucide-react';
 import { DropdownMenu, IconButton, ResizeHandle } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
@@ -34,6 +34,8 @@ interface GridRowNumCellProps {
   onToggleCollapse?: (rowId: string) => void;
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
+  /** Open item detail panel callback */
+  onOpenItem?: (rowId: string) => void;
 }
 
 export default function GridRowNumCell({
@@ -59,11 +61,20 @@ export default function GridRowNumCell({
   onToggleCollapse,
   onExpandAll,
   onCollapseAll,
+  onOpenItem,
 }: GridRowNumCellProps) {
   const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
   const isData = !!rowId;
 
   const menuItems: DropdownMenuItem[] = [];
+
+  // Add "Open details" for any row (viewer or editor)
+  if (isData && onOpenItem) {
+    menuItems.push(
+      { label: 'Open details', onClick: () => onOpenItem(rowId!) },
+      { type: 'divider' },
+    );
+  }
 
   if (canEdit && isData) {
     menuItems.push(

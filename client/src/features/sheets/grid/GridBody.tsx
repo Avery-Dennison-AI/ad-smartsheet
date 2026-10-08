@@ -63,6 +63,8 @@ interface GridBodyProps {
   draggedRowIds?: Set<string>;
   dropTargetRowId?: string | null;
   dropPosition?: DropPosition | null;
+  /** Open item detail panel callback */
+  onOpenItem?: (rowId: string, tab?: 'comments' | 'activity') => void;
 }
 
 export default function GridBody({
@@ -115,6 +117,7 @@ export default function GridBody({
   draggedRowIds,
   dropTargetRowId,
   dropPosition,
+  onOpenItem,
 }: GridBodyProps) {
   return (
     <div
@@ -171,6 +174,7 @@ export default function GridBody({
           draggedRowIds={draggedRowIds}
           dropTargetRowId={dropTargetRowId}
           dropPosition={dropPosition}
+          onOpenItem={onOpenItem}
           data-icod-id={`src_features_sheets_grid_gridbody_tsx_4447_${rowIdx}`} />
       ))}
 
