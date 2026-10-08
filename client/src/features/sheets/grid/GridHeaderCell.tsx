@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { ChevronDown, Type, Hash, Calendar, List, CheckSquare, Users, GripVertical } from 'lucide-react';
+import { ChevronDown, Type, Hash, Calendar, List, CheckSquare, Users, GripVertical, Lock } from 'lucide-react';
 import { DropdownMenu, Tooltip, IconButton, ResizeHandle, Input } from '@/components/ui';
 import type { DropdownMenuItem } from '@/components/ui';
 import { cn } from '@/utils/cn';
@@ -83,12 +83,27 @@ export default function GridHeaderCell({
   }, [renameValue, column.name, column.id, onRename]);
 
   const menuItems: DropdownMenuItem[] = [];
+  const isSystemField = !!column.systemField;
 
   if (canEdit) {
     menuItems.push(
       { label: 'Rename', onClick: startRenaming },
-      { label: 'Edit column properties', onClick: () => onEditProperties(column.id) },
     );
+
+    // Edit column properties — disabled for system fields
+    if (isSystemField) {
+      menuItems.push({
+        label: (
+          <Tooltip content="This is a project field" data-icod-id="src_features_sheets_grid_gridheadercell_tsx_sysfield_tooltip">
+            <span className="opacity-40 cursor-not-allowed" data-icod-id="src_features_sheets_grid_gridheadercell_tsx_sysfield_edit">
+              Edit column properties
+            </span>
+          </Tooltip>
+        ),
+      });
+    } else {
+      menuItems.push({ label: 'Edit column properties', onClick: () => onEditProperties(column.id) });
+    }
 
     // "Set as primary column" — only for non-primary text columns
     if (!column.isPrimary && column.type === 'text' && onSetPrimary) {
@@ -105,14 +120,17 @@ export default function GridHeaderCell({
     menuItems.push({ label: 'Insert column right', onClick: () => onInsertRight(column.id) });
   }
 
-  if (column.isPrimary) {
-    // Primary column: show disabled delete with tooltip
+  if (column.isPrimary || isSystemField) {
+    // Primary column or system field: show disabled delete with tooltip
+    const tooltipContent = column.isPrimary
+      ? 'Set another column as primary to delete this column.'
+      : 'This is a project field';
     menuItems.push(
       { type: 'divider' },
       {
         label: (
           <Tooltip
-            content="Set another column as primary to delete this column."
+            content={tooltipContent}
             data-icod-id="src_features_sheets_grid_gridheadercell_tsx_9895">
             <span
               className="opacity-40 cursor-not-allowed"
@@ -178,6 +196,14 @@ export default function GridHeaderCell({
             className="truncate cursor-pointer"
             onDoubleClick={() => { if (canEdit) startRenaming(); }}
             data-icod-id="src_features_sheets_grid_gridheadercell_tsx_a875">{column.name}</span>
+          {isSystemField && (
+            <Tooltip content="Project field" data-icod-id="src_features_sheets_grid_gridheadercell_tsx_sysfield_lock_tooltip">
+              <Lock
+                size={10}
+                className="ml-1 text-muted-foreground"
+                data-icod-id="src_features_sheets_grid_gridheadercell_tsx_sysfield_lock" />
+            </Tooltip>
+          )}
         </>
       )}
       {canEdit && !renaming && (

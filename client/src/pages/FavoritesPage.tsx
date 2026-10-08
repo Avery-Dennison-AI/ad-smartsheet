@@ -6,6 +6,7 @@ import type { DataTableColumn } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchFavorites, selectFavorites, selectUserMetaLoading, setFavoriteMeta } from '@/store/slices/userMetaSlice';
 import type { SheetMetaItem } from '@/types';
+import ProjectIcon from '@/features/projects/ProjectIcon';
 
 
 export default function FavoritesPage() {
@@ -26,13 +27,26 @@ export default function FavoritesPage() {
         <div
           className="flex items-center gap-2"
           data-icod-id="src_pages_favoritespage_tsx_e2f2">
-          <Table2
-            className="h-4 w-4 shrink-0 text-primary"
-            data-icod-id="src_pages_favoritespage_tsx_15da" />
+          {row.sheet.kind === 'project' ? (
+            <ProjectIcon
+              className="h-4 w-4 shrink-0 text-primary"
+              data-icod-id="src_pages_favoritespage_tsx_d5ad" />
+          ) : (
+            <Table2
+              className="h-4 w-4 shrink-0 text-primary"
+              data-icod-id="src_pages_favoritespage_tsx_15da" />
+          )}
           <Link
             to={`/sheets/${row.sheet.id}`}
             className="truncate font-medium text-primary hover:underline"
             data-icod-id="src_pages_favoritespage_tsx_8883">{row.sheet.name}</Link>
+          {row.sheet.kind === 'project' && row.sheet.keyPrefix && (
+            <span
+              className="text-xs text-muted-foreground"
+              data-icod-id="src_pages_favoritespage_tsx_31c8">
+              Project · {row.sheet.keyPrefix}
+            </span>
+          )}
         </div>
       ),
     },

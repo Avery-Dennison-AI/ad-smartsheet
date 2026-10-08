@@ -5,6 +5,7 @@ import { SheetIcon, RelativeTime } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchRecents, fetchFavorites, selectRecents, selectFavorites, selectUserMetaLoading } from '@/store/slices/userMetaSlice';
 import type { SheetMetaItem } from '@/types';
+import ProjectIcon from '../projects/ProjectIcon';
 
 /** Merges favorites and recents, deduped by sheet id, favorites first. Capped at 6. */
 function mergeRecentsAndFavorites(favorites: SheetMetaItem[], recents: SheetMetaItem[]): SheetMetaItem[] {
@@ -71,9 +72,15 @@ export default function RecentStrip() {
               <div
                 className="flex items-center gap-2"
                 data-icod-id={`src_features_home_recentstrip_tsx_header_${item.sheet.id}`}>
-                <SheetIcon
-                  className="h-4 w-4 shrink-0"
-                  data-icod-id={`src_features_home_recentstrip_tsx_icon_${item.sheet.id}`} />
+                {item.sheet.kind === 'project' ? (
+                  <ProjectIcon
+                    className="h-4 w-4 shrink-0"
+                    data-icod-id={`src_features_home_recentstrip_tsx_e677_${item.sheet.id}`} />
+                ) : (
+                  <SheetIcon
+                    className="h-4 w-4 shrink-0"
+                    data-icod-id={`src_features_home_recentstrip_tsx_icon_${item.sheet.id}`} />
+                )}
                 <span
                   className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground"
                   data-icod-id={`src_features_home_recentstrip_tsx_name_${item.sheet.id}`}>
@@ -85,6 +92,13 @@ export default function RecentStrip() {
                     data-icod-id={`src_features_home_recentstrip_tsx_star_${item.sheet.id}`} />
                 )}
               </div>
+              {item.sheet.kind === 'project' && item.sheet.keyPrefix && (
+                <span
+                  className="text-xs text-muted-foreground"
+                  data-icod-id={`src_features_home_recentstrip_tsx_5d00_${item.sheet.id}`}>
+                  Project · {item.sheet.keyPrefix}
+                </span>
+              )}
               <div
                 className="flex items-center justify-between"
                 data-icod-id={`src_features_home_recentstrip_tsx_meta_${item.sheet.id}`}>

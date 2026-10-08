@@ -6,6 +6,7 @@ import type { DataTableColumn } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSharedWithMe, selectSharedWithMe, selectSharedWithMeStatus } from '@/store/slices/sheetsSlice';
 import type { SharedWithMeItem } from '@/types';
+import ProjectIcon from '@/features/projects/ProjectIcon';
 
 export default function SharedWithMePage() {
   const dispatch = useAppDispatch();
@@ -21,12 +22,28 @@ export default function SharedWithMePage() {
       key: 'name',
       header: 'Name',
       cell: (item) => (
-        <Link
-          to={`/sheets/${item.sheet.id}`}
-          className="font-medium text-foreground hover:underline"
-          data-icod-id="src_pages_sharedwithmepage_tsx_f02c">
-          {item.sheet.name}
-        </Link>
+        <div
+          className="flex items-center gap-2"
+          data-icod-id="src_pages_sharedwithmepage_tsx_7e56">
+          {item.sheet.kind === 'project' ? (
+            <ProjectIcon
+              className="h-4 w-4 shrink-0 text-primary"
+              data-icod-id="src_pages_sharedwithmepage_tsx_783e" />
+          ) : null}
+          <Link
+            to={`/sheets/${item.sheet.id}`}
+            className="font-medium text-foreground hover:underline"
+            data-icod-id="src_pages_sharedwithmepage_tsx_f02c">
+            {item.sheet.name}
+          </Link>
+          {item.sheet.kind === 'project' && item.sheet.keyPrefix && (
+            <span
+              className="text-xs text-muted-foreground"
+              data-icod-id="src_pages_sharedwithmepage_tsx_ae6f">
+              Project · {item.sheet.keyPrefix}
+            </span>
+          )}
+        </div>
       ),
     },
     {

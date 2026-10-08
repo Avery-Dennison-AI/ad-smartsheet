@@ -61,6 +61,10 @@ export default function GridCell({
   const cellRef = useRef<HTMLDivElement>(null);
   const committedRef = useRef(false);
 
+  // Key column (system field) is always read-only
+  const isKeyColumn = column.systemField === 'key';
+  const effectiveReadOnly = readOnly || isKeyColumn;
+
   const { fmt, formattingStyle } = useCellFormatting(rowId, column.id, column.type);
 
   useEffect(() => { if (isEditing) committedRef.current = false; }, [isEditing]);
@@ -79,8 +83,8 @@ export default function GridCell({
   }, [isEditing, value, column.type]);
 
   const handleDoubleClick = useCallback(() => {
-    if (!readOnly) onStartEdit();
-  }, [readOnly, onStartEdit]);
+    if (!effectiveReadOnly) onStartEdit();
+  }, [effectiveReadOnly, onStartEdit]);
 
   const commitEdit = useCallback(() => {
     if (committedRef.current) return;
@@ -104,13 +108,22 @@ export default function GridCell({
   }, [commitEdit, cancelEdit]);
 
   const handleCheckboxClick = useCallback(() => {
-    if (readOnly) return;
+    if (effectiveReadOnly) return;
     onCommit(!value);
-  }, [readOnly, value, onCommit]);
+  }, [effectiveReadOnly, value, onCommit]);
 
   // ─── Display rendering ────────────────────────────────────────────────
 
   const renderDisplay = () => {
+    // Key column renders with muted text
+    if (isKeyColumn) {
+      return (
+        <span className="text-muted-foreground truncate" data-icod-id="src_features_sheets_grid_gridcell_tsx_key_display">
+          {value != null ? String(value) : ''}
+        </span>
+      );
+    }
+
     switch (column.type) {
       case 'text': return (
         <TextCellDisplay
@@ -154,6 +167,9 @@ export default function GridCell({
   // ─── Edit mode rendering ──────────────────────────────────────────────
 
   const renderEditMode = () => {
+    // Key column never shows an editor
+    if (isKeyColumn) return null;
+
     switch (column.type) {
       case 'text':
         return (

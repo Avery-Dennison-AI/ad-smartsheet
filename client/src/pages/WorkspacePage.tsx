@@ -9,6 +9,7 @@ import { fetchSheets, selectSheetsByWorkspace, selectSheetsLoading } from '@/sto
 import { selectFavorites } from '@/store/slices/userMetaSlice';
 import { ShareModal, WorkspaceSettingsModal, DeleteWorkspaceDialog } from '@/features/workspaces';
 import { SheetListTable, CreateSheetModal } from '@/features/sheets';
+import { CreateProjectModal, ProjectIcon } from '@/features/projects';
 import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 
 export default function WorkspacePage() {
@@ -26,6 +27,7 @@ export default function WorkspacePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [createSheetOpen, setCreateSheetOpen] = useState(false);
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Build favorites map for quick lookup
@@ -149,13 +151,25 @@ export default function WorkspacePage() {
               size="sm"
               data-icod-id="src_pages_workspacepage_tsx_22e5" />
             {canCreate && (
-              <Button
-                size="sm"
-                leftIcon={<Plus className="h-4 w-4" data-icod-id="src_pages_workspacepage_tsx_b1f6" />}
-                onClick={() => setCreateSheetOpen(true)}
-                data-icod-id="src_pages_workspacepage_tsx_newsheet">
-                New sheet
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  leftIcon={<ProjectIcon
+                    size={16}
+                    className="text-current"
+                    data-icod-id="src_pages_workspacepage_tsx_7d68" />}
+                  onClick={() => setCreateProjectOpen(true)}
+                  data-icod-id="src_pages_workspacepage_tsx_newproject">
+                  New project
+                </Button>
+                <Button
+                  size="sm"
+                  leftIcon={<Plus className="h-4 w-4" data-icod-id="src_pages_workspacepage_tsx_b1f6" />}
+                  onClick={() => setCreateSheetOpen(true)}
+                  data-icod-id="src_pages_workspacepage_tsx_newsheet">
+                  New sheet
+                </Button>
+              </>
             )}
             <Button
               variant="secondary"
@@ -191,6 +205,11 @@ export default function WorkspacePage() {
         onClose={() => setCreateSheetOpen(false)}
         workspaceId={workspace.id}
         data-icod-id="src_pages_workspacepage_tsx_9213" />
+      <CreateProjectModal
+        open={createProjectOpen}
+        onClose={() => setCreateProjectOpen(false)}
+        workspaceId={workspace.id}
+        data-icod-id="src_pages_workspacepage_tsx_7509" />
       <ShareModal
         open={shareOpen}
         onClose={() => setShareOpen(false)}

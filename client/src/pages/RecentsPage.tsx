@@ -6,6 +6,7 @@ import type { DataTableColumn } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchRecents, selectRecents, selectUserMetaLoading, setFavoriteMeta } from '@/store/slices/userMetaSlice';
 import type { SheetMetaItem } from '@/types';
+import ProjectIcon from '@/features/projects/ProjectIcon';
 
 
 export default function RecentsPage() {
@@ -26,13 +27,26 @@ export default function RecentsPage() {
         <div
           className="flex items-center gap-2"
           data-icod-id="src_pages_recentspage_tsx_d4eb">
-          <Table2
-            className="h-4 w-4 shrink-0 text-primary"
-            data-icod-id="src_pages_recentspage_tsx_38fc" />
+          {row.sheet.kind === 'project' ? (
+            <ProjectIcon
+              className="h-4 w-4 shrink-0 text-primary"
+              data-icod-id="src_pages_recentspage_tsx_d3cc" />
+          ) : (
+            <Table2
+              className="h-4 w-4 shrink-0 text-primary"
+              data-icod-id="src_pages_recentspage_tsx_38fc" />
+          )}
           <Link
             to={`/sheets/${row.sheet.id}`}
             className="truncate font-medium text-primary hover:underline"
             data-icod-id="src_pages_recentspage_tsx_7950">{row.sheet.name}</Link>
+          {row.sheet.kind === 'project' && row.sheet.keyPrefix && (
+            <span
+              className="text-xs text-muted-foreground"
+              data-icod-id="src_pages_recentspage_tsx_df75">
+              Project · {row.sheet.keyPrefix}
+            </span>
+          )}
         </div>
       ),
     },

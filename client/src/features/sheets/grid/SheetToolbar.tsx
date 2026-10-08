@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Share2 } from 'lucide-react';
 import { SheetIcon, FavoritesStar, SaveIndicator, IconButton } from '@/components/ui';
+import ProjectIcon from '../../projects/ProjectIcon';
 import SheetActionsMenu from '../components/SheetActionsMenu';
 import ShareSheetModal from '../components/ShareSheetModal';
 import type { WorkspaceRole } from '@/types';
@@ -16,6 +17,7 @@ interface SheetToolbarProps {
   saveError: string | null;
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
+  sheetKind?: 'sheet' | 'project';
 }
 
 export default function SheetToolbar({
@@ -29,6 +31,7 @@ export default function SheetToolbar({
   saveError,
   onExpandAll,
   onCollapseAll,
+  sheetKind,
 }: SheetToolbarProps) {
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -41,9 +44,15 @@ export default function SheetToolbar({
         <div
           className="flex min-w-0 items-center gap-2"
           data-icod-id="src_features_sheets_grid_sheettoolbar_tsx_left">
-          <SheetIcon
-            className="h-4 w-4 shrink-0"
-            data-icod-id="src_features_sheets_grid_sheettoolbar_tsx_icon" />
+          {sheetKind === 'project' ? (
+            <ProjectIcon
+              className="h-4 w-4 shrink-0"
+              data-icod-id="src_features_sheets_grid_sheettoolbar_tsx_5621" />
+          ) : (
+            <SheetIcon
+              className="h-4 w-4 shrink-0"
+              data-icod-id="src_features_sheets_grid_sheettoolbar_tsx_icon" />
+          )}
           <span
             className="truncate text-sm font-medium text-foreground"
             data-icod-id="src_features_sheets_grid_sheettoolbar_tsx_name">{sheetName}</span>

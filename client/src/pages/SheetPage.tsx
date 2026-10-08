@@ -131,6 +131,7 @@ export default function SheetPage() {
         onToggleFavorite={() => dispatch(setFavoriteMeta({ sheetId: sheet.id, starred: !isFavorite }))}
         saving={saving}
         saveError={saveError}
+        sheetKind={sheet.kind}
         data-icod-id="src_pages_sheetpage_tsx_toolbar" />
       <div
         className="flex-1 min-h-0 overflow-hidden"

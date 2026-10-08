@@ -1,9 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { DataTable, SheetIcon, RelativeTime, FavoritesStar } from '@/components/ui';
+import { DataTable, SheetIcon, RelativeTime, FavoritesStar, Badge } from '@/components/ui';
 import type { DataTableColumn } from '@/components/ui';
 import type { Sheet, WorkspaceRole } from '@/types';
 import { useAppDispatch } from '@/store/hooks';
 import { setFavoriteMeta } from '@/store/slices/userMetaSlice';
+import ProjectIcon from '../../projects/ProjectIcon';
 import SheetActionsMenu from './SheetActionsMenu';
 import SheetEmptyState from './SheetEmptyState';
 
@@ -45,13 +46,26 @@ export default function SheetListTable({
         <div
           className="flex items-center gap-2"
           data-icod-id="src_features_sheets_components_sheetlisttable_tsx_2504">
-          <SheetIcon
-            className="shrink-0"
-            data-icod-id="src_features_sheets_components_sheetlisttable_tsx_4310" />
+          {row.kind === 'project' ? (
+            <ProjectIcon
+              className="h-4 w-4 shrink-0"
+              data-icod-id="src_features_sheets_components_sheetlisttable_tsx_f95c" />
+          ) : (
+            <SheetIcon
+              className="shrink-0"
+              data-icod-id="src_features_sheets_components_sheetlisttable_tsx_4310" />
+          )}
           <Link
             to={`/sheets/${row.id}`}
             className="truncate font-medium text-primary hover:underline"
             data-icod-id="src_features_sheets_components_sheetlisttable_tsx_2344">{row.name}</Link>
+          {row.kind === 'project' && row.keyPrefix && (
+            <span
+              className="text-xs text-muted-foreground"
+              data-icod-id="src_features_sheets_components_sheetlisttable_tsx_dc04">
+              Project · {row.keyPrefix}
+            </span>
+          )}
         </div>
       ),
     },

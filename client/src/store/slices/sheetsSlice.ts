@@ -192,6 +192,9 @@ const sheetsSlice = createSlice({
     clearCurrentSheet(state) {
       state.currentSheetId = null;
     },
+    upsertSheetAction(state, action: { payload: Sheet }) {
+      upsertSheet(state, action.payload);
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -287,7 +290,7 @@ const sheetsSlice = createSlice({
   },
 });
 
-export const { clearCurrentSheet } = sheetsSlice.actions;
+export const { clearCurrentSheet, upsertSheetAction } = sheetsSlice.actions;
 
 // ─── Selectors ─────────────────────────────────────────────────────────────
 

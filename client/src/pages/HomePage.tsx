@@ -8,8 +8,11 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 import { selectMyWorkGroups } from '@/store/slices/myWorkSlice';
 import { selectOrgPolicy, fetchOrgPolicy } from '@/store/slices/orgPolicySlice';
+import { selectWorkspaceList, fetchWorkspaces, selectWorkspaceStatus } from '@/store/slices/workspaceSlice';
 import { CreateWorkspaceModal } from '@/features/workspaces';
 import { MyWorkSection, RecentStrip } from '@/features/home';
+import { CreateProjectModal, ProjectIcon } from '@/features/projects';
+import type { Workspace } from '@/types';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -24,13 +27,23 @@ export default function HomePage() {
   const user = useAppSelector(selectCurrentUser);
   const groups = useAppSelector(selectMyWorkGroups);
   const orgPolicy = useAppSelector(selectOrgPolicy);
+  const workspaces = useAppSelector(selectWorkspaceList);
+  const workspaceStatus = useAppSelector(selectWorkspaceStatus);
   const [createWsOpen, setCreateWsOpen] = useState(false);
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
 
   useEffect(() => {
     if (!orgPolicy) {
       dispatch(fetchOrgPolicy());
     }
   }, [orgPolicy, dispatch]);
+
+  // Fetch workspaces for project creation permission check
+  useEffect(() => {
+    if (workspaceStatus === 'idle' && workspaces.length === 0) {
+      dispatch(fetchWorkspaces());
+    }
+  }, [workspaceStatus, workspaces.length, dispatch]);
 
   const firstName = user?.fullName?.split(' ')[0] || 'there';
   const greeting = getGreeting();
@@ -52,16 +65,33 @@ export default function HomePage() {
   const isAdmin = user?.role === 'admin';
   const canCreateWorkspaces = orgPolicy?.whoCanCreateWorkspaces !== 'admins' || isAdmin;
 
-  // Build dropdown items
-  const menuItems: DropdownMenuItem[] = [
-    {
-      label: 'New sheet',
-      icon: <SheetIcon
+  // Check if user can create projects (editor or above in at least one workspace)
+  const canCreateProject = workspaces.some((ws: Workspace) => {
+    const member = ws.members.find((m) => m.id === user?.id);
+    const role = member?.role;
+    return role === 'editor' || role === 'admin' || role === 'owner';
+  });
+
+  // Build dropdown items — "New project" first, then "New sheet", then "New workspace"
+  const menuItems: DropdownMenuItem[] = [];
+
+  if (canCreateProject) {
+    menuItems.push({
+      label: 'New project',
+      icon: <ProjectIcon
         className="h-4 w-4 text-muted-foreground"
-        data-icod-id="src_pages_homepage_tsx_ea08" />,
-      onClick: () => navigate('/workspaces'),
-    },
-  ];
+        data-icod-id="src_pages_homepage_tsx_5305" />,
+      onClick: () => setCreateProjectOpen(true),
+    });
+  }
+
+  menuItems.push({
+    label: 'New sheet',
+    icon: <SheetIcon
+      className="h-4 w-4 text-muted-foreground"
+      data-icod-id="src_pages_homepage_tsx_ea08" />,
+    onClick: () => navigate('/workspaces'),
+  });
 
   if (canCreateWorkspaces) {
     menuItems.push({
@@ -113,6 +143,11 @@ export default function HomePage() {
         open={createWsOpen}
         onClose={() => setCreateWsOpen(false)}
         data-icod-id="src_pages_homepage_tsx_create_ws_modal" />
+      {/* Create Project Modal */}
+      <CreateProjectModal
+        open={createProjectOpen}
+        onClose={() => setCreateProjectOpen(false)}
+        data-icod-id="src_pages_homepage_tsx_4f4b" />
     </PageContainer>
   );
 }

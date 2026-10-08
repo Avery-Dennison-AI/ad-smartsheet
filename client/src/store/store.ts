@@ -8,6 +8,7 @@ import userMetaReducer from './slices/userMetaSlice';
 import gridReducer from './slices/gridSlice';
 import orgPolicyReducer from './slices/orgPolicySlice';
 import myWorkReducer from './slices/myWorkSlice';
+import projectsReducer from '../features/projects/projectsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -20,6 +21,7 @@ export const store = configureStore({
     grid: gridReducer,
     orgPolicy: orgPolicyReducer,
     myWork: myWorkReducer,
+    projects: projectsReducer,
   },
 });
 

@@ -94,6 +94,8 @@ export interface Sheet {
   updatedAt: string;
   workspaceName?: string;
   userRole?: WorkspaceRole;
+  kind?: 'sheet' | 'project';
+  keyPrefix?: string;
 }
 
 export interface SheetMetaItem {
@@ -102,6 +104,8 @@ export interface SheetMetaItem {
     name: string;
     updatedAt: string;
     workspaceId: string;
+    kind?: 'sheet' | 'project';
+    keyPrefix?: string;
   };
   workspace: {
     id: string;
@@ -114,6 +118,18 @@ export interface SheetMetaItem {
 // ─── Grid Types ──────────────────────────────────────────────────────────────
 
 export type ColumnType = 'text' | 'number' | 'date' | 'dropdown' | 'checkbox' | 'contact';
+
+export type SystemField =
+  | 'key'
+  | 'type'
+  | 'status'
+  | 'assignee'
+  | 'start'
+  | 'due'
+  | 'duration'
+  | 'percentComplete'
+  | 'storyPoints'
+  | 'priority';
 
 export interface DropdownOption {
   label: string;
@@ -129,6 +145,7 @@ export interface Column {
   options?: DropdownOption[];
   formatting?: CellFormatting;
   width?: number;
+  systemField?: SystemField;
 }
 
 export interface GridRow {
@@ -193,6 +210,8 @@ export interface SharedWithMeItem {
     name: string;
     updatedAt: string;
     workspaceId: string;
+    kind?: 'sheet' | 'project';
+    keyPrefix?: string;
   };
   workspace: {
     id: string;
