@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { X, ShieldCheck } from 'lucide-react';
-import { Card, Button, Select, Input, Field, useToast, SaveIndicator, Badge } from '@/components/ui';
+import { Card, Button, Select, Input, Field, useToast, SaveIndicator, Badge, IconButton } from '@/components/ui';
 import PermissionMatrix from '@/components/ui/PermissionMatrix';
 import type { PermissionRow } from '@/components/ui/PermissionMatrix';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -153,16 +153,16 @@ export default function RolesPermissionsSection() {
               {form.allowedGuestEmailDomains.map((domain) => (
                 <Badge key={domain} variant="neutral" className="gap-1 pr-1" data-icod-id={`roles_domain_chip_${domain}`}>
                   {domain}
-                  <button
-                    type="button"
+                  <IconButton
+                    size="sm"
+                    tooltip={`Remove ${domain}`}
                     onClick={() => handleRemoveDomain(domain)}
-                    className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
-                    aria-label={`Remove ${domain}`}
+                    className="!h-4 !w-4 !p-0 ml-0.5"
                     data-icod-id={`roles_domain_remove_${domain}`}>
                     <X
                       className="h-3 w-3"
                       data-icod-id={`src_features_settings_rolespermissionssection_tsx_b05c_${domain}`} />
-                  </button>
+                  </IconButton>
                 </Badge>
               ))}
             </div>

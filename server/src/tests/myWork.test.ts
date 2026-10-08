@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { groupMyWorkItems, isRowCompleted } from '../services/myWorkService';
+import mongoose from 'mongoose';
+import { groupMyWorkItems, isRowCompleted, getMyWork } from '../services/myWorkService';
 import type { MyWorkItem } from '../services/myWorkService';
 import type { ColumnDef } from '../models/Sheet';
 import { computeAssigneeIds } from '../services/rowService';
+import { createUser, createWorkspace, createProject, createSheet, createRow } from './helpers/factories';
 
 // ─── Test helpers ────────────────────────────────────────────────────────────────
 
@@ -318,5 +320,172 @@ describe('groupMyWorkItems determinism', () => {
       .toEqual(resultReverse.overdue.items.map((i) => i.rowId));
     expect(resultForward.dueToday.items.map((i) => i.rowId))
       .toEqual(resultReverse.dueToday.items.map((i) => i.rowId));
+  });
+});
+
+// ─── getMyWork project-aware integration tests ────────────────────────────────
+
+describe('getMyWork — project-aware logic', () => {
+  it('excludes project tasks whose status is in the done category', async () => {
+    const user = await createUser();
+    const userId = user._id.toString();
+    const workspace = await createWorkspace({
+      members: [{ user: user._id, role: 'editor' }],
+    });
+
+    // Create a project with kanban template (has "Done" with category: 'done')
+    const project = await createProject({
+      workspaceId: workspace._id,
+      keyPrefix: 'HR',
+      template: 'kanban',
+    });
+
+    // Find column IDs for the system fields
+    const keyCol = project.columns.find((c) => c.systemField === 'key');
+    const statusCol = project.columns.find((c) => c.systemField === 'status');
+    const assigneeCol = project.columns.find((c) => c.systemField === 'assignee');
+
+    expect(keyCol).toBeDefined();
+    expect(statusCol).toBeDefined();
+    expect(assigneeCol).toBeDefined();
+
+    // Create a row with status = "Done" (category: done) — should be excluded
+    await createRow(project._id, {
+      cells: {
+        [project.columns[0].id]: 'Completed task',
+        [keyCol!.id]: 'HR-1',
+        [statusCol!.id]: 'Done',
+        [assigneeCol!.id]: [userId],
+      },
+      assigneeIds: [user._id],
+    });
+
+    const result = await getMyWork(userId);
+    const allItems = [
+      ...result.overdue.items,
+      ...result.dueToday.items,
+      ...result.dueThisWeek.items,
+      ...result.later.items,
+      ...result.noDueDate.items,
+    ];
+
+    expect(allItems).toHaveLength(0);
+  });
+
+  it('includes project tasks whose status is in_progress, with correct key and statusColor', async () => {
+    const user = await createUser();
+    const userId = user._id.toString();
+    const workspace = await createWorkspace({
+      members: [{ user: user._id, role: 'editor' }],
+    });
+
+    const project = await createProject({
+      workspaceId: workspace._id,
+      keyPrefix: 'HR',
+      template: 'kanban',
+    });
+
+    const keyCol = project.columns.find((c) => c.systemField === 'key');
+    const statusCol = project.columns.find((c) => c.systemField === 'status');
+    const assigneeCol = project.columns.find((c) => c.systemField === 'assignee');
+
+    // Create a row with status = "In progress" (category: in_progress, color: blue)
+    await createRow(project._id, {
+      cells: {
+        [project.columns[0].id]: 'Active task',
+        [keyCol!.id]: 'HR-12',
+        [statusCol!.id]: 'In progress',
+        [assigneeCol!.id]: [userId],
+      },
+      assigneeIds: [user._id],
+    });
+
+    const result = await getMyWork(userId);
+    const allItems = [
+      ...result.overdue.items,
+      ...result.dueToday.items,
+      ...result.dueThisWeek.items,
+      ...result.later.items,
+      ...result.noDueDate.items,
+    ];
+
+    expect(allItems).toHaveLength(1);
+    const item = allItems[0];
+    expect(item.taskName).toBe('Active task');
+    expect(item.key).toBe('HR-12');
+    expect(item.status).not.toBeNull();
+    expect(item.status!.label).toBe('In progress');
+    expect(item.status!.color).toBe('blue');
+    expect(item.statusColor).toBe('blue');
+  });
+
+  it('plain sheet tasks still work with name-based heuristic', async () => {
+    const user = await createUser();
+    const userId = user._id.toString();
+    const workspace = await createWorkspace({
+      members: [{ user: user._id, role: 'editor' }],
+    });
+
+    // Create a plain sheet (not a project) with contact + dropdown named "Status" + date named "Due"
+    const statusColId = new mongoose.Types.ObjectId().toString();
+    const dueColId = new mongoose.Types.ObjectId().toString();
+    const assigneeColId = new mongoose.Types.ObjectId().toString();
+    const nameColId = new mongoose.Types.ObjectId().toString();
+
+    const columns: ColumnDef[] = [
+      { id: nameColId, name: 'Task', type: 'text', order: 0, isPrimary: true },
+      {
+        id: statusColId,
+        name: 'Status',
+        type: 'dropdown',
+        order: 1,
+        isPrimary: false,
+        options: [
+          { label: 'Open', color: 'gray' },
+          { label: 'Done', color: 'green' },
+        ],
+      },
+      { id: dueColId, name: 'Due', type: 'date', order: 2, isPrimary: false },
+      { id: assigneeColId, name: 'Assignee', type: 'contact', order: 3, isPrimary: false },
+    ];
+
+    const sheet = await createSheet({
+      workspaceId: workspace._id,
+      kind: 'sheet',
+      columns,
+    });
+
+    // Row with status "Done" — should be excluded by name-based heuristic
+    await createRow(sheet._id, {
+      cells: {
+        [nameColId]: 'Done plain task',
+        [statusColId]: 'Done',
+        [assigneeColId]: [userId],
+      },
+      assigneeIds: [user._id],
+    });
+
+    // Row with status "Open" — should be included
+    await createRow(sheet._id, {
+      cells: {
+        [nameColId]: 'Open plain task',
+        [statusColId]: 'Open',
+        [assigneeColId]: [userId],
+      },
+      assigneeIds: [user._id],
+    });
+
+    const result = await getMyWork(userId);
+    const allItems = [
+      ...result.overdue.items,
+      ...result.dueToday.items,
+      ...result.dueThisWeek.items,
+      ...result.later.items,
+      ...result.noDueDate.items,
+    ];
+
+    expect(allItems).toHaveLength(1);
+    expect(allItems[0].taskName).toBe('Open plain task');
+    expect(allItems[0].status?.label).toBe('Open');
   });
 });

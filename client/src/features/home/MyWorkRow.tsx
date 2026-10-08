@@ -64,15 +64,19 @@ export default function MyWorkRow({ item, className }: MyWorkRowProps) {
       {/* Column 1: Task name (grows, truncates) */}
       <div className="min-w-0 flex-1" data-icod-id="src_features_home_myworkrow_tsx_task">
         <span className="block truncate text-sm font-medium text-foreground" data-icod-id="src_features_home_myworkrow_tsx_8467">
-          {item.taskName || 'Untitled'}
+          {item.key && (
+            <span
+              className="text-[--color-text-muted] text-xs font-mono mr-1"
+              data-icod-id="src_features_home_myworkrow_tsx_a913">{item.key}</span>
+          )}
+          <span data-icod-id="src_features_home_myworkrow_tsx_e3f3">{item.taskName || 'Untitled'}</span>
         </span>
-        {item.rowKey && (
+        {item.rowKey && !item.key && (
           <span className="block truncate text-xs text-muted-foreground" data-icod-id="src_features_home_myworkrow_tsx_key">
             {item.rowKey}
           </span>
         )}
       </div>
-
       {/* Column 2: Status pill (fixed ~100px) */}
       <div className="w-[100px] shrink-0" data-icod-id="src_features_home_myworkrow_tsx_status">
         {item.status && (
@@ -82,7 +86,6 @@ export default function MyWorkRow({ item, className }: MyWorkRowProps) {
             data-icod-id="src_features_home_myworkrow_tsx_b83f" />
         )}
       </div>
-
       {/* Column 3: Due date (fixed ~80px) */}
       <div className="w-[80px] shrink-0" data-icod-id="src_features_home_myworkrow_tsx_due">
         {dueDateText && (
@@ -96,7 +99,6 @@ export default function MyWorkRow({ item, className }: MyWorkRowProps) {
           </span>
         )}
       </div>
-
       {/* Column 4: Sheet / workspace (fixed, right-aligned, muted) */}
       <div className="shrink-0 text-right" data-icod-id="src_features_home_myworkrow_tsx_context">
         <span className="block max-w-[140px] truncate text-xs text-muted-foreground" data-icod-id="src_features_home_myworkrow_tsx_ctx_text">

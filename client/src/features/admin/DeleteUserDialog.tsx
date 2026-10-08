@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { Modal, Button, Field, Input, Alert, Spinner } from '@/components/ui';
+import { Modal, Button, Field, Input, Alert, Spinner, Select } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { deleteAdminUser, selectAdminUsers } from '@/store/slices/adminSlice';
 import { getUserOwnedWorkspaces } from '@/services/adminService';
@@ -169,9 +169,8 @@ export default function DeleteUserDialog({
               htmlFor="transfer-target"
               required
               data-icod-id="src_features_admin_deleteuserdialog_tsx_3278">
-              <select
+              <Select
                 id="transfer-target"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 value={transferToUserId}
                 onChange={(e) => setTransferToUserId(e.target.value)}
                 data-icod-id="src_features_admin_deleteuserdialog_tsx_3d43">
@@ -184,7 +183,7 @@ export default function DeleteUserDialog({
                     {u.fullName} ({u.email})
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
           </div>
         )}

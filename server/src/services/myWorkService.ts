@@ -11,10 +11,12 @@ export interface MyWorkItem {
   rowId: string;
   taskName: string;
   rowKey?: string;
+  key?: string;
   sheetId: string;
   sheetName: string;
   workspaceName: string;
   status: { label: string; color: string } | null;
+  statusColor?: string;
   dueDate: string | null;
 }
 
@@ -156,7 +158,7 @@ export async function getMyWork(userId: string): Promise<MyWorkResponse> {
       { workspaceId: { $in: workspaceIds } },
       { 'members.userId': new mongoose.Types.ObjectId(userId) },
     ],
-  }).select('_id workspaceId name columns members');
+  }).select('_id workspaceId name columns members kind project');
 
   // 4. Filter to sheets the user truly has access to, and identify contact columns
   interface AccessibleSheet {
@@ -220,58 +222,121 @@ export async function getMyWork(userId: string): Promise<MyWorkResponse> {
     if (!sheetInfo) continue;
 
     const cells = (row.cells ?? {}) as Record<string, unknown>;
+    const isProject = sheetInfo.sheet.kind === 'project';
 
-    // Exclude completed rows
-    if (isRowCompleted({ cells }, sheetInfo.sheet.columns)) continue;
+    // ── Completion check ────────────────────────────────────────────────────
+    if (isProject && sheetInfo.sheet.project) {
+      // Project: a row is done when its status matches a status with category === 'done'
+      const statusCol = sheetInfo.sheet.columns.find((c) => c.systemField === 'status');
+      if (statusCol) {
+        const statusVal = cells[statusCol.id];
+        if (typeof statusVal === 'string' && statusVal) {
+          const projectStatus = sheetInfo.sheet.project.statuses.find(
+            (s) => s.name.toLowerCase() === statusVal.toLowerCase(),
+          );
+          if (projectStatus?.category === 'done') continue;
+        }
+      }
+    } else {
+      // Plain sheet: use name-based heuristics
+      if (isRowCompleted({ cells }, sheetInfo.sheet.columns)) continue;
+    }
 
-    // Enrich
+    // ── Enrich ──────────────────────────────────────────────────────────────
     const primaryCol = sheetInfo.sheet.columns.find((c) => c.isPrimary) ?? sheetInfo.sheet.columns[0];
     const taskName = primaryCol ? String(cells[primaryCol.id] ?? '') : '';
 
-    // Status: first dropdown column named /status/i
-    const statusCol = sheetInfo.sheet.columns.find(
-      (c) => c.type === 'dropdown' && /status/i.test(c.name),
-    );
     let status: { label: string; color: string } | null = null;
-    if (statusCol) {
-      const statusVal = cells[statusCol.id];
-      if (typeof statusVal === 'string' && statusVal) {
-        const option = statusCol.options?.find(
-          (o) => o.label.toLowerCase() === statusVal.toLowerCase(),
-        );
-        status = {
-          label: statusVal,
-          color: option?.color ?? 'gray',
-        };
-      }
-    }
-
-    // Due date: first date column named /due|end/i, fallback to last date column
-    const dateCols = sheetInfo.sheet.columns.filter((c) => c.type === 'date');
-    const dueCol = dateCols.find((c) => /due|end/i.test(c.name)) ?? dateCols[dateCols.length - 1];
+    let statusColor: string | undefined;
     let dueDate: string | null = null;
-    if (dueCol) {
-      const raw = cells[dueCol.id];
-      if (raw != null && raw !== '') {
-        const parsed = new Date(raw as string);
-        if (!isNaN(parsed.getTime())) {
-          dueDate = parsed.toISOString();
+    let key: string | undefined;
+
+    if (isProject && sheetInfo.sheet.project) {
+      // ── Project-aware column lookups via systemField ──────────────────────
+
+      // Key: column with systemField === 'key'
+      const keyCol = sheetInfo.sheet.columns.find((c) => c.systemField === 'key');
+      if (keyCol) {
+        key = (cells[keyCol.id] as string | undefined) ?? undefined;
+      }
+
+      // Status: column with systemField === 'status', look up in project.statuses for color
+      const statusCol = sheetInfo.sheet.columns.find((c) => c.systemField === 'status');
+      if (statusCol) {
+        const statusVal = cells[statusCol.id];
+        if (typeof statusVal === 'string' && statusVal) {
+          const projectStatus = sheetInfo.sheet.project.statuses.find(
+            (s) => s.name.toLowerCase() === statusVal.toLowerCase(),
+          );
+          status = {
+            label: statusVal,
+            color: projectStatus?.color ?? 'gray',
+          };
+          statusColor = projectStatus?.color;
         }
       }
-    }
 
-    // Row key: system field 'key' column value (for project sheets)
-    const keyCol = sheetInfo.sheet.columns.find((c) => c.systemField === 'key');
-    const rowKey = keyCol ? (cells[keyCol.id] as string | undefined) ?? undefined : undefined;
+      // Due date: column with systemField === 'due'
+      const dueCol = sheetInfo.sheet.columns.find((c) => c.systemField === 'due');
+      if (dueCol) {
+        const raw = cells[dueCol.id];
+        if (raw != null && raw !== '') {
+          const parsed = new Date(raw as string);
+          if (!isNaN(parsed.getTime())) {
+            dueDate = parsed.toISOString();
+          }
+        }
+      }
+    } else {
+      // ── Plain sheet: name-based heuristics ────────────────────────────────
+
+      // Status: first dropdown column named /status/i
+      const statusCol = sheetInfo.sheet.columns.find(
+        (c) => c.type === 'dropdown' && /status/i.test(c.name),
+      );
+      if (statusCol) {
+        const statusVal = cells[statusCol.id];
+        if (typeof statusVal === 'string' && statusVal) {
+          const option = statusCol.options?.find(
+            (o) => o.label.toLowerCase() === statusVal.toLowerCase(),
+          );
+          status = {
+            label: statusVal,
+            color: option?.color ?? 'gray',
+          };
+        }
+      }
+
+      // Due date: first date column named /due|end/i, fallback to last date column
+      const dateCols = sheetInfo.sheet.columns.filter((c) => c.type === 'date');
+      const dueCol = dateCols.find((c) => /due|end/i.test(c.name)) ?? dateCols[dateCols.length - 1];
+      if (dueCol) {
+        const raw = cells[dueCol.id];
+        if (raw != null && raw !== '') {
+          const parsed = new Date(raw as string);
+          if (!isNaN(parsed.getTime())) {
+            dueDate = parsed.toISOString();
+          }
+        }
+      }
+
+      // Row key for plain sheets (if systemField exists)
+      const keyCol = sheetInfo.sheet.columns.find((c) => c.systemField === 'key');
+      if (keyCol) {
+        key = (cells[keyCol.id] as string | undefined) ?? undefined;
+      }
+    }
 
     enrichedItems.push({
       rowId: (row._id as mongoose.Types.ObjectId).toString(),
       taskName,
-      rowKey,
+      rowKey: key,
+      key,
       sheetId: sheetInfo.sheet._id.toString(),
       sheetName: sheetInfo.sheet.name,
       workspaceName: sheetInfo.workspaceName,
       status,
+      statusColor,
       dueDate,
     });
   }

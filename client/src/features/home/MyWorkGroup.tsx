@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import type { MyWorkItem } from '@/types';
 import MyWorkRow from './MyWorkRow';
 
@@ -28,10 +29,10 @@ export default function MyWorkGroup({
 
   return (
     <div className={cn('border-b border-border last:border-b-0', className)} data-icod-id="src_features_home_myworkgroup_tsx_root">
-      <button
-        type="button"
+      <Button
+        variant="ghost"
         onClick={() => setOpen(!open)}
-        className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex w-full justify-start gap-2 px-2 py-1.5"
         aria-expanded={open}
         data-icod-id="src_features_home_myworkgroup_tsx_header"
       >
@@ -50,7 +51,7 @@ export default function MyWorkGroup({
           size="sm"
           className={titleClassName}
           data-icod-id="src_features_home_myworkgroup_tsx_4dc4">{total}</Badge>
-      </button>
+      </Button>
       {open && (
         <div className="pb-2 pl-6" data-icod-id="src_features_home_myworkgroup_tsx_body">
           {items.map((item) => (

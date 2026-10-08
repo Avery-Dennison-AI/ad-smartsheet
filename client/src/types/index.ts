@@ -240,10 +240,12 @@ export interface MyWorkItem {
   rowId: string;
   taskName: string;
   rowKey?: string;
+  key?: string;
   sheetId: string;
   sheetName: string;
   workspaceName: string;
   status: { label: string; color: string } | null;
+  statusColor?: string;
   dueDate: string | null;
 }
 
