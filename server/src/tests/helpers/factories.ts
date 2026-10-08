@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import User, { type IUser } from '../../models/User';
@@ -140,8 +141,8 @@ export async function createProject(overrides: CreateProjectOverrides = {}): Pro
     project: {
       keyPrefix: overrides.keyPrefix ?? 'PROJ',
       template: templateKey,
-      statuses: templateDef.statuses,
-      itemTypes: templateDef.itemTypes,
+      statuses: templateDef.statuses.map((s) => ({ ...s, id: crypto.randomUUID() })),
+      itemTypes: templateDef.itemTypes.map((name) => ({ id: crypto.randomUUID(), name })),
       nextKeyNumber: overrides.nextKeyNumber ?? 1,
     },
   });

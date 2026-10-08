@@ -22,7 +22,7 @@ import usersRouter from './routes/users';
 import orgPolicyRouter from './routes/orgPolicy';
 import myWorkRouter from './routes/myWork';
 import { seedAdmin } from './config/seedAdmin';
-import { migrateWorkspaceColors, repairBrokenColumns, repairPrimaryColumnOrder, migrateUserRoles, backfillRowAssigneeIds } from './config/migrations';
+import { migrateWorkspaceColors, repairBrokenColumns, repairPrimaryColumnOrder, migrateUserRoles, backfillRowAssigneeIds, backfillProjectSettingIds } from './config/migrations';
 import { sendSuccess } from './utils/response';
 
 // ─── Process-Level Error Handlers ──────────────────────────────────────────────
@@ -104,6 +104,7 @@ async function start(): Promise<void> {
     await repairPrimaryColumnOrder();
     await migrateUserRoles();
     await backfillRowAssigneeIds();
+    await backfillProjectSettingIds();
 
     app.listen(env.PORT, () => {
       console.log(`[startup] Server listening on port ${env.PORT}`);

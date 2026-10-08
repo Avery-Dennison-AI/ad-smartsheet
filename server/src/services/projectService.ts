@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import Sheet, { type ISheet, type ColumnDef } from '../models/Sheet';
 import UserSheetMeta from '../models/UserSheetMeta';
@@ -98,7 +99,7 @@ export async function createProject(
     });
   }
 
-  // Create the Sheet document
+  // Create the Sheet document — assign stable IDs to statuses and itemTypes
   const sheet = await Sheet.create({
     workspaceId: new mongoose.Types.ObjectId(workspaceId),
     name: input.name,
@@ -107,8 +108,8 @@ export async function createProject(
     project: {
       keyPrefix: input.keyPrefix.toUpperCase(),
       template: templateKey,
-      statuses: templateDef.statuses,
-      itemTypes: templateDef.itemTypes,
+      statuses: templateDef.statuses.map((s) => ({ ...s, id: crypto.randomUUID() })),
+      itemTypes: templateDef.itemTypes.map((name) => ({ id: crypto.randomUUID(), name })),
       nextKeyNumber: 1,
     },
     columns: allColumns,

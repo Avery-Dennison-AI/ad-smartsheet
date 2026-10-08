@@ -57,3 +57,4 @@ export { default as ColorSwatchGroup, type ColorSwatchGroupProps, type ColorSwat
 export { default as AnimatedBrandBackground, type AnimatedBrandBackgroundProps } from './AnimatedBrandBackground';
 export { default as PermissionMatrix, type PermissionMatrixProps, type PermissionRow } from './PermissionMatrix';
 export { default as SelectableCard, type SelectableCardProps } from './SelectableCard';
+export { default as SortableList, type SortableListProps, type DragHandleProps } from './SortableList';

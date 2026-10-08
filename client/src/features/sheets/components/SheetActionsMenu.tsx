@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MoreHorizontal, ExternalLink, Pencil, Copy, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { MoreHorizontal, ExternalLink, Pencil, Copy, Trash2, ChevronDown, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { DropdownMenu, ConfirmDialog, IconButton } from '@/components/ui';
 import type { WorkspaceRole } from '@/types';
 import { useAppDispatch } from '@/store/hooks';
 import { duplicateSheet, deleteSheet } from '@/store/slices/sheetsSlice';
 import RenameSheetModal from './RenameSheetModal';
+import ProjectSettingsDialog from '../../projects/ProjectSettingsDialog';
 
 interface SheetActionsMenuProps {
   sheetId: string;
@@ -15,13 +16,15 @@ interface SheetActionsMenuProps {
   hideOpen?: boolean;
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
+  sheetKind?: 'sheet' | 'project';
 }
 
-export default function SheetActionsMenu({ sheetId, sheetName, sheetDescription, userRole, hideOpen = false, onExpandAll, onCollapseAll }: SheetActionsMenuProps) {
+export default function SheetActionsMenu({ sheetId, sheetName, sheetDescription, userRole, hideOpen = false, onExpandAll, onCollapseAll, sheetKind }: SheetActionsMenuProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const canEdit = userRole === 'editor' || userRole === 'admin' || userRole === 'owner';
   const canDelete = userRole === 'admin' || userRole === 'owner';
@@ -94,6 +97,18 @@ export default function SheetActionsMenu({ sheetId, sheetName, sheetDescription,
 
   if (canDelete) {
     items.push({ type: 'divider' as const });
+
+    // Project settings — only for admin/owner on project sheets
+    if (sheetKind === 'project') {
+      items.push({
+        label: 'Project settings',
+        icon: <SlidersHorizontal
+          className="h-4 w-4"
+          data-icod-id="src_features_sheets_components_sheetactionsmenu_tsx_7b12" />,
+        onClick: () => setSettingsOpen(true),
+      });
+    }
+
     items.push({
       label: 'Delete',
       icon: <Trash2
@@ -134,6 +149,13 @@ export default function SheetActionsMenu({ sheetId, sheetName, sheetDescription,
         confirmLabel="Delete"
         onConfirm={handleDelete}
         data-icod-id="src_features_sheets_components_sheetactionsmenu_tsx_af21" />
+      {sheetKind === 'project' && (
+        <ProjectSettingsDialog
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          sheetId={sheetId}
+          data-icod-id="src_features_sheets_components_sheetactionsmenu_tsx_346a" />
+      )}
     </>
   );
 }

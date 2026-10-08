@@ -92,6 +92,7 @@ export default function SheetToolbar({
             hideOpen
             onExpandAll={onExpandAll}
             onCollapseAll={onCollapseAll}
+            sheetKind={sheetKind}
             data-icod-id="src_features_sheets_grid_sheettoolbar_tsx_actions" />
         </div>
       </div>

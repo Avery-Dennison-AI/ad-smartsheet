@@ -32,16 +32,22 @@ export interface SheetMemberEntry {
 }
 
 export interface ProjectStatus {
+  id: string;
   name: string;
   color: string;
   category: 'todo' | 'in_progress' | 'done';
+}
+
+export interface ProjectItemType {
+  id: string;
+  name: string;
 }
 
 export interface ProjectSettings {
   keyPrefix: string;
   template: 'waterfall' | 'scrum' | 'kanban' | 'tracker';
   statuses: ProjectStatus[];
-  itemTypes: string[];
+  itemTypes: ProjectItemType[];
   nextKeyNumber: number;
 }
 
@@ -91,9 +97,18 @@ const columnDefSchema = new Schema<ColumnDef>(
 
 const projectStatusSchema = new Schema<ProjectStatus>(
   {
+    id: { type: String, required: true },
     name: { type: String, required: true, trim: true },
     color: { type: String, required: true, trim: true },
     category: { type: String, enum: ['todo', 'in_progress', 'done'], required: true },
+  },
+  { _id: false },
+);
+
+const projectItemTypeSchema = new Schema<ProjectItemType>(
+  {
+    id: { type: String, required: true },
+    name: { type: String, required: true, trim: true },
   },
   { _id: false },
 );
@@ -103,7 +118,7 @@ const projectSettingsSchema = new Schema<ProjectSettings>(
     keyPrefix: { type: String, required: true, trim: true },
     template: { type: String, enum: ['waterfall', 'scrum', 'kanban', 'tracker'], required: true },
     statuses: { type: [projectStatusSchema], default: [] },
-    itemTypes: { type: [String], default: [] },
+    itemTypes: { type: [projectItemTypeSchema], default: [] },
     nextKeyNumber: { type: Number, default: 1 },
   },
   { _id: false },

@@ -190,7 +190,7 @@ function validateProjectFieldValue(
       throw new AppError('Invalid status value for this project', 400);
     }
   } else if (col.systemField === 'type') {
-    const validTypes = sheet.project.itemTypes;
+    const validTypes = sheet.project.itemTypes.map((t) => t.name);
     if (!validTypes.includes(strValue)) {
       throw new AppError('Invalid type value for this project', 400);
     }

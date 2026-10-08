@@ -1,8 +1,9 @@
+import crypto from 'crypto';
 import Workspace, { WORKSPACE_COLORS } from '../models/Workspace';
 import Sheet from '../models/Sheet';
 import User from '../models/User';
 import Row from '../models/Row';
-import type { ColumnDef } from '../models/Sheet';
+import type { ColumnDef, ProjectStatus, ProjectItemType } from '../models/Sheet';
 import { computeAssigneeIds } from '../services/rowService';
 
 /** Hex-to-palette-name mapping for one-time colour migration. */
@@ -228,5 +229,63 @@ export async function backfillRowAssigneeIds(): Promise<void> {
 
   if (updatedCount > 0) {
     console.log(`[startup] Backfilled assigneeIds on ${updatedCount} row(s) (processed ${processedCount})`);
+  }
+}
+
+/**
+ * Backfills stable `id` fields on project statuses and item types.
+ * - Statuses missing an `id` get one via crypto.randomUUID().
+ * - Item types stored as plain strings are converted to { id, name } objects.
+ * Idempotent: skips entries that already have valid ids.
+ */
+export async function backfillProjectSettingIds(): Promise<void> {
+  const projects = await Sheet.find({ kind: 'project', 'project': { $exists: true } }).select('_id project');
+  if (projects.length === 0) return;
+
+  let migratedCount = 0;
+
+  for (const sheet of projects) {
+    const project = sheet.project;
+    if (!project) continue;
+
+    let needsUpdate = false;
+
+    // Backfill status ids
+    const statuses = (project.statuses || []).map((s: any) => {
+      if (s.id && typeof s.id === 'string') return s;
+      needsUpdate = true;
+      return { ...s, id: crypto.randomUUID() };
+    }) as ProjectStatus[];
+
+    // Convert itemTypes from string[] to { id, name }[] if needed
+    let itemTypes: ProjectItemType[];
+    const rawItemTypes: unknown[] = (project.itemTypes as unknown as unknown[]) || [];
+    if (rawItemTypes.length > 0 && typeof rawItemTypes[0] === 'string') {
+      needsUpdate = true;
+      itemTypes = (rawItemTypes as string[]).map((name) => ({
+        id: crypto.randomUUID(),
+        name,
+      }));
+    } else {
+      itemTypes = (rawItemTypes as any[]).map((t: any) => {
+        if (t.id && typeof t.id === 'string') return t;
+        needsUpdate = true;
+        return { ...t, id: crypto.randomUUID() };
+      }) as ProjectItemType[];
+    }
+
+    if (needsUpdate) {
+      await Sheet.findByIdAndUpdate(sheet._id, {
+        $set: {
+          'project.statuses': statuses,
+          'project.itemTypes': itemTypes,
+        },
+      });
+      migratedCount++;
+    }
+  }
+
+  if (migratedCount > 0) {
+    console.log(`[startup] Backfilled project setting IDs on ${migratedCount} project(s)`);
   }
 }

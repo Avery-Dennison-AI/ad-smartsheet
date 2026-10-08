@@ -100,8 +100,22 @@ describe('createProject', () => {
         const tpl = PROJECT_TEMPLATES[templateKey];
         const projectSettings = sheet!.project!;
 
-        expect(projectSettings.statuses).toEqual(tpl.statuses);
-        expect(projectSettings.itemTypes).toEqual(tpl.itemTypes);
+        // Statuses should match template (with added ids)
+        expect(projectSettings.statuses.length).toBe(tpl.statuses.length);
+        for (let i = 0; i < tpl.statuses.length; i++) {
+          expect(projectSettings.statuses[i].name).toBe(tpl.statuses[i].name);
+          expect(projectSettings.statuses[i].color).toBe(tpl.statuses[i].color);
+          expect(projectSettings.statuses[i].category).toBe(tpl.statuses[i].category);
+          expect(projectSettings.statuses[i].id).toBeDefined();
+        }
+
+        // Item types should match template (converted from string[] to { id, name }[])
+        expect(projectSettings.itemTypes.length).toBe(tpl.itemTypes.length);
+        for (let i = 0; i < tpl.itemTypes.length; i++) {
+          expect(projectSettings.itemTypes[i].name).toBe(tpl.itemTypes[i]);
+          expect(projectSettings.itemTypes[i].id).toBeDefined();
+        }
+
         expect(projectSettings.keyPrefix).toBe('TP');
         expect(projectSettings.template).toBe(templateKey);
         expect(projectSettings.nextKeyNumber).toBe(1);

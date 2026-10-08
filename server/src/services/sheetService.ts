@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import mongoose from 'mongoose';
 import Sheet, { type ISheet } from '../models/Sheet';
 import Row from '../models/Row';
@@ -242,8 +243,8 @@ export async function duplicateSheet(sheetId: string, userId: string) {
     createData.project = {
       keyPrefix: newKeyPrefix,
       template: sheet.project.template,
-      statuses: sheet.project.statuses.map((s) => ({ ...s })),
-      itemTypes: [...sheet.project.itemTypes],
+      statuses: sheet.project.statuses.map((s) => ({ ...s, id: crypto.randomUUID() })),
+      itemTypes: sheet.project.itemTypes.map((t) => ({ ...t, id: crypto.randomUUID() })),
       nextKeyNumber: 1,
     };
   }

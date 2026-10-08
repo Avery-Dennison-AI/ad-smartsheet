@@ -260,3 +260,34 @@ export interface MyWorkResponse {
   noDueDate: MyWorkGroup;
 }
 
+// ─── Project Settings Types ─────────────────────────────────────────────────
+
+export interface ProjectStatus {
+  id: string;
+  name: string;
+  color: string;
+  category: 'todo' | 'in_progress' | 'done';
+}
+
+export interface ProjectItemType {
+  id: string;
+  name: string;
+}
+
+export interface StatusEntry {
+  id?: string;
+  name: string;
+  color: string;
+  category: 'todo' | 'in_progress' | 'done';
+}
+
+export interface ItemTypeEntry {
+  id?: string;
+  name: string;
+}
+
+export interface ProjectUsage {
+  statusUsage: Record<string, number>;
+  typeUsage: Record<string, number>;
+}
+
