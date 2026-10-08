@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Sheet, { type ISheet, type ColumnDef, type ProjectStatus, type ProjectItemType } from '../models/Sheet';
 import Row from '../models/Row';
 import { requireSheetAccess } from './permissionService';
+import { recordActivity } from './activityService';
 import { AppError } from '../utils/AppError';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -261,6 +262,24 @@ export async function updateStatuses(
     return col;
   });
 
+  // Count rows that will be moved due to replacements (before transaction)
+  let rowsMoved = 0;
+  if (statusCol && removedIds.length > 0) {
+    const allRows = await Row.find({ sheetId: new mongoose.Types.ObjectId(sheetId) }).select('cells').lean();
+    for (const removedId of removedIds) {
+      if (replacements[removedId]) {
+        const oldStatus = oldStatusMap.get(removedId);
+        if (oldStatus) {
+          rowsMoved += allRows.filter((r) => {
+            const cells = (r.cells as unknown as Record<string, unknown>) ?? {};
+            return typeof cells[statusCol.id] === 'string' &&
+              (cells[statusCol.id] as string).toLowerCase() === oldStatus.name.toLowerCase();
+          }).length;
+        }
+      }
+    }
+  }
+
   // Execute row updates and sheet update atomically
   const session = await mongoose.startSession();
   try {
@@ -292,6 +311,43 @@ export async function updateStatuses(
   // Return the updated sheet
   const updated = await Sheet.findById(sheetId);
   if (!updated) throw new AppError('Failed to update statuses', 500);
+
+  // Compute summary for activity log
+  try {
+    const addedNames: string[] = [];
+    const renamedList: Array<{ from: string; to: string }> = [];
+    const removedNames: string[] = [];
+
+    const oldIds = new Set(oldStatuses.map((s) => s.id));
+    const newIds = new Set(newStatuses.map((s) => s.id));
+
+    for (const s of newStatuses) {
+      if (!oldIds.has(s.id)) {
+        addedNames.push(s.name);
+      } else {
+        const oldS = oldStatusMap.get(s.id);
+        if (oldS && oldS.name !== s.name) {
+          renamedList.push({ from: oldS.name, to: s.name });
+        }
+      }
+    }
+
+    for (const s of oldStatuses) {
+      if (!newIds.has(s.id)) {
+        removedNames.push(s.name);
+      }
+    }
+
+    recordActivity({
+      sheetId,
+      actorId: userId,
+      action: 'project.statuses_changed',
+      details: { added: addedNames, renamed: renamedList, removed: removedNames, rowsMoved },
+    });
+  } catch (err) {
+    console.error('[projectSettingsService] Failed to record project.statuses_changed activity:', err);
+  }
+
   return updated;
 }
 
@@ -453,6 +509,24 @@ export async function updateItemTypes(
     return col;
   });
 
+  // Count rows that will be moved due to replacements (before transaction)
+  let itemTypesRowsMoved = 0;
+  if (typeCol && removedIds.length > 0) {
+    const allRows = await Row.find({ sheetId: new mongoose.Types.ObjectId(sheetId) }).select('cells').lean();
+    for (const removedId of removedIds) {
+      if (replacements[removedId]) {
+        const oldType = oldTypeMap.get(removedId);
+        if (oldType) {
+          itemTypesRowsMoved += allRows.filter((r) => {
+            const cells = (r.cells as unknown as Record<string, unknown>) ?? {};
+            return typeof cells[typeCol.id] === 'string' &&
+              (cells[typeCol.id] as string).toLowerCase() === oldType.name.toLowerCase();
+          }).length;
+        }
+      }
+    }
+  }
+
   // Execute atomically
   const session = await mongoose.startSession();
   try {
@@ -483,5 +557,42 @@ export async function updateItemTypes(
 
   const updated = await Sheet.findById(sheetId);
   if (!updated) throw new AppError('Failed to update item types', 500);
+
+  // Compute summary for activity log
+  try {
+    const addedNames: string[] = [];
+    const renamedList: Array<{ from: string; to: string }> = [];
+    const removedNames: string[] = [];
+
+    const oldIds = new Set(oldTypes.map((t) => t.id));
+    const newIds = new Set(newTypes.map((t) => t.id));
+
+    for (const t of newTypes) {
+      if (!oldIds.has(t.id)) {
+        addedNames.push(t.name);
+      } else {
+        const oldT = oldTypeMap.get(t.id);
+        if (oldT && oldT.name !== t.name) {
+          renamedList.push({ from: oldT.name, to: t.name });
+        }
+      }
+    }
+
+    for (const t of oldTypes) {
+      if (!newIds.has(t.id)) {
+        removedNames.push(t.name);
+      }
+    }
+
+    recordActivity({
+      sheetId,
+      actorId: userId,
+      action: 'project.item_types_changed',
+      details: { added: addedNames, renamed: renamedList, removed: removedNames, rowsMoved: itemTypesRowsMoved },
+    });
+  } catch (err) {
+    console.error('[projectSettingsService] Failed to record project.item_types_changed activity:', err);
+  }
+
   return updated;
 }

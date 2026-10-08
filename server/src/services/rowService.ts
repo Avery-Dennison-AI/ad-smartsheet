@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Row, { type IRow } from '../models/Row';
 import Sheet, { type ISheet } from '../models/Sheet';
+import Comment from '../models/Comment';
 import Workspace from '../models/Workspace';
 import { getSheetWithAccess, validateCellValue, formatRow } from './gridShared';
 import { recordActivity, recordActivities } from './activityService';
@@ -458,6 +459,16 @@ export async function deleteRows(
     _id: { $in: idsToDelete.map((id) => new mongoose.Types.ObjectId(id)) },
     sheetId: new mongoose.Types.ObjectId(sheetId),
   });
+
+  // Soft-delete comments on deleted rows
+  if (idsToDelete.length > 0) {
+    Comment.updateMany(
+      { rowId: { $in: idsToDelete.map((id) => new mongoose.Types.ObjectId(id)) } },
+      { deletedAt: new Date() },
+    ).catch((err) => {
+      console.error('[rowService] Failed to soft-delete comments on deleted rows:', err);
+    });
+  }
 
   // Record row.deleted activities (fire-and-forget)
   const primaryColForDel = (sheet.columns || []).find((c) => c.isPrimary);

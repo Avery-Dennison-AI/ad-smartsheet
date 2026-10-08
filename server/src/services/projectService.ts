@@ -7,6 +7,7 @@ import { getMemberRole } from './workspaceService';
 import { getOrgPolicy, enforceWorkspaceCreationPolicy } from './orgPolicyService';
 import { PROJECT_TEMPLATES, buildTemplateColumns, getTemplate } from './projectTemplates';
 import type { TemplateKey } from './projectTemplates';
+import { recordActivity } from './activityService';
 import { AppError } from '../utils/AppError';
 
 const CREATED_BY_POPULATE = '_id fullName email';
@@ -124,6 +125,18 @@ export async function createProject(
     },
     { upsert: true, new: true },
   );
+
+  // Record sheet.created activity (fire-and-forget)
+  try {
+    recordActivity({
+      sheetId: sheet._id.toString(),
+      actorId: userId,
+      action: 'sheet.created',
+      details: { name: sheet.name },
+    });
+  } catch (err) {
+    console.error('[projectService] Failed to record sheet.created activity:', err);
+  }
 
   // Populate and return
   const populated = await Sheet.findById(sheet._id).populate('createdBy', CREATED_BY_POPULATE);

@@ -5,6 +5,7 @@ import Row from '../models/Row';
 import Workspace from '../models/Workspace';
 import { getMemberId } from './workspaceService';
 import { getSheetWithAccess, serializeColumn, formatRow } from './gridShared';
+import { getCommentCountsByRow } from './commentService';
 
 // Re-export sub-services for backward-compatible imports
 export { addColumn, updateColumn, deleteColumn, reorderColumns, setPrimaryColumn, updateColumnWidth } from './columnService';
@@ -71,9 +72,16 @@ export async function getGrid(sheetId: string, userId: string) {
       email: typeof m.user === 'string' ? '' : m.user.email,
     }));
 
+  // Fetch comment counts for all rows
+  const rowIds = rows.map((r) => r._id.toString());
+  const commentCounts = await getCommentCountsByRow(sheetId, rowIds);
+
   return {
     columns: columns.map(serializeColumn),
-    rows: rows.map(formatRow),
+    rows: rows.map((r) => ({
+      ...formatRow(r),
+      commentCount: commentCounts.get(r._id.toString()) ?? 0,
+    })),
     members,
   };
 }

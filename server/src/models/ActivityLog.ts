@@ -12,7 +12,13 @@ export type ActivityAction =
   | 'column.deleted'
   | 'sheet.created'
   | 'sheet.renamed'
-  | 'sharing.changed';
+  | 'sheet.duplicated'
+  | 'sharing.changed'
+  | 'comment.added'
+  | 'comment.edited'
+  | 'comment.deleted'
+  | 'project.statuses_changed'
+  | 'project.item_types_changed';
 
 export interface IActivityLog extends Document {
   sheetId: mongoose.Types.ObjectId;

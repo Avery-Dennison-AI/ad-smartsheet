@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import mongoose from 'mongoose';
 import Sheet, { type ISheet } from '../models/Sheet';
 import Row from '../models/Row';
+import Comment from '../models/Comment';
 import UserSheetMeta, { type IUserSheetMeta } from '../models/UserSheetMeta';
 import Workspace, { type IWorkspace } from '../models/Workspace';
 import { getMemberRole } from './workspaceService';
@@ -345,6 +346,23 @@ export async function duplicateSheet(sheetId: string, userId: string) {
 
   const populated = await Sheet.findById(newSheet._id).populate('createdBy', CREATED_BY_POPULATE);
   if (!populated) throw new AppError('Failed to duplicate sheet', 500);
+
+  // Record sheet.duplicated activity (fire-and-forget)
+  try {
+    recordActivity({
+      sheetId: newSheet._id.toString(),
+      actorId: userId,
+      action: 'sheet.duplicated',
+      details: {
+        originalSheetId: sheet._id.toString(),
+        originalName: sheet.name,
+        newName: newSheet.name,
+      },
+    });
+  } catch (err) {
+    console.error('[sheetService] Failed to record sheet.duplicated activity:', err);
+  }
+
   return formatSheet(populated);
 }
 
@@ -381,6 +399,14 @@ export async function deleteSheet(sheetId: string, userId: string) {
 
   // Delete all rows for this sheet
   await Row.deleteMany({ sheetId: sheet._id });
+
+  // Soft-delete all comments for this sheet
+  Comment.updateMany(
+    { sheetId: sheet._id },
+    { deletedAt: new Date() },
+  ).catch((err) => {
+    console.error('[sheetService] Failed to soft-delete comments on deleted sheet:', err);
+  });
 
   await Sheet.findByIdAndDelete(sheet._id);
   await UserSheetMeta.deleteMany({ sheetId: sheet._id });
