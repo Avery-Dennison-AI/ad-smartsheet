@@ -4,6 +4,7 @@ import Sheet, { type ColumnDef, type ColumnType } from '../models/Sheet';
 import Row from '../models/Row';
 import { getSheetWithAccess, serializeColumn } from './gridShared';
 import { computeAssigneeIds } from './rowService';
+import { recordActivity } from './activityService';
 import { AppError } from '../utils/AppError';
 
 /** Adds a column to the sheet. Requires editor+. */
@@ -37,6 +38,15 @@ export async function addColumn(
   sorted.forEach((c, i) => { c.order = i; });
 
   await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: sorted } });
+
+  // Record column.added activity (fire-and-forget)
+  recordActivity({
+    sheetId,
+    actorId: userId,
+    action: 'column.added',
+    details: { columnId: newCol.id, columnName: newCol.name, columnType: newCol.type },
+  });
+
   return sorted.map(serializeColumn);
 }
 
@@ -54,6 +64,9 @@ export async function updateColumn(
   if (colIndex === -1) throw new AppError('Column not found', 404);
 
   const col = serializeColumn(columns[colIndex]);
+
+  // Capture old name before any updates for activity logging
+  const oldName = col.name;
 
   if (patch.name !== undefined) {
     col.name = patch.name.trim();
@@ -140,6 +153,17 @@ export async function updateColumn(
 
   columns[colIndex] = col;
   await Sheet.findByIdAndUpdate(sheetId, { $set: { columns } });
+
+  // Record column.renamed activity if name changed (fire-and-forget)
+  if (patch.name !== undefined && oldName !== col.name) {
+    recordActivity({
+      sheetId,
+      actorId: userId,
+      action: 'column.renamed',
+      details: { columnId, oldName, newName: col.name },
+    });
+  }
+
   return col;
 }
 
@@ -255,6 +279,15 @@ export async function deleteColumn(
   }
 
   await Sheet.findByIdAndUpdate(sheetId, { $set: { columns: remaining } });
+
+  // Record column.deleted activity (fire-and-forget)
+  recordActivity({
+    sheetId,
+    actorId: userId,
+    action: 'column.deleted',
+    details: { columnId, columnName: columns[colIndex].name },
+  });
+
   return { deleted: true, columnId };
 }
 

@@ -5,6 +5,7 @@ import User from '../models/User';
 import { requireSheetAccess, hasMinRole } from './permissionService';
 import type { SheetRole } from './permissionService';
 import { getMemberId, getMemberRole } from './workspaceService';
+import { recordActivity } from './activityService';
 import { AppError } from '../utils/AppError';
 
 const MEMBER_POPULATE = '_id fullName email role guestExpiresAt';
@@ -121,15 +122,46 @@ export async function addOrUpdateSheetMember(
   }).select('_id');
 
   if (existingIdx) {
-    // Update existing
+    // Update existing — capture old role for activity logging
+    const existingSheet = await Sheet.findById(sheetId).select('members');
+    const existingMember = existingSheet?.members.find(
+      (m) => m.userId.toString() === data.userId,
+    );
+    const oldRole = existingMember?.role;
+
     await Sheet.findOneAndUpdate(
       { _id: sheetId, 'members.userId': new mongoose.Types.ObjectId(data.userId) },
       { $set: { 'members.$.role': assignedRole } },
     );
+
+    // Record sharing.changed activity (fire-and-forget)
+    recordActivity({
+      sheetId,
+      actorId,
+      action: 'sharing.changed',
+      details: {
+        targetUserId: data.userId,
+        change: oldRole === assignedRole ? 'role_changed' : 'role_changed',
+        ...(oldRole ? { oldRole } : {}),
+        newRole: assignedRole,
+      },
+    });
   } else {
     // Add new
     await Sheet.findByIdAndUpdate(sheetId, {
       $push: { members: { userId: new mongoose.Types.ObjectId(data.userId), role: assignedRole } },
+    });
+
+    // Record sharing.changed activity (fire-and-forget)
+    recordActivity({
+      sheetId,
+      actorId,
+      action: 'sharing.changed',
+      details: {
+        targetUserId: data.userId,
+        change: 'added',
+        newRole: assignedRole,
+      },
     });
   }
 
@@ -179,8 +211,27 @@ export async function removeSheetMember(
 
   await requireSheetAccess(actorId, sheetId, 'admin');
 
+  // Capture old role for activity logging before removal
+  const sheetBeforeRemoval = await Sheet.findById(sheetId).select('members');
+  const removedMember = sheetBeforeRemoval?.members.find(
+    (m) => m.userId.toString() === targetUserId,
+  );
+  const oldRole = removedMember?.role;
+
   await Sheet.findByIdAndUpdate(sheetId, {
     $pull: { members: { userId: new mongoose.Types.ObjectId(targetUserId) } },
+  });
+
+  // Record sharing.changed activity (fire-and-forget)
+  recordActivity({
+    sheetId,
+    actorId,
+    action: 'sharing.changed',
+    details: {
+      targetUserId,
+      change: 'removed',
+      ...(oldRole ? { oldRole } : {}),
+    },
   });
 
   return getSheetMembers(sheetId, actorId);

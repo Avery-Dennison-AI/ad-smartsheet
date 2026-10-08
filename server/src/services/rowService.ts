@@ -3,6 +3,7 @@ import Row, { type IRow } from '../models/Row';
 import Sheet, { type ISheet } from '../models/Sheet';
 import Workspace from '../models/Workspace';
 import { getSheetWithAccess, validateCellValue, formatRow } from './gridShared';
+import { recordActivity, recordActivities } from './activityService';
 import { AppError } from '../utils/AppError';
 import {
   type HierarchyRow,
@@ -272,6 +273,19 @@ export async function addRow(
   // Bulk-write hierarchy changes for all other rows
   await bulkWriteHierarchy(sheetId, result.filter((r) => r.id !== newId));
 
+  // Record activity (fire-and-forget)
+  const primaryCol = columns.find((c) => c.isPrimary);
+  const rowName = primaryCol ? String(validatedCells[primaryCol.id] ?? '') : '';
+  const keyColForLog = columns.find((c) => c.systemField === 'key');
+  const rowKey = keyColForLog ? String(validatedCells[keyColForLog.id] ?? '') : undefined;
+  recordActivity({
+    sheetId,
+    rowId: newId,
+    actorId: userId,
+    action: 'row.created',
+    details: { name: rowName, ...(rowKey ? { key: rowKey } : {}) },
+  });
+
   // Return the new row plus full updated rows list
   const rowsList = await getSerializedRows(sheetId);
   return { row: formatRow(row), rows: rowsList };
@@ -307,6 +321,9 @@ export async function updateCell(
 
   // Validate project field constraints (status, type)
   validateProjectFieldValue(sheet, col, validated);
+
+  // Capture old value for activity logging before update
+  const oldValue = row.cells instanceof Map ? row.cells.get(columnId) : (row.toObject().cells as unknown as Record<string, unknown>)?.[columnId];
 
   if (col.type === 'contact' && validated !== null) {
     const workspace = await Workspace.findById(sheet.workspaceId);
@@ -386,6 +403,19 @@ export async function updateCell(
     }
   }
 
+  // Record cell.updated activity if value actually changed (fire-and-forget)
+  const oldStr = JSON.stringify(oldValue ?? null);
+  const newStr = JSON.stringify(validated ?? null);
+  if (oldStr !== newStr) {
+    recordActivity({
+      sheetId,
+      rowId,
+      actorId: userId,
+      action: 'cell.updated',
+      details: { columnId, columnName: col.name, oldValue: oldValue ?? null, newValue: validated },
+    });
+  }
+
   return cellUpdates;
 }
 
@@ -398,7 +428,7 @@ export async function deleteRows(
   rowIds: string[],
   includeDescendants = false,
 ) {
-  await getSheetWithAccess(sheetId, userId, 'editor');
+  const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
 
   const validIds = rowIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
   if (validIds.length === 0) throw new AppError('No valid row IDs provided', 400);
@@ -417,11 +447,33 @@ export async function deleteRows(
   const remainingIds = new Set(result.map((r) => r.id));
   const idsToDelete = hierarchyRows.filter((r) => !remainingIds.has(r.id)).map((r) => r.id);
 
+  // Load deleted rows for activity logging (before DB deletion)
+  const deletedRowDocs = await Row.find({
+    _id: { $in: idsToDelete.map((id) => new mongoose.Types.ObjectId(id)) },
+    sheetId: new mongoose.Types.ObjectId(sheetId),
+  }).select('cells');
+
   // Delete removed rows from DB
   await Row.deleteMany({
     _id: { $in: idsToDelete.map((id) => new mongoose.Types.ObjectId(id)) },
     sheetId: new mongoose.Types.ObjectId(sheetId),
   });
+
+  // Record row.deleted activities (fire-and-forget)
+  const primaryColForDel = (sheet.columns || []).find((c) => c.isPrimary);
+  const keyColForDel = (sheet.columns || []).find((c) => c.systemField === 'key');
+  recordActivities(deletedRowDocs.map((doc) => {
+    const cells = doc.cells instanceof Map ? Object.fromEntries(doc.cells) : (doc.toObject().cells as unknown as Record<string, unknown>) ?? {};
+    const name = primaryColForDel ? String(cells[primaryColForDel.id] ?? '') : '';
+    const key = keyColForDel ? String(cells[keyColForDel.id] ?? '') : undefined;
+    return {
+      sheetId,
+      rowId: doc._id.toString(),
+      actorId: userId,
+      action: 'row.deleted' as const,
+      details: { name, ...(key ? { key } : {}) },
+    };
+  }));
 
   // Bulk-write hierarchy for remaining rows
   await bulkWriteHierarchy(sheetId, result);
@@ -507,6 +559,19 @@ export async function reorderRows(
     }
 
     await bulkWriteHierarchy(sheetId, modified);
+
+    // Record row.moved activities for each parent update (fire-and-forget)
+    const rowMapBefore = new Map(hierarchyRows.map((r) => [r.id, r]));
+    recordActivities(parentUpdates.map((u) => ({
+      sheetId,
+      rowId: u.rowId,
+      actorId: userId,
+      action: 'row.moved' as const,
+      details: {
+        oldParentId: rowMapBefore.get(u.rowId)?.parentId ?? null,
+        newParentId: u.parentId,
+      },
+    })));
   } else {
     // Simple reorder without parent changes
     const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
@@ -583,6 +648,14 @@ export async function indentRows(
 
   await bulkWriteHierarchy(sheetId, result);
 
+  // Record row.indented activity (fire-and-forget)
+  recordActivity({
+    sheetId,
+    actorId: userId,
+    action: 'row.indented',
+    details: { rowIds },
+  });
+
   const rowsList = await getSerializedRows(sheetId);
   return { updated: rowIds.length, rows: rowsList };
 }
@@ -608,6 +681,14 @@ export async function outdentRows(
   }
 
   await bulkWriteHierarchy(sheetId, result);
+
+  // Record row.outdented activity (fire-and-forget)
+  recordActivity({
+    sheetId,
+    actorId: userId,
+    action: 'row.outdented',
+    details: { rowIds },
+  });
 
   const rowsList = await getSerializedRows(sheetId);
   return { updated: rowIds.length, rows: rowsList };

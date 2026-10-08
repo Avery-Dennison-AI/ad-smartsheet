@@ -5,6 +5,7 @@ import Row from '../models/Row';
 import UserSheetMeta, { type IUserSheetMeta } from '../models/UserSheetMeta';
 import Workspace, { type IWorkspace } from '../models/Workspace';
 import { getMemberRole } from './workspaceService';
+import { recordActivity } from './activityService';
 import { AppError } from '../utils/AppError';
 import { requireSheetAccess, hasMinRole as permHasMinRole, getEffectiveRole } from './permissionService';
 import type { SheetRole } from './permissionService';
@@ -183,6 +184,15 @@ export async function createSheet(workspaceId: string, name: string, userId: str
 
   const populated = await Sheet.findById(sheet._id).populate('createdBy', CREATED_BY_POPULATE);
   if (!populated) throw new AppError('Failed to create sheet', 500);
+
+  // Record sheet.created activity (fire-and-forget)
+  recordActivity({
+    sheetId: sheet._id.toString(),
+    actorId: userId,
+    action: 'sheet.created',
+    details: { name },
+  });
+
   return formatSheet(populated);
 }
 
@@ -193,6 +203,9 @@ export async function updateSheetDetails(
   userId: string,
 ) {
   const { sheet } = await getSheetWithAccess(sheetId, userId, 'editor');
+
+  // Capture old name for activity logging
+  const oldName = sheet.name;
 
   const updates: Record<string, unknown> = {};
   if (patch.name !== undefined) updates.name = patch.name;
@@ -205,6 +218,17 @@ export async function updateSheetDetails(
   ).populate('createdBy', CREATED_BY_POPULATE);
 
   if (!updated) throw new AppError('Sheet not found', 404);
+
+  // Record sheet.renamed activity if name changed (fire-and-forget)
+  if (patch.name !== undefined && oldName !== patch.name) {
+    recordActivity({
+      sheetId,
+      actorId: userId,
+      action: 'sheet.renamed',
+      details: { oldName, newName: patch.name },
+    });
+  }
+
   return formatSheet(updated);
 }
 
