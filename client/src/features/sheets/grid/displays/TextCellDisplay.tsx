@@ -22,22 +22,26 @@ export default function TextCellDisplay({
 
   return (
     <span
-      className="flex w-full items-center gap-1 truncate"
+      className="flex min-w-0 w-full items-center gap-1"
       style={indentPx > 0 ? { paddingLeft: indentPx } : undefined}
       data-icod-id="src_features_sheets_grid_displays_textcelldisplay_tsx_container">
       {isPrimary && hasChildren && onToggleCollapse && (
-        <RowExpandButton
-          isCollapsed={isCollapsed}
-          onToggle={onToggleCollapse}
-          data-icod-id="src_features_sheets_grid_displays_textcelldisplay_tsx_aec2" />
+        <span
+          className="shrink-0"
+          data-icod-id="src_features_sheets_grid_displays_textcelldisplay_tsx_84e7">
+          <RowExpandButton
+            isCollapsed={isCollapsed}
+            onToggle={onToggleCollapse}
+            data-icod-id="src_features_sheets_grid_displays_textcelldisplay_tsx_aec2" />
+        </span>
       )}
       {value == null || value === '' ? (
         <span
-          className="text-muted-foreground/40"
+          className="text-muted-foreground/40 truncate min-w-0"
           data-icod-id="src_features_sheets_grid_displays_textcelldisplay_tsx_f78b" />
       ) : (
         <span
-          className={`truncate ${isPrimary && hasChildren ? 'font-medium' : ''}`}
+          className={`truncate min-w-0 ${isPrimary && hasChildren ? 'font-medium' : ''}`}
           data-icod-id="src_features_sheets_grid_displays_textcelldisplay_tsx_bff2">{String(value)}</span>
       )}
     </span>

@@ -23,6 +23,7 @@ import orgPolicyRouter from './routes/orgPolicy';
 import myWorkRouter from './routes/myWork';
 import activityRouter from './routes/activity';
 import commentsRouter from './routes/comments';
+import attachmentsRouter from './routes/attachments';
 import { seedAdmin } from './config/seedAdmin';
 import { migrateWorkspaceColors, repairBrokenColumns, repairPrimaryColumnOrder, migrateUserRoles, backfillRowAssigneeIds, backfillProjectSettingIds } from './config/migrations';
 import { sendSuccess } from './utils/response';
@@ -87,6 +88,7 @@ app.use('/api/org-policy', orgPolicyRouter);
 app.use('/api/my-work', myWorkRouter);
 app.use('/api/sheets/:sheetId', activityRouter);
 app.use('/api', commentsRouter);
+app.use('/api', attachmentsRouter);
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use(errorHandler);

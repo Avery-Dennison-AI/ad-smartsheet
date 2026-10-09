@@ -17,6 +17,8 @@ export type ActivityAction =
   | 'comment.added'
   | 'comment.edited'
   | 'comment.deleted'
+  | 'attachment.added'
+  | 'attachment.deleted'
   | 'project.statuses_changed'
   | 'project.item_types_changed';
 

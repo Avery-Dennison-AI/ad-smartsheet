@@ -259,28 +259,11 @@ export default function GridRow({
               isCollapsed={col.isPrimary ? rowIsCollapsed : undefined}
               onToggleCollapse={col.isPrimary && !isBlankRow && row?.id ? () => onToggleCollapse?.(row.id) : undefined}
               data-icod-id={`src_features_sheets_grid_gridrow_tsx_4e48_${col.id}`} />
-            {/* Open details button and comment badge on primary cell */}
-            {col.isPrimary && !isBlankRow && row?.id && (
-              <>
-                {/* Open details button - visible on hover */}
-                {isRowHovered && (
-                  <div
-                    className="absolute right-1 top-1/2 -translate-y-1/2 z-10"
-                    data-icod-id={`src_features_sheets_grid_gridrow_tsx_openbtn_${row.id}`}>
-                    <IconButton
-                      size="sm"
-                      tooltip="Open details"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenItem?.(row.id);
-                      }}
-                      data-icod-id={`src_features_sheets_grid_gridrow_tsx_1dcd_${col.id}`}>
-                      <PanelRightOpen
-                        className="h-3.5 w-3.5"
-                        data-icod-id={`src_features_sheets_grid_gridrow_tsx_1b53_${col.id}`} />
-                    </IconButton>
-                  </div>
-                )}
+            {/* Icon group on primary cell — comment badge + open details button side by side */}
+            {col.isPrimary && !isBlankRow && row?.id && ((row.commentCount ?? 0) > 0 || isRowHovered) && (
+              <div
+                className="absolute right-1 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1"
+                data-icod-id={`src_features_sheets_grid_gridrow_tsx_icongroup_${row.id}`}>
                 {/* Comment count badge */}
                 {(row.commentCount ?? 0) > 0 && (
                   <button
@@ -289,7 +272,7 @@ export default function GridRow({
                       e.stopPropagation();
                       onOpenItem?.(row.id, 'comments');
                     }}
-                    className="absolute right-1 bottom-0.5 flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/50"
+                    className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/50"
                     title="View comments"
                     data-icod-id={`src_features_sheets_grid_gridrow_tsx_comments_${row.id}`}>
                     <MessageSquare
@@ -298,7 +281,23 @@ export default function GridRow({
                     <span data-icod-id={`src_features_sheets_grid_gridrow_tsx_4fe6_${col.id}`}>{row.commentCount}</span>
                   </button>
                 )}
-              </>
+                {/* Open details button - visible on hover */}
+                {isRowHovered && (
+                  <IconButton
+                    size="sm"
+                    tooltip="Open details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenItem?.(row.id);
+                    }}
+                    className="shrink-0"
+                    data-icod-id={`src_features_sheets_grid_gridrow_tsx_1dcd_${col.id}`}>
+                    <PanelRightOpen
+                      className="h-3.5 w-3.5"
+                      data-icod-id={`src_features_sheets_grid_gridrow_tsx_1b53_${col.id}`} />
+                  </IconButton>
+                )}
+              </div>
             )}
           </div>
         );

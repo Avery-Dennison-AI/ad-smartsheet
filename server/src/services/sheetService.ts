@@ -7,6 +7,7 @@ import UserSheetMeta, { type IUserSheetMeta } from '../models/UserSheetMeta';
 import Workspace, { type IWorkspace } from '../models/Workspace';
 import { getMemberRole } from './workspaceService';
 import { recordActivity } from './activityService';
+import { deleteAttachmentsForSheet } from './attachmentService';
 import { AppError } from '../utils/AppError';
 import { requireSheetAccess, hasMinRole as permHasMinRole, getEffectiveRole } from './permissionService';
 import type { SheetRole } from './permissionService';
@@ -406,6 +407,11 @@ export async function deleteSheet(sheetId: string, userId: string) {
     { deletedAt: new Date() },
   ).catch((err) => {
     console.error('[sheetService] Failed to soft-delete comments on deleted sheet:', err);
+  });
+
+  // Soft-delete all attachments for this sheet (fire-and-forget)
+  deleteAttachmentsForSheet(sheet._id.toString()).catch((err) => {
+    console.error('[sheetService] Failed to soft-delete attachments on deleted sheet:', err);
   });
 
   await Sheet.findByIdAndDelete(sheet._id);

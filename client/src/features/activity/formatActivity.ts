@@ -5,6 +5,7 @@ import {
   Plus,
   Trash2,
   MessageSquare,
+  Paperclip,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -413,6 +414,32 @@ export function formatActivity(entry: ActivityEntry): FormattedActivity {
         icon: MessageSquare,
         isComment: true,
       };
+
+    case 'attachment.added': {
+      const fileName = (d.fileName as string) || 'a file';
+      return {
+        sentence: `attached ${fileName}`,
+        richParts: [
+          { type: 'text', content: 'attached ' },
+          { type: 'bold', content: truncateText(fileName) },
+        ],
+        icon: Paperclip,
+        isComment: false,
+      };
+    }
+
+    case 'attachment.deleted': {
+      const fileName = (d.fileName as string) || 'a file';
+      return {
+        sentence: `removed ${fileName}`,
+        richParts: [
+          { type: 'text', content: 'removed ' },
+          { type: 'bold', content: truncateText(fileName) },
+        ],
+        icon: Paperclip,
+        isComment: false,
+      };
+    }
 
     default:
       return {

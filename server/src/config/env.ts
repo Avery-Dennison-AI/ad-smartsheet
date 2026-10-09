@@ -17,6 +17,9 @@ interface Env {
   ADMIN_NAME: string | undefined;
   VITE_API_URL: string | undefined;
   UPLOAD_DIR: string;
+  STORAGE_DRIVER: string;
+  MAX_FILE_SIZE_MB: number;
+  MAX_FILES_PER_UPLOAD: number;
 }
 
 function loadEnv(): Env {
@@ -39,6 +42,9 @@ function loadEnv(): Env {
     ADMIN_NAME: process.env.ADMIN_NAME,
     VITE_API_URL: process.env.VITE_API_URL,
     UPLOAD_DIR: process.env.UPLOAD_DIR || 'uploads',
+    STORAGE_DRIVER: process.env.STORAGE_DRIVER || 'local',
+    MAX_FILE_SIZE_MB: Number(process.env.MAX_FILE_SIZE_MB) || 25,
+    MAX_FILES_PER_UPLOAD: Number(process.env.MAX_FILES_PER_UPLOAD) || 10,
   };
 }
 

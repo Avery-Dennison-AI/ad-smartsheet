@@ -6,6 +6,7 @@ import Workspace from '../models/Workspace';
 import User from '../models/User';
 import { getSheetWithAccess, validateCellValue, formatRow } from './gridShared';
 import { recordActivity, recordActivities } from './activityService';
+import { deleteAttachmentsForRows } from './attachmentService';
 import { AppError } from '../utils/AppError';
 import {
   type HierarchyRow,
@@ -521,6 +522,11 @@ export async function deleteRows(
       { deletedAt: new Date() },
     ).catch((err) => {
       console.error('[rowService] Failed to soft-delete comments on deleted rows:', err);
+    });
+
+    // Soft-delete attachments on deleted rows (fire-and-forget)
+    deleteAttachmentsForRows(idsToDelete).catch((err) => {
+      console.error('[rowService] Failed to soft-delete attachments on deleted rows:', err);
     });
   }
 
