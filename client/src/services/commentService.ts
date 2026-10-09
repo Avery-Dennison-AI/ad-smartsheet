@@ -1,10 +1,6 @@
 import apiClient from './apiClient';
 import type { FormattedComment, ActivityEntry } from '@/types';
 
-export interface CommentResponse {
-  comments: FormattedComment[];
-}
-
 export interface ActivityResponse {
   entries: ActivityEntry[];
   nextCursor?: string;
@@ -14,9 +10,11 @@ export interface ActivityResponse {
 export async function fetchComments(
   sheetId: string,
   rowId: string,
-): Promise<CommentResponse> {
+): Promise<FormattedComment[]> {
   const { data } = await apiClient.get(`/api/sheets/${sheetId}/rows/${rowId}/comments`);
-  return data.data ?? data;
+  // Server returns { success, data: <array> }; axios unwraps to { data: { success, data } }
+  const payload = data.data ?? data;
+  return Array.isArray(payload) ? payload : [];
 }
 
 /** Post a new comment. parentId is optional for replies. */

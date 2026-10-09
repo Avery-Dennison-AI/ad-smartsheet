@@ -22,8 +22,10 @@ const initialState: CommentsState = {
   byRowId: {},
 };
 
+const EMPTY_ROW_STATE: RowCommentsState = { comments: [], loading: false, error: null };
+
 function getRowState(state: CommentsState, rowId: string): RowCommentsState {
-  return state.byRowId[rowId] ?? { comments: [], loading: false, error: null };
+  return state.byRowId[rowId] ?? EMPTY_ROW_STATE;
 }
 
 // ─── Thunks ─────────────────────────────────────────────────────────────────
@@ -31,8 +33,8 @@ function getRowState(state: CommentsState, rowId: string): RowCommentsState {
 export const loadComments = createAsyncThunk(
   'comments/load',
   async ({ sheetId, rowId }: { sheetId: string; rowId: string }) => {
-    const result = await fetchCommentsApi(sheetId, rowId);
-    return { rowId, comments: result.comments };
+    const comments = await fetchCommentsApi(sheetId, rowId);
+    return { rowId, comments };
   },
 );
 
@@ -110,7 +112,11 @@ const commentsSlice = createSlice({
     });
     builder.addCase(loadComments.fulfilled, (state, action) => {
       const { rowId, comments } = action.payload;
-      const normalized = comments.map((c) => ({ ...c, replies: c.replies ?? [] }));
+      if (!Array.isArray(comments)) {
+        state.byRowId[rowId] = { comments: [], loading: false, error: 'Unexpected response' };
+        return;
+      }
+      const normalized = comments.map((c: FormattedComment) => ({ ...c, replies: c.replies ?? [] }));
       state.byRowId[rowId] = { comments: normalized, loading: false, error: null };
     });
     builder.addCase(loadComments.rejected, (state, action) => {
@@ -150,7 +156,7 @@ const commentsSlice = createSlice({
 // ─── Selectors ──────────────────────────────────────────────────────────────
 
 export const selectCommentsForRow = (state: RootState, rowId: string): RowCommentsState => {
-  return state.comments.byRowId[rowId] ?? { comments: [], loading: false, error: null };
+  return state.comments.byRowId[rowId] ?? EMPTY_ROW_STATE;
 };
 
 export default commentsSlice.reducer;

@@ -42,7 +42,7 @@ export function useBreadcrumbs(): BreadcrumbItem[] {
   if (pathname.startsWith('/sheets/')) {
     const sheetName = sheet?.name || params.sheetId || 'Sheet';
     const workspaceId = sheet?.workspaceId;
-    const workspaceName = workspace?.name || 'Workspace';
+    const workspaceName = workspace?.name || sheet?.workspaceName || 'Workspace';
     const isProject = sheet?.kind === 'project';
     const icon = isProject
       ? React.createElement(ProjectIcon, { className: 'h-3.5 w-3.5' })

@@ -2,7 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { Tabs } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectOpenRowId, selectActiveTab, closeItem, setTab, openItem } from '@/store/slices/itemDetailSlice';
-import { selectGridColumns, selectGridRows, updateCell } from '@/store/slices/gridSlice';
+import { selectGridColumns, selectGridRows, selectGridMembers, updateCell } from '@/store/slices/gridSlice';
 import { cn } from '@/utils/cn';
 import type { WorkspaceRole } from '@/types';
 import PanelHeader from './PanelHeader';
@@ -22,6 +22,7 @@ export default function ItemDetailPanel({ sheetId, userRole }: ItemDetailPanelPr
   const activeTab = useAppSelector(selectActiveTab);
   const columns = useAppSelector(selectGridColumns);
   const rows = useAppSelector(selectGridRows);
+  const workspaceMembers = useAppSelector(selectGridMembers);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Find current row and compute prev/next
@@ -112,6 +113,7 @@ export default function ItemDetailPanel({ sheetId, userRole }: ItemDetailPanelPr
           isViewer={isViewer}
           onCellChange={handleCellChange}
           sheetKind={undefined}
+          workspaceMembers={workspaceMembers}
           data-icod-id="src_features_itemdetail_itemdetailpanel_tsx_0cd0" />
 
         {/* Sub-items */}
