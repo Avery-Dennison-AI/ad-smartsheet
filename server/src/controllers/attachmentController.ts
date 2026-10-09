@@ -1,11 +1,12 @@
 import type { Request, Response } from 'express';
+import fsp from 'fs/promises';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import { AppError } from '../utils/AppError';
 import * as attachmentService from '../services/attachmentService';
 
-interface MulterFile {
-  buffer: Buffer;
+interface MulterDiskFile {
+  path: string;
   originalname: string;
   mimetype: string;
   size: number;
@@ -19,20 +20,31 @@ export const uploadHandler = asyncHandler(async (req: Request, res: Response) =>
   const { sheetId, rowId } = req.params;
   const userId = req.user!.id;
 
-  const files = (req as any).files as MulterFile[] | undefined;
+  const files = (req as any).files as MulterDiskFile[] | undefined;
   if (!files || !Array.isArray(files) || files.length === 0) {
     throw new AppError('No files provided', 400);
   }
 
-  const uploadInputs = files.map((f) => ({
-    buffer: f.buffer,
-    originalname: f.originalname,
-    mimetype: f.mimetype,
-    size: f.size,
-  }));
+  // Collect temp paths for cleanup in case uploadAttachments throws early
+  const tempPaths = files.map((f) => f.path);
 
-  const attachments = await attachmentService.uploadAttachments(sheetId, rowId, userId, uploadInputs);
-  sendSuccess(res, attachments, 201);
+  try {
+    const diskInputs = files.map((f) => ({
+      tempPath: f.path,
+      originalname: f.originalname,
+      size: f.size,
+      mimetype: f.mimetype,
+    }));
+
+    const attachments = await attachmentService.uploadAttachments(sheetId, rowId, userId, diskInputs);
+    sendSuccess(res, attachments, 201);
+  } finally {
+    // Clean up any temp files that might remain if uploadAttachments threw
+    // before reaching its own per-file cleanup
+    for (const tp of tempPaths) {
+      try { await fsp.unlink(tp); } catch { /* ignore ENOENT — already cleaned */ }
+    }
+  }
 });
 
 /**
@@ -48,19 +60,33 @@ export const listHandler = asyncHandler(async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/attachments/:attachmentId/download
- * Download an attachment file by streaming it.
+ * Sets safe download headers on the response and pipes the stream.
  */
-export const downloadHandler = asyncHandler(async (req: Request, res: Response) => {
-  const { attachmentId } = req.params;
-  const userId = req.user!.id;
-
-  const result = await attachmentService.downloadAttachment(attachmentId, userId);
-
+function pipeAttachmentStream(
+  res: Response,
+  result: { stream: NodeJS.ReadableStream; contentType: string; originalName: string },
+  disposition: 'attachment' | 'inline',
+): void {
   // Sanitize filename for Content-Disposition header
   const safeName = result.originalName.replace(/"/g, '\\"');
+  const encodedName = encodeURIComponent(result.originalName);
+
   res.setHeader('Content-Type', result.contentType);
-  res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+  res.setHeader('Cache-Control', 'no-store');
+
+  if (disposition === 'attachment') {
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${safeName}"; filename*=UTF-8''${encodedName}`,
+    );
+  } else {
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${safeName}"; filename*=UTF-8''${encodedName}`,
+    );
+  }
 
   const stream = result.stream;
   stream.pipe(res);
@@ -69,6 +95,46 @@ export const downloadHandler = asyncHandler(async (req: Request, res: Response) 
       res.status(500).end();
     }
   });
+}
+
+/**
+ * GET /api/attachments/:attachmentId/download
+ * Download an attachment file by streaming it with safe headers.
+ */
+export const downloadHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { attachmentId } = req.params;
+  const userId = req.user!.id;
+
+  const result = await attachmentService.downloadAttachment(attachmentId, userId);
+  pipeAttachmentStream(res, result, 'attachment');
+});
+
+/** Previewable content types — images and PDFs only. */
+const PREVIEWABLE_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+]);
+
+/**
+ * GET /api/attachments/:attachmentId/preview
+ * Serve inline for images/PDFs; redirect to download for everything else.
+ */
+export const previewHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { attachmentId } = req.params;
+  const userId = req.user!.id;
+
+  const result = await attachmentService.downloadAttachment(attachmentId, userId);
+
+  if (!PREVIEWABLE_TYPES.has(result.contentType)) {
+    // Redirect to download endpoint for non-previewable types
+    res.redirect(`/api/attachments/${attachmentId}/download`);
+    return;
+  }
+
+  pipeAttachmentStream(res, result, 'inline');
 });
 
 /**

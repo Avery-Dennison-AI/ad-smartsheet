@@ -1,4 +1,7 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import fsp from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import mongoose from 'mongoose';
 import Attachment, { type IAttachment } from '../models/Attachment';
@@ -7,38 +10,33 @@ import { requireSheetAccess } from './permissionService';
 import { recordActivity } from './activityService';
 import { env } from '../config/env';
 import { AppError } from '../utils/AppError';
+import {
+  checkExtensionAndMime,
+  validateFileSize,
+  verifySignature,
+  sanitizeFilename,
+} from './fileSecurity';
+import { virusScanner } from './virusScanner';
 
-// ─── Blocked file types ──────────────────────────────────────────────────────
+// ─── Input types ────────────────────────────────────────────────────────────
 
-const BLOCKED_EXTENSIONS = new Set([
-  '.exe', '.bat', '.cmd', '.sh', '.js', '.msi', '.dll',
-  '.ps1', '.vbs', '.ts', '.py', '.rb', '.php',
-]);
-
-const BLOCKED_MIME_TYPES = new Set([
-  'application/x-msdownload',
-  'application/x-msdos-program',
-  'text/javascript',
-  'application/javascript',
-  'application/x-sh',
-  'application/x-shellscript',
-  'application/x-msi',
-  'application/x-dosexec',
-]);
-
-/** Sanitize a filename: strip path separators and control characters. */
-function sanitizeFilename(name: string): string {
-  return name
-    .replace(/[/\\]/g, '_')
-    .replace(/[\x00-\x1f\x7f]/g, '')
-    .trim()
-    .slice(0, 255) || 'unnamed';
+/** Disk-based file input from multer diskStorage. */
+export interface DiskFileInput {
+  tempPath: string;
+  originalname: string;
+  size: number;
+  mimetype: string;
 }
 
-/** Extract the file extension (lowercase, with dot) from a filename. */
-function getExtension(filename: string): string {
-  const ext = path.extname(filename).toLowerCase();
-  return ext;
+/**
+ * Legacy buffer-based input — kept for backward compatibility with tests.
+ * When used, the buffer is written to a temp file first.
+ */
+export interface UploadFileInput {
+  buffer: Buffer;
+  originalname: string;
+  mimetype: string;
+  size: number;
 }
 
 // ─── Formatted attachment response ──────────────────────────────────────────
@@ -84,21 +82,22 @@ function formatAttachment(doc: any): FormattedAttachment {
 
 // ─── uploadAttachments ──────────────────────────────────────────────────────
 
-export interface UploadFileInput {
-  buffer: Buffer;
-  originalname: string;
-  mimetype: string;
-  size: number;
-}
-
 /**
  * Uploads one or more files as attachments to a row. Requires editor+ access.
+ *
+ * Accepts either disk-based inputs (from multer diskStorage) or legacy
+ * buffer-based inputs (for test compatibility). Buffer inputs are written
+ * to a temp file before processing.
+ *
+ * Partial uploads are acceptable: if file 3 of 5 fails, files 1–2 that
+ * already succeeded remain stored. Each file's temp path is cleaned up
+ * in a per-file try/finally block.
  */
 export async function uploadAttachments(
   sheetId: string,
   rowId: string,
   userId: string,
-  files: UploadFileInput[],
+  files: DiskFileInput[] | UploadFileInput[],
 ): Promise<FormattedAttachment[]> {
   await requireSheetAccess(userId, sheetId, 'editor');
 
@@ -110,77 +109,141 @@ export async function uploadAttachments(
     throw new AppError(`Too many files. Maximum ${env.MAX_FILES_PER_UPLOAD} files per upload`, 400);
   }
 
-  const maxBytes = env.MAX_FILE_SIZE_MB * 1024 * 1024;
+  // Normalize inputs: convert buffer-based to disk-based if needed
+  const normalizedFiles: DiskFileInput[] = [];
+  const tempFilesCreated: string[] = []; // track temp files we create from buffers
 
-  // Validate each file before saving any
   for (const file of files) {
-    if (file.size > maxBytes) {
-      throw new AppError(
-        `File "${sanitizeFilename(file.originalname)}" exceeds the ${env.MAX_FILE_SIZE_MB} MB limit`,
-        400,
-      );
-    }
-
-    const ext = getExtension(file.originalname);
-    if (BLOCKED_EXTENSIONS.has(ext)) {
-      throw new AppError(
-        `File type "${ext}" is not allowed`,
-        400,
-      );
-    }
-
-    if (BLOCKED_MIME_TYPES.has(file.mimetype)) {
-      throw new AppError(
-        `MIME type "${file.mimetype}" is not allowed`,
-        400,
-      );
+    if ('tempPath' in file) {
+      normalizedFiles.push(file as DiskFileInput);
+    } else {
+      // Legacy buffer input — write to temp file
+      const bufferFile = file as UploadFileInput;
+      const tmpDir = path.join(os.tmpdir(), 'upload-staging');
+      fs.mkdirSync(tmpDir, { recursive: true });
+      const tempPath = path.join(tmpDir, `${crypto.randomUUID()}`);
+      await fsp.writeFile(tempPath, bufferFile.buffer);
+      tempFilesCreated.push(tempPath);
+      normalizedFiles.push({
+        tempPath,
+        originalname: bufferFile.originalname,
+        size: bufferFile.size,
+        mimetype: bufferFile.mimetype,
+      });
     }
   }
 
+  // Check total request size
+  const maxRequestBytes = env.MAX_REQUEST_SIZE_MB * 1024 * 1024;
+  const totalRequestSize = normalizedFiles.reduce((sum, f) => sum + f.size, 0);
+  if (totalRequestSize > maxRequestBytes) {
+    // Clean up any temp files we created
+    for (const tp of tempFilesCreated) {
+      try { await fsp.unlink(tp); } catch { /* ignore */ }
+    }
+    throw new AppError(
+      `Total upload size exceeds the ${env.MAX_REQUEST_SIZE_MB} MB request limit`,
+      413,
+    );
+  }
+
+  // Pre-validate all files before saving any
+  const validatedEntries: Array<{ entry: NonNullable<ReturnType<typeof checkExtensionAndMime>>; file: DiskFileInput }> = [];
+  for (const file of normalizedFiles) {
+    const entry = checkExtensionAndMime(file.originalname, file.mimetype);
+    if (!entry) {
+      // Clean up temp files we created
+      for (const tp of tempFilesCreated) {
+        try { await fsp.unlink(tp); } catch { /* ignore */ }
+      }
+      throw new AppError(
+        `File type "${path.extname(file.originalname)}" is not allowed. Allowed extensions: .pdf, .docx, .doc, .xlsx, .xls, .pptx, .ppt, .odt, .ods, .odp, .txt, .csv, .md, .json, .png, .jpg, .jpeg, .gif, .webp, .zip, .eml, .msg`,
+        400,
+      );
+    }
+    validateFileSize(file.size, entry);
+    validatedEntries.push({ entry, file });
+  }
+
+  // Check total row attachment size
+  const existingAttachments = await Attachment.find({
+    sheetId: new mongoose.Types.ObjectId(sheetId),
+    rowId: new mongoose.Types.ObjectId(rowId),
+    deletedAt: null,
+  }).select('size');
+  const existingSize = existingAttachments.reduce((sum, a) => sum + a.size, 0);
+  const incomingSize = normalizedFiles.reduce((sum, f) => sum + f.size, 0);
+  if (existingSize + incomingSize > env.MAX_ROW_ATTACHMENT_BYTES) {
+    for (const tp of tempFilesCreated) {
+      try { await fsp.unlink(tp); } catch { /* ignore */ }
+    }
+    throw new AppError(
+      `Total attachments for this row would exceed the ${Math.round(env.MAX_ROW_ATTACHMENT_BYTES / (1024 * 1024))} MB limit`,
+      413,
+    );
+  }
+
+  // Verify signatures and scan for viruses
+  for (const { entry, file } of validatedEntries) {
+    await verifySignature(file.tempPath, entry);
+    const scanResult = await virusScanner.scan(file.tempPath);
+    if (!scanResult.clean) {
+      console.warn(`[attachmentService] Virus scanner rejected "${file.originalname}": ${scanResult.threat}`);
+      // Clean up temp files we created
+      for (const tp of tempFilesCreated) {
+        try { await fsp.unlink(tp); } catch { /* ignore */ }
+      }
+      throw new AppError('File rejected by virus scanner', 400);
+    }
+  }
+
+  // Process each file: stream to storage, create DB record, clean up temp
   const created: FormattedAttachment[] = [];
 
-  for (const file of files) {
-    const uuid = crypto.randomUUID();
-    const ext = getExtension(file.originalname);
-    const safeExt = BLOCKED_EXTENSIONS.has(ext) ? '' : ext;
-    const storageKey = `${sheetId}/${uuid}${safeExt}`;
-
-    // Create a readable stream from the buffer
-    const { Readable } = await import('stream');
-    const stream = Readable.from(file.buffer);
-
-    await storageDriver.save(storageKey, stream, file.mimetype);
-
-    const sanitized = sanitizeFilename(file.originalname);
-
-    const attachment = await Attachment.create({
-      sheetId: new mongoose.Types.ObjectId(sheetId),
-      rowId: new mongoose.Types.ObjectId(rowId),
-      uploadedBy: new mongoose.Types.ObjectId(userId),
-      originalName: sanitized,
-      storageKey,
-      contentType: file.mimetype,
-      size: file.size,
-    });
-
-    // Record activity (fire-and-forget)
+  for (const { entry, file } of validatedEntries) {
     try {
-      recordActivity({
-        sheetId,
-        rowId,
-        actorId: userId,
-        action: 'attachment.added',
-        details: { fileName: sanitized, attachmentId: attachment._id.toString() },
-      });
-    } catch (err) {
-      console.error('[attachmentService] Failed to record attachment.added activity:', err);
-    }
+      const ext = path.extname(file.originalname).toLowerCase();
+      const uuid = crypto.randomUUID();
+      const storageKey = `${sheetId}/${uuid}${ext}`;
 
-    // Populate and format
-    const populated = await Attachment.findById(attachment._id)
-      .populate('uploadedBy', 'fullName deletedAt');
-    if (populated) {
-      created.push(formatAttachment(populated.toObject()));
+      // Stream from temp file to storage
+      const readStream = fs.createReadStream(file.tempPath);
+      await storageDriver.save(storageKey, readStream, entry.mimeTypes[0]);
+
+      const sanitized = sanitizeFilename(file.originalname);
+
+      const attachment = await Attachment.create({
+        sheetId: new mongoose.Types.ObjectId(sheetId),
+        rowId: new mongoose.Types.ObjectId(rowId),
+        uploadedBy: new mongoose.Types.ObjectId(userId),
+        originalName: sanitized,
+        storageKey,
+        contentType: entry.mimeTypes[0], // canonical type, never browser-supplied
+        size: file.size,
+      });
+
+      // Record activity (fire-and-forget)
+      try {
+        recordActivity({
+          sheetId,
+          rowId,
+          actorId: userId,
+          action: 'attachment.added',
+          details: { fileName: sanitized, attachmentId: attachment._id.toString() },
+        });
+      } catch (err) {
+        console.error('[attachmentService] Failed to record attachment.added activity:', err);
+      }
+
+      // Populate and format
+      const populated = await Attachment.findById(attachment._id)
+        .populate('uploadedBy', 'fullName deletedAt');
+      if (populated) {
+        created.push(formatAttachment(populated.toObject()));
+      }
+    } finally {
+      // Always clean up the temp file
+      try { await fsp.unlink(file.tempPath); } catch { /* ignore ENOENT */ }
     }
   }
 

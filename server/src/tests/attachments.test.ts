@@ -59,15 +59,23 @@ async function createTestEnv() {
   return { user, workspace, sheet, primaryColId: textColId };
 }
 
-/** Helper to create a fake file input buffer. */
-function makeFile(name: string, content: string, mimetype: string) {
+/**
+ * Helper to create a fake file input buffer.
+ * Uses real-ish byte signatures so signature verification passes.
+ */
+function makeFile(name: string, content: string | Buffer, mimetype: string) {
+  const buf = typeof content === 'string' ? Buffer.from(content) : content;
   return {
-    buffer: Buffer.from(content),
+    buffer: buf,
     originalname: name,
     mimetype,
-    size: Buffer.byteLength(content),
+    size: buf.length,
   };
 }
+
+// Real-ish file byte signatures for tests that go through verifySignature
+const PDF_HEADER = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n');
+const TEXT_CONTENT = Buffer.from('Hello, this is plain text.\n');
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
@@ -80,7 +88,7 @@ describe('Attachments', () => {
     const rowId = row._id.toString();
     const userId = user._id.toString();
 
-    const file = makeFile('report.pdf', 'fake pdf content', 'application/pdf');
+    const file = makeFile('report.pdf', PDF_HEADER, 'application/pdf');
     const attachments = await attachmentService.uploadAttachments(sheetId, rowId, userId, [file]);
 
     expect(attachments).toHaveLength(1);
@@ -107,7 +115,7 @@ describe('Attachments', () => {
     const rowId = row._id.toString();
     const userId = user._id.toString();
 
-    const file = makeFile('doc.txt', 'hello', 'text/plain');
+    const file = makeFile('doc.txt', TEXT_CONTENT, 'text/plain');
     const [att] = await attachmentService.uploadAttachments(sheetId, rowId, userId, [file]);
 
     // Create another user who is not a member
@@ -118,7 +126,7 @@ describe('Attachments', () => {
     ).rejects.toThrow();
   });
 
-  // 3. Blocked file type (.exe) is rejected with 400
+  // 3. Blocked file type (.exe) is rejected — not in allowlist
   it('blocked file type .exe is rejected', async () => {
     const { user, sheet } = await createTestEnv();
     const row = await createRow(sheet._id.toString(), { order: 0 });
@@ -132,10 +140,10 @@ describe('Attachments', () => {
         user._id.toString(),
         [file],
       ),
-    ).rejects.toThrow(/not allowed/);
+    ).rejects.toThrow(/not allowed/i);
   });
 
-  // 3b. Blocked MIME type text/javascript is rejected
+  // 3b. Blocked MIME type text/javascript is rejected — .js not in allowlist
   it('blocked MIME type text/javascript is rejected', async () => {
     const { user, sheet } = await createTestEnv();
     const row = await createRow(sheet._id.toString(), { order: 0 });
@@ -149,7 +157,7 @@ describe('Attachments', () => {
         user._id.toString(),
         [file],
       ),
-    ).rejects.toThrow(/not allowed/);
+    ).rejects.toThrow(/not allowed/i);
   });
 
   // 4. Oversize file (> MAX_FILE_SIZE_MB) is rejected
@@ -161,8 +169,8 @@ describe('Attachments', () => {
     const bigContent = Buffer.alloc(26 * 1024 * 1024, 'x'); // 26 MB
     const file = {
       buffer: bigContent,
-      originalname: 'huge.bin',
-      mimetype: 'application/octet-stream',
+      originalname: 'huge.pdf',
+      mimetype: 'application/pdf',
       size: bigContent.length,
     };
 
@@ -173,10 +181,10 @@ describe('Attachments', () => {
         user._id.toString(),
         [file],
       ),
-    ).rejects.toThrow(/exceeds/);
+    ).rejects.toThrow(/exceeds|limit/i);
   });
 
-  // 5. Viewer cannot upload (403), viewer can list and download
+  // 5. Viewer can upload (403), viewer can list and download
   it('viewer cannot upload but can list and download', async () => {
     const admin = await createUser();
     const viewer = await createUser();
@@ -196,11 +204,11 @@ describe('Attachments', () => {
     const rowId = row._id.toString();
 
     // Admin uploads
-    const file = makeFile('shared.pdf', 'pdf data', 'application/pdf');
+    const file = makeFile('shared.pdf', PDF_HEADER, 'application/pdf');
     const [att] = await attachmentService.uploadAttachments(sheetId, rowId, admin._id.toString(), [file]);
 
     // Viewer cannot upload
-    const viewerFile = makeFile('nope.pdf', 'data', 'application/pdf');
+    const viewerFile = makeFile('nope.pdf', PDF_HEADER, 'application/pdf');
     await expect(
       attachmentService.uploadAttachments(sheetId, rowId, viewer._id.toString(), [viewerFile]),
     ).rejects.toThrow(/denied|access/i);
@@ -236,8 +244,8 @@ describe('Attachments', () => {
     const rowId = row._id.toString();
 
     // Uploader creates two attachments
-    const f1 = makeFile('a.txt', 'aaa', 'text/plain');
-    const f2 = makeFile('b.txt', 'bbb', 'text/plain');
+    const f1 = makeFile('a.txt', TEXT_CONTENT, 'text/plain');
+    const f2 = makeFile('b.txt', TEXT_CONTENT, 'text/plain');
     const [att1, att2] = await attachmentService.uploadAttachments(sheetId, rowId, uploader._id.toString(), [f1, f2]);
 
     // Non-owner non-admin cannot delete
@@ -264,7 +272,7 @@ describe('Attachments', () => {
     const rowId = row._id.toString();
     const userId = user._id.toString();
 
-    const file = makeFile('log-test.txt', 'data', 'text/plain');
+    const file = makeFile('log-test.txt', TEXT_CONTENT, 'text/plain');
     await attachmentService.uploadAttachments(sheetId, rowId, userId, [file]);
 
     await waitForActivity();
@@ -287,7 +295,7 @@ describe('Attachments', () => {
     const rowId = row._id.toString();
     const userId = user._id.toString();
 
-    const file = makeFile('del-test.txt', 'data', 'text/plain');
+    const file = makeFile('del-test.txt', TEXT_CONTENT, 'text/plain');
     const [att] = await attachmentService.uploadAttachments(sheetId, rowId, userId, [file]);
 
     await attachmentService.deleteAttachment(att.id, userId);
@@ -310,7 +318,7 @@ describe('Attachments', () => {
     const rowId = row._id.toString();
     const userId = user._id.toString();
 
-    const file = makeFile('row-del.txt', 'data', 'text/plain');
+    const file = makeFile('row-del.txt', TEXT_CONTENT, 'text/plain');
     await attachmentService.uploadAttachments(sheetId, rowId, userId, [file]);
 
     // Verify attachment exists
@@ -338,8 +346,8 @@ describe('Attachments', () => {
     const rowId = row._id.toString();
     const userId = user._id.toString();
 
-    const f1 = makeFile('count1.txt', 'a', 'text/plain');
-    const f2 = makeFile('count2.txt', 'b', 'text/plain');
+    const f1 = makeFile('count1.txt', TEXT_CONTENT, 'text/plain');
+    const f2 = makeFile('count2.txt', TEXT_CONTENT, 'text/plain');
     const [att1] = await attachmentService.uploadAttachments(sheetId, rowId, userId, [f1, f2]);
 
     // Count should be 2
@@ -354,5 +362,92 @@ describe('Attachments', () => {
     grid = await gridService.getGrid(sheetId, userId);
     gridRow = grid.rows.find((r: any) => r.id === rowId);
     expect(gridRow?.attachmentCount).toBe(1);
+  });
+
+  // ─── New hardened pipeline tests ──────────────────────────────────────────
+
+  // 11. Stored contentType equals canonical detected type, not browser-supplied mime
+  it('stored contentType equals canonical detected type, not browser-supplied mime', async () => {
+    const { user, sheet } = await createTestEnv();
+    const row = await createRow(sheet._id.toString(), { order: 0 });
+    const sheetId = sheet._id.toString();
+    const rowId = row._id.toString();
+    const userId = user._id.toString();
+
+    // Upload a valid PDF but with wrong browser MIME
+    const file = makeFile('report.pdf', PDF_HEADER, 'application/octet-stream');
+    const [att] = await attachmentService.uploadAttachments(sheetId, rowId, userId, [file]);
+
+    // The stored contentType should be the canonical application/pdf, not the browser-supplied octet-stream
+    expect(att.contentType).toBe('application/pdf');
+
+    // Verify in DB directly
+    const dbAtt = await Attachment.findById(att.id);
+    expect(dbAtt!.contentType).toBe('application/pdf');
+  });
+
+  // 12. Temp files are cleaned up after successful upload (buffer path)
+  it('temp files are cleaned up after successful upload', async () => {
+    const { user, sheet } = await createTestEnv();
+    const row = await createRow(sheet._id.toString(), { order: 0 });
+    const sheetId = sheet._id.toString();
+    const rowId = row._id.toString();
+    const userId = user._id.toString();
+
+    const stagingDir = path.join(os.tmpdir(), 'upload-staging');
+
+    // List files before upload
+    const beforeFiles = await fs.readdir(stagingDir).catch(() => []);
+
+    const file = makeFile('cleanup-test.txt', TEXT_CONTENT, 'text/plain');
+    await attachmentService.uploadAttachments(sheetId, rowId, userId, [file]);
+
+    // Give a moment for async cleanup
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // List files after upload — should be same count (temp files removed)
+    const afterFiles = await fs.readdir(stagingDir).catch(() => []);
+    expect(afterFiles.length).toBe(beforeFiles.length);
+  });
+
+  // 13. Temp files are cleaned up after rejected upload (wrong content type)
+  it('temp files are cleaned up after rejected upload', async () => {
+    const { user, sheet } = await createTestEnv();
+    const row = await createRow(sheet._id.toString(), { order: 0 });
+    const sheetId = sheet._id.toString();
+    const rowId = row._id.toString();
+    const userId = user._id.toString();
+
+    const stagingDir = path.join(os.tmpdir(), 'upload-staging');
+    const beforeFiles = await fs.readdir(stagingDir).catch(() => []);
+
+    // Try uploading a .exe file (rejected by allowlist)
+    const file = makeFile('malware.exe', Buffer.from('MZ...'), 'application/x-msdownload');
+    await expect(
+      attachmentService.uploadAttachments(sheetId, rowId, userId, [file]),
+    ).rejects.toThrow(/not allowed/i);
+
+    // Give a moment for async cleanup
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const afterFiles = await fs.readdir(stagingDir).catch(() => []);
+    expect(afterFiles.length).toBe(beforeFiles.length);
+  });
+
+  // 14. SVG extension is rejected (not in allowlist)
+  it('SVG extension is rejected', async () => {
+    const { user, sheet } = await createTestEnv();
+    const row = await createRow(sheet._id.toString(), { order: 0 });
+
+    const file = makeFile('icon.svg', '<svg></svg>', 'image/svg+xml');
+
+    await expect(
+      attachmentService.uploadAttachments(
+        sheet._id.toString(),
+        row._id.toString(),
+        user._id.toString(),
+        [file],
+      ),
+    ).rejects.toThrow(/not allowed/i);
   });
 });

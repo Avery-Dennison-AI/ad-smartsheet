@@ -20,6 +20,14 @@ interface Env {
   STORAGE_DRIVER: string;
   MAX_FILE_SIZE_MB: number;
   MAX_FILES_PER_UPLOAD: number;
+  MAX_IMAGE_SIZE_MB: number;
+  MAX_TEXT_SIZE_MB: number;
+  MAX_DOC_SIZE_MB: number;
+  MAX_ARCHIVE_SIZE_MB: number;
+  MAX_EMAIL_SIZE_MB: number;
+  MAX_REQUEST_SIZE_MB: number;
+  MAX_ROW_ATTACHMENT_BYTES: number;
+  VIRUS_SCANNER: string;
 }
 
 function loadEnv(): Env {
@@ -45,6 +53,14 @@ function loadEnv(): Env {
     STORAGE_DRIVER: process.env.STORAGE_DRIVER || 'local',
     MAX_FILE_SIZE_MB: Number(process.env.MAX_FILE_SIZE_MB) || 25,
     MAX_FILES_PER_UPLOAD: Number(process.env.MAX_FILES_PER_UPLOAD) || 10,
+    MAX_IMAGE_SIZE_MB: Number(process.env.MAX_IMAGE_SIZE_MB) || 10,
+    MAX_TEXT_SIZE_MB: Number(process.env.MAX_TEXT_SIZE_MB) || 10,
+    MAX_DOC_SIZE_MB: Number(process.env.MAX_DOC_SIZE_MB) || 25,
+    MAX_ARCHIVE_SIZE_MB: Number(process.env.MAX_ARCHIVE_SIZE_MB) || 25,
+    MAX_EMAIL_SIZE_MB: Number(process.env.MAX_EMAIL_SIZE_MB) || 25,
+    MAX_REQUEST_SIZE_MB: Number(process.env.MAX_REQUEST_SIZE_MB) || 100,
+    MAX_ROW_ATTACHMENT_BYTES: Number(process.env.MAX_ROW_ATTACHMENT_BYTES) || 250 * 1024 * 1024,
+    VIRUS_SCANNER: process.env.VIRUS_SCANNER || 'none',
   };
 }
 
