@@ -51,8 +51,11 @@ import {
   AnimatedBrandBackground,
   PermissionMatrix,
   SelectableCard,
+  ContactField,
+  DateField,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
+import type { WorkspaceMember } from '@/components/ui/ContactField';
 import type { DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import type { RoleValue } from '@/components/ui/RoleMenu';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
@@ -1274,6 +1277,16 @@ export default function DesignSystemPage() {
             <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_shared_calendardatepicker_label">CalendarDatePicker — floating calendar popover</span>
             <CalendarDatePickerDemo data-icod-id="ds_shared_calendardatepicker_instance" />
           </div>
+          {/* ContactField */}
+          <div data-icod-id="ds_contactfield_section">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_contactfield_label">ContactField — searchable member picker with avatar display</span>
+            <ContactFieldDemo data-icod-id="ds_contactfield_instance" />
+          </div>
+          {/* DateField */}
+          <div data-icod-id="ds_datefield_section">
+            <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_datefield_label">DateField — styled date trigger with calendar popover</span>
+            <DateFieldDemo data-icod-id="ds_datefield_instance" />
+          </div>
           {/* ColorSwatchPicker */}
           <div data-icod-id="ds_colorswatch_section">
             <span className="mb-2 block text-xs text-muted-foreground" data-icod-id="ds_colorswatch_label">ColorSwatchPicker — portal-rendered color palette popover for text/fill colors</span>
@@ -1870,6 +1883,67 @@ function CalendarDatePickerDemo() {
       <span
         className="text-xs text-muted-foreground"
         data-icod-id="src_pages_designsystempage_tsx_9310">Selected: {date ?? 'none'}</span>
+    </div>
+  );
+}
+
+/* ─── ContactField interactive demo ────────────────────────────────────── */
+const DEMO_MEMBERS: WorkspaceMember[] = [
+  { id: 'm1', fullName: 'Alice Johnson', email: 'alice@example.com' },
+  { id: 'm2', fullName: 'Bob Smith', email: 'bob.smith@example.com' },
+  { id: 'm3', fullName: 'Charlie Brown', email: 'charlie.brown@example.com' },
+  { id: 'm4', fullName: 'Diana Prince', email: 'diana@example.com' },
+];
+
+function ContactFieldDemo() {
+  const [selected, setSelected] = useState<string | null>('m1');
+  return (
+    <div className="space-y-3" data-icod-id="ds_contactfield_demo_wrap">
+      <div className="max-w-sm" data-icod-id="ds_contactfield_demo_instance">
+        <ContactField
+          value={selected}
+          workspaceMembers={DEMO_MEMBERS}
+          onSelect={setSelected}
+          placeholder="Assign to..."
+          data-icod-id="src_pages_designsystempage_tsx_8717" />
+      </div>
+      <span className="text-xs text-muted-foreground" data-icod-id="ds_contactfield_demo_val">
+        Selected: {selected ?? 'none'}
+      </span>
+    </div>
+  );
+}
+
+/* ─── DateField interactive demo ────────────────────────────────────────── */
+function DateFieldDemo() {
+  const [date, setDate] = useState<string | null>('2025-01-15');
+  return (
+    <div className="space-y-3" data-icod-id="ds_datefield_demo_wrap">
+      <div className="flex items-center gap-4" data-icod-id="ds_datefield_demo_row">
+        <div className="max-w-[200px]" data-icod-id="ds_datefield_demo_with_value">
+          <DateField
+            value={date}
+            onChange={setDate}
+            data-icod-id="src_pages_designsystempage_tsx_9a39" />
+        </div>
+        <div className="max-w-[200px]" data-icod-id="ds_datefield_demo_empty">
+          <DateField
+            value={null}
+            onChange={setDate}
+            placeholder="Select due date"
+            data-icod-id="src_pages_designsystempage_tsx_e6a3" />
+        </div>
+        <div className="max-w-[200px]" data-icod-id="ds_datefield_demo_disabled">
+          <DateField
+            value="2025-06-01"
+            onChange={() => {}}
+            disabled
+            data-icod-id="src_pages_designsystempage_tsx_cdf9" />
+        </div>
+      </div>
+      <span className="text-xs text-muted-foreground" data-icod-id="ds_datefield_demo_val">
+        Selected: {date ?? 'none'}
+      </span>
     </div>
   );
 }

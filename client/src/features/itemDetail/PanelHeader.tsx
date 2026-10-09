@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Link2, X } from 'lucide-react';
-import { IconButton, Pill } from '@/components/ui';
+import { IconButton, Pill, Input } from '@/components/ui';
 import { cn } from '@/utils/cn';
 import type { Column, GridRow as GridRowType } from '@/types';
 
@@ -89,14 +89,13 @@ export default function PanelHeader({
             {titleValue || 'Untitled'}
           </span>
         ) : (
-          <input
+          <Input
             ref={inputRef}
-            type="text"
             value={titleValue}
             onChange={(e) => setTitleValue(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="w-full truncate bg-transparent text-sm font-semibold text-foreground outline-none focus:border-b focus:border-primary"
+            className="w-full truncate bg-transparent text-sm font-semibold text-foreground border-transparent focus:border-primary focus:shadow-[var(--focus-ring)]"
             placeholder="Untitled"
             data-icod-id="src_features_itemdetail_panelheader_tsx_title_input" />
         )}

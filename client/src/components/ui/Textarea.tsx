@@ -1,18 +1,23 @@
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 import { cn } from '@/utils/cn';
-import { inputClass, type InputSize } from './Input';
 
 export interface TextareaProps extends Omit<ComponentPropsWithoutRef<'textarea'>, 'size'> {
   label?: string;
   helperText?: string;
   error?: string;
-  /** Size variant. Default 'md'. */
-  size?: InputSize;
 }
+
+/** Base form-control tokens shared between Input and Textarea (border, ring, colour). */
+const textareaBaseClass = cn(
+  'w-full rounded-[var(--radius-sm)] border border-border bg-card text-foreground leading-normal',
+  'placeholder:text-muted-foreground/70 transition-colors duration-150 ease-in-out',
+  'focus:border-primary focus:outline-none focus:shadow-[var(--focus-ring)]',
+  'disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground',
+);
 
 /** Auto-resizable textarea with the same prop API as Input. */
 const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { label, helperText, error, className, id, size = 'md', ...rest },
+  { label, helperText, error, className, id, ...rest },
   ref,
 ) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
@@ -32,7 +37,8 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textare
         ref={ref}
         id={inputId}
         className={cn(
-          inputClass('min-h-[80px] resize-y', size),
+          textareaBaseClass,
+          'py-2 px-3 text-sm',
           error && 'border-destructive focus:border-destructive focus:shadow-[var(--focus-ring-danger)]',
           className,
         )}

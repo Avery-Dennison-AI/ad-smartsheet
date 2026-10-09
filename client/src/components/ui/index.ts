@@ -58,3 +58,5 @@ export { default as AnimatedBrandBackground, type AnimatedBrandBackgroundProps }
 export { default as PermissionMatrix, type PermissionMatrixProps, type PermissionRow } from './PermissionMatrix';
 export { default as SelectableCard, type SelectableCardProps } from './SelectableCard';
 export { default as SortableList, type SortableListProps, type DragHandleProps } from './SortableList';
+export { default as ContactField, type WorkspaceMember } from './ContactField';
+export { default as DateField } from './DateField';

@@ -40,11 +40,18 @@ export default function PanelSubItems({
           const statusOption = statusCol?.options?.find((o) => o.label === String(statusValue));
 
           return (
-            <button
+            <div
               key={child.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => dispatch(openItem({ rowId: child.id }))}
-              className="flex items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-muted/30"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  dispatch(openItem({ rowId: child.id }));
+                }
+              }}
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               data-icod-id={`src_features_itemdetail_panelsubitems_tsx_item_${child.id}`}>
               {keyValue && (
                 <span className="font-mono text-xs text-muted-foreground" data-icod-id={`src_features_itemdetail_panelsubitems_tsx_key_${child.id}`}>
@@ -60,7 +67,7 @@ export default function PanelSubItems({
                   color={statusOption.color}
                   data-icod-id={`src_features_itemdetail_panelsubitems_tsx_status_${child.id}`} />
               )}
-            </button>
+            </div>
           );
         })}
       </div>

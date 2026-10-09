@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { cn } from '@/utils/cn';
 
 interface RelativeTimeProps {
   date: string | Date;
+  className?: string;
 }
 
 export function formatRelative(date: Date): string {
@@ -21,7 +23,7 @@ export function formatRelative(date: Date): string {
   return `${Math.floor(diffDay / 365)}y ago`;
 }
 
-export default function RelativeTime({ date }: RelativeTimeProps) {
+export default function RelativeTime({ date, className }: RelativeTimeProps) {
   const [text, setText] = useState(() => formatRelative(new Date(date)));
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export default function RelativeTime({ date }: RelativeTimeProps) {
   return (
     <time
       dateTime={new Date(date).toISOString()}
-      className="text-muted-foreground"
+      className={cn('text-xs text-muted-foreground', className)}
       data-icod-id="src_components_ui_relativetime_tsx_6998">
       {text}
     </time>
