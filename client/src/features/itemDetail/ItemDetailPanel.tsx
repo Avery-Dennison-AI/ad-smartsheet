@@ -143,6 +143,7 @@ export default function ItemDetailPanel({ sheetId, userRole }: ItemDetailPanelPr
               <ActivityTab
                 sheetId={sheetId}
                 rowId={openRowId}
+                onTabChange={(tab) => dispatch(setTab(tab as 'comments' | 'activity'))}
                 data-icod-id="src_features_itemdetail_itemdetailpanel_tsx_1615" />
             )}
           </div>

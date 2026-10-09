@@ -1,75 +1,111 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { History } from 'lucide-react';
-import { Button, Spinner, EmptyState, RelativeTime } from '@/components/ui';
+import { Button, Spinner, EmptyState, RelativeTime, Avatar, Pill } from '@/components/ui';
 import { fetchRowActivity } from '@/services/commentService';
 import type { ActivityEntry } from '@/types';
+import { formatActivity, type FormattedActivity, type ActivityPart } from '../activity/formatActivity';
 
 interface ActivityTabProps {
   sheetId: string;
   rowId: string;
+  onTabChange?: (tab: string) => void;
 }
 
-/** Format activity action into human-readable text. */
-function formatActivityDescription(entry: ActivityEntry): string {
-  const { action, details } = entry;
+// ─── Grouping Logic ────────────────────────────────────────────────────────
 
-  switch (action) {
-    case 'created':
-      return 'created this item';
-    case 'updated': {
-      const field = details.field as string | undefined;
-      const from = details.from as string | undefined;
-      const to = details.to as string | undefined;
-      if (field && from !== undefined && to !== undefined) {
-        return `changed **${field}** from *${from || 'empty'}* to *${to || 'empty'}*`;
-      }
-      if (field && to !== undefined) {
-        return `set **${field}** to *${to || 'empty'}*`;
-      }
-      return `updated ${field ?? 'this item'}`;
-    }
-    case 'deleted':
-      return 'deleted content';
-    case 'comment_added':
-      return 'added a comment';
-    default:
-      return action.replace(/_/g, ' ');
-  }
+interface ActivityGroup {
+  actorName: string;
+  entries: Array<{ entry: ActivityEntry; formatted: FormattedActivity }>;
+  firstCreatedAt: string;
 }
 
-/** Render formatted description with markdown-like bold/italic. */
-function renderDescription(text: string): React.ReactNode {
-  // Parse **bold** and *italic* patterns
-  const parts: React.ReactNode[] = [];
-  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
+/** Group consecutive entries by the same actor within 5 minutes. */
+function groupEntries(entries: ActivityEntry[]): ActivityGroup[] {
+  const groups: ActivityGroup[] = [];
+  const FIVE_MINUTES_MS = 5 * 60 * 1000;
 
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    const segment = match[0];
-    if (segment.startsWith('**')) {
-      parts.push(<strong
-        key={`b-${match.index}`}
-        data-icod-id="src_features_itemdetail_activitytab_tsx_b1ac">{segment.slice(2, -2)}</strong>);
+  for (const entry of entries) {
+    const formatted = formatActivity(entry);
+    const lastGroup = groups[groups.length - 1];
+
+    if (
+      lastGroup &&
+      lastGroup.actorName === entry.actorName &&
+      new Date(lastGroup.firstCreatedAt).getTime() - new Date(entry.createdAt).getTime() < FIVE_MINUTES_MS
+    ) {
+      // Add to existing group (entries are newest-first, so we prepend)
+      lastGroup.entries.unshift({ entry, formatted });
     } else {
-      parts.push(<em
-        key={`i-${match.index}`}
-        data-icod-id="src_features_itemdetail_activitytab_tsx_a81f">{segment.slice(1, -1)}</em>);
+      // Start new group
+      groups.push({
+        actorName: entry.actorName,
+        entries: [{ entry, formatted }],
+        firstCreatedAt: entry.createdAt,
+      });
     }
-    lastIndex = match.index + segment.length;
   }
 
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : text;
+  return groups;
 }
 
-export default function ActivityTab({ sheetId, rowId }: ActivityTabProps) {
+// ─── Rich Text Rendering ────────────────────────────────────────────────────
+
+function renderRichParts(parts: ActivityPart[], onCommentClick?: () => void): React.ReactNode {
+  return parts.map((part, idx) => {
+    switch (part.type) {
+      case 'bold':
+        return (
+          <strong
+            key={idx}
+            className="font-semibold text-foreground"
+            data-icod-id={`src_features_itemdetail_activitytab_tsx_e466_${idx}`}>
+            {part.content}
+          </strong>
+        );
+      case 'pill':
+        return (
+          <Pill
+            key={idx}
+            label={part.content}
+            color={part.color || 'gray'}
+            className="mx-0.5 inline-flex"
+            data-icod-id={`src_features_itemdetail_activitytab_tsx_e70f_${idx}`} />
+        );
+      case 'muted':
+        return (
+          <span
+            key={idx}
+            className="text-muted-foreground italic"
+            data-icod-id={`src_features_itemdetail_activitytab_tsx_3ea8_${idx}`}>
+            {part.content}
+          </span>
+        );
+      case 'text':
+      default:
+        // For comment entries, make "commented" clickable
+        if (onCommentClick && part.content === 'commented') {
+          return (
+            <button
+              key={idx}
+              onClick={onCommentClick}
+              className="text-foreground underline decoration-muted-foreground/40 hover:decoration-foreground cursor-pointer"
+              data-icod-id={`src_features_itemdetail_activitytab_tsx_fa25_${idx}`}>
+              {part.content}
+            </button>
+          );
+        }
+        return (
+          <span
+            key={idx}
+            data-icod-id={`src_features_itemdetail_activitytab_tsx_2614_${idx}`}>{part.content}</span>
+        );
+    }
+  });
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
+export default function ActivityTab({ sheetId, rowId, onTabChange }: ActivityTabProps) {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
@@ -80,7 +116,6 @@ export default function ActivityTab({ sheetId, rowId }: ActivityTabProps) {
     try {
       const result = await fetchRowActivity(sheetId, rowId, before);
       if (before) {
-        // Append to existing entries
         setEntries((prev) => [...prev, ...result.entries]);
       } else {
         setEntries(result.entries);
@@ -94,7 +129,6 @@ export default function ActivityTab({ sheetId, rowId }: ActivityTabProps) {
     }
   }, [sheetId, rowId]);
 
-  // Load on mount
   useEffect(() => {
     loadActivity();
   }, [loadActivity]);
@@ -105,10 +139,19 @@ export default function ActivityTab({ sheetId, rowId }: ActivityTabProps) {
     }
   };
 
+  const handleCommentClick = useCallback(() => {
+    onTabChange?.('comments');
+  }, [onTabChange]);
+
+  // Group entries for display
+  const groups = useMemo(() => groupEntries(entries), [entries]);
+
   if (!initialLoaded && loading) {
     return (
-      <div className="flex justify-center py-8" data-icod-id="src_features_itemdetail_activitytab_tsx_loading">
-        <Spinner size="md" data-icod-id="src_features_itemdetail_activitytab_tsx_f3c7" />
+      <div
+        className="flex justify-center py-8"
+        data-icod-id="src_features_itemdetail_activitytab_tsx_6b64">
+        <Spinner size="md" data-icod-id="src_features_itemdetail_activitytab_tsx_71bc" />
       </div>
     );
   }
@@ -119,34 +162,117 @@ export default function ActivityTab({ sheetId, rowId }: ActivityTabProps) {
         icon={History}
         title="No activity yet"
         description="Activity will appear here as changes are made."
-        data-icod-id="src_features_itemdetail_activitytab_tsx_eccd" />
+        data-icod-id="src_features_itemdetail_activitytab_tsx_6403" />
     );
   }
 
   return (
-    <div className="flex flex-col gap-3" data-icod-id="src_features_itemdetail_activitytab_tsx_container">
-      {entries.map((entry) => (
-        <div key={entry._id} className="flex gap-3 text-sm" data-icod-id={`src_features_itemdetail_activitytab_tsx_entry_${entry._id}`}>
-          <div className="min-w-0 flex-1" data-icod-id={`src_features_itemdetail_activitytab_tsx_content_${entry._id}`}>
-            <span className="font-medium text-foreground" data-icod-id={`src_features_itemdetail_activitytab_tsx_actor_${entry._id}`}>
-              {entry.actorName}
-            </span>{' '}
-            <span className="text-foreground" data-icod-id={`src_features_itemdetail_activitytab_tsx_desc_${entry._id}`}>
-              {renderDescription(formatActivityDescription(entry))}
-            </span>
-          </div>
-          <RelativeTime date={entry.createdAt} data-icod-id={`src_features_itemdetail_activitytab_tsx_time_${entry._id}`} />
-        </div>
-      ))}
+    <div
+      className="flex flex-col gap-4"
+      data-icod-id="src_features_itemdetail_activitytab_tsx_01da">
+      {groups.map((group, groupIdx) => {
+        const isSingleEntry = group.entries.length === 1;
 
+        if (isSingleEntry) {
+          const { entry, formatted } = group.entries[0];
+          const Icon = formatted.icon;
+          return (
+            <div
+              key={entry._id}
+              className="flex gap-3 text-sm"
+              data-icod-id={`src_features_itemdetail_activitytab_tsx_3e0d_${groupIdx}`}>
+              <Avatar
+                name={group.actorName}
+                size="sm"
+                className="shrink-0 mt-0.5"
+                data-icod-id={`src_features_itemdetail_activitytab_tsx_894b_${groupIdx}`} />
+              <div
+                className="min-w-0 flex-1"
+                data-icod-id={`src_features_itemdetail_activitytab_tsx_9a7e_${groupIdx}`}>
+                <div
+                  className="flex items-baseline gap-2"
+                  data-icod-id={`src_features_itemdetail_activitytab_tsx_9d73_${groupIdx}`}>
+                  <span
+                    className="font-medium text-foreground"
+                    data-icod-id={`src_features_itemdetail_activitytab_tsx_6c85_${groupIdx}`}>{group.actorName}</span>
+                  <RelativeTime
+                    date={entry.createdAt}
+                    className="text-xs"
+                    data-icod-id={`src_features_itemdetail_activitytab_tsx_19c4_${groupIdx}`} />
+                </div>
+                <div
+                  className={`mt-0.5 ${formatted.isComment ? 'text-muted-foreground' : 'text-foreground'}`}
+                  data-icod-id={`src_features_itemdetail_activitytab_tsx_d75d_${groupIdx}`}>
+                  <Icon
+                    className="mr-1.5 inline h-3 w-3 text-muted-foreground"
+                    data-icod-id={`src_features_itemdetail_activitytab_tsx_a172_${groupIdx}`} />
+                  {renderRichParts(formatted.richParts, formatted.isComment ? handleCommentClick : undefined)}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // Multiple entries grouped
+        return (
+          <div
+            key={`group-${groupIdx}`}
+            className="flex gap-3 text-sm"
+            data-icod-id={`src_features_itemdetail_activitytab_tsx_2f05_${groupIdx}`}>
+            <Avatar
+              name={group.actorName}
+              size="md"
+              className="shrink-0 mt-0.5"
+              data-icod-id={`src_features_itemdetail_activitytab_tsx_7d97_${groupIdx}`} />
+            <div
+              className="min-w-0 flex-1"
+              data-icod-id={`src_features_itemdetail_activitytab_tsx_c1dc_${groupIdx}`}>
+              <div
+                className="flex items-baseline gap-2 mb-1"
+                data-icod-id={`src_features_itemdetail_activitytab_tsx_7c16_${groupIdx}`}>
+                <span
+                  className="font-medium text-foreground"
+                  data-icod-id={`src_features_itemdetail_activitytab_tsx_9b22_${groupIdx}`}>{group.actorName}</span>
+                <RelativeTime
+                  date={group.firstCreatedAt}
+                  className="text-xs"
+                  data-icod-id={`src_features_itemdetail_activitytab_tsx_0329_${groupIdx}`} />
+              </div>
+              <ul
+                className="space-y-1"
+                data-icod-id={`src_features_itemdetail_activitytab_tsx_cefe_${groupIdx}`}>
+                {group.entries.map(({ entry, formatted }) => {
+                  const Icon = formatted.icon;
+                  return (
+                    <li
+                      key={entry._id}
+                      className={`flex items-start gap-1.5 ${formatted.isComment ? 'text-muted-foreground' : 'text-foreground'}`}
+                      data-icod-id={`src_features_itemdetail_activitytab_tsx_9bcb_${groupIdx}_${entry._id}`}>
+                      <Icon
+                        className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground"
+                        data-icod-id={`src_features_itemdetail_activitytab_tsx_2539_${groupIdx}_${entry._id}`} />
+                      <span
+                        data-icod-id={`src_features_itemdetail_activitytab_tsx_0c16_${groupIdx}_${entry._id}`}>
+                        {renderRichParts(formatted.richParts, formatted.isComment ? handleCommentClick : undefined)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+        );
+      })}
       {nextCursor && (
-        <div className="pt-2" data-icod-id="src_features_itemdetail_activitytab_tsx_loadmore_wrap">
+        <div
+          className="pt-2"
+          data-icod-id="src_features_itemdetail_activitytab_tsx_c369">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleLoadMore}
             disabled={loading}
-            data-icod-id="src_features_itemdetail_activitytab_tsx_loadmore">
+            data-icod-id="src_features_itemdetail_activitytab_tsx_a081">
             {loading ? 'Loading...' : 'Load more'}
           </Button>
         </div>

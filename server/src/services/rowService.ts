@@ -3,6 +3,7 @@ import Row, { type IRow } from '../models/Row';
 import Sheet, { type ISheet } from '../models/Sheet';
 import Comment from '../models/Comment';
 import Workspace from '../models/Workspace';
+import User from '../models/User';
 import { getSheetWithAccess, validateCellValue, formatRow } from './gridShared';
 import { recordActivity, recordActivities } from './activityService';
 import { AppError } from '../utils/AppError';
@@ -408,13 +409,66 @@ export async function updateCell(
   const oldStr = JSON.stringify(oldValue ?? null);
   const newStr = JSON.stringify(validated ?? null);
   if (oldStr !== newStr) {
-    recordActivity({
-      sheetId,
-      rowId,
-      actorId: userId,
-      action: 'cell.updated',
-      details: { columnId, columnName: col.name, oldValue: oldValue ?? null, newValue: validated },
-    });
+    // Build enriched details for readable activity sentences
+    const details: Record<string, unknown> = {
+      columnId,
+      columnName: col.name,
+      oldValue: oldValue ?? null,
+      newValue: validated,
+      columnType: col.type,
+      isPrimary: !!col.isPrimary,
+    };
+
+    // For dropdown columns, include options for pill rendering
+    if (col.type === 'dropdown' && col.options) {
+      details.options = col.options;
+      // Find colors for old and new values
+      const oldOpt = col.options.find((o) => o.label === oldValue);
+      const newOpt = col.options.find((o) => o.label === validated);
+      if (oldOpt) details.oldColor = oldOpt.color;
+      if (newOpt) details.newColor = newOpt.color;
+    }
+
+    // For contact columns, resolve user names at recording time
+    if (col.type === 'contact') {
+      const resolveNames = async () => {
+        const idsToResolve: string[] = [];
+        if (oldValue && typeof oldValue === 'string') idsToResolve.push(oldValue);
+        if (validated && typeof validated === 'string') idsToResolve.push(validated);
+
+        if (idsToResolve.length > 0) {
+          try {
+            const users = await User.find({ _id: { $in: idsToResolve } }).select('fullName');
+            const nameMap = new Map(users.map((u) => [u._id.toString(), u.fullName]));
+            if (oldValue && typeof oldValue === 'string') {
+              details.oldPersonName = nameMap.get(oldValue) ?? null;
+            }
+            if (validated && typeof validated === 'string') {
+              details.newPersonName = nameMap.get(validated) ?? null;
+            }
+          } catch (err) {
+            console.error('[rowService] Failed to resolve contact names for activity:', err);
+          }
+        }
+
+        recordActivity({
+          sheetId,
+          rowId,
+          actorId: userId,
+          action: 'cell.updated',
+          details,
+        });
+      };
+      resolveNames();
+    } else {
+      recordActivity({
+        sheetId,
+        rowId,
+        actorId: userId,
+        action: 'cell.updated',
+        details,
+      });
+    }
   }
 
   return cellUpdates;
