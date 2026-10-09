@@ -3,12 +3,13 @@ import { History } from 'lucide-react';
 import { Button, Spinner, EmptyState, RelativeTime, Avatar, Pill } from '@/components/ui';
 import { fetchRowActivity } from '@/services/commentService';
 import type { ActivityEntry } from '@/types';
+import type { ItemDetailTab } from '@/store/slices/itemDetailSlice';
 import { formatActivity, type FormattedActivity, type ActivityPart } from '../activity/formatActivity';
 
 interface ActivityTabProps {
   sheetId: string;
   rowId: string;
-  onTabChange?: (tab: string) => void;
+  onTabChange?: (tab: ItemDetailTab) => void;
 }
 
 // ─── Grouping Logic ────────────────────────────────────────────────────────
@@ -85,25 +86,31 @@ function renderRichParts(parts: ActivityPart[], onCommentClick?: () => void, onA
         // For comment entries, make "commented" clickable
         if (onCommentClick && part.content === 'commented') {
           return (
-            <button
+            <span
               key={idx}
+              role="button"
+              tabIndex={0}
               onClick={onCommentClick}
-              className="text-foreground underline decoration-muted-foreground/40 hover:decoration-foreground cursor-pointer"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCommentClick(); } }}
+              className="text-foreground underline decoration-muted-foreground/40 hover:decoration-foreground cursor-pointer focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] rounded-sm"
               data-icod-id={`src_features_itemdetail_activitytab_tsx_fa25_${idx}`}>
               {part.content}
-            </button>
+            </span>
           );
         }
         // For attachment entries, make "attached" and "removed" clickable
         if (onAttachmentClick && (part.content === 'attached ' || part.content === 'removed ')) {
           return (
-            <button
+            <span
               key={idx}
+              role="button"
+              tabIndex={0}
               onClick={onAttachmentClick}
-              className="text-foreground underline decoration-muted-foreground/40 hover:decoration-foreground cursor-pointer"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAttachmentClick(); } }}
+              className="text-foreground underline decoration-muted-foreground/40 hover:decoration-foreground cursor-pointer focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] rounded-sm"
               data-icod-id={`src_features_itemdetail_activitytab_tsx_attach_${idx}`}>
               {part.content}
-            </button>
+            </span>
           );
         }
         return (

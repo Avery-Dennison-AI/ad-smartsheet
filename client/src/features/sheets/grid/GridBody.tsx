@@ -2,6 +2,7 @@ import GridRow from './GridRow';
 import { DEFAULT_ROW_HEIGHT } from './gridHelpers';
 import type { Column, GridRow as GridRowType, WorkspaceRole } from '@/types';
 import type { DropPosition } from './useRowOperations';
+import type { ItemDetailTab } from '@/store/slices/itemDetailSlice';
 
 interface GridMember {
   id: string;
@@ -64,7 +65,7 @@ interface GridBodyProps {
   dropTargetRowId?: string | null;
   dropPosition?: DropPosition | null;
   /** Open item detail panel callback */
-  onOpenItem?: (rowId: string, tab?: 'comments' | 'activity') => void;
+  onOpenItem?: (rowId: string, tab?: ItemDetailTab) => void;
 }
 
 export default function GridBody({

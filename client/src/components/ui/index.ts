@@ -63,3 +63,4 @@ export { default as DateField } from './DateField';
 export { default as FileIcon, type FileIconProps } from './FileIcon';
 export { default as FileDropzone, type FileDropzoneProps } from './FileDropzone';
 export { default as UploadProgressRow, type UploadProgressRowProps } from './UploadProgressRow';
+export { default as SegmentedControl, type SegmentedControlProps, type SegmentedControlOption } from './SegmentedControl';

@@ -56,6 +56,7 @@ import {
   FileIcon,
   FileDropzone,
   UploadProgressRow,
+  SegmentedControl,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { WorkspaceMember } from '@/components/ui/ContactField';
@@ -1528,6 +1529,14 @@ export default function DesignSystemPage() {
           <UploadProgressRow fileName="malware.exe" progress={0} status="error" errorMessage="File type not allowed" data-icod-id="ds_uploadprogressrow_error" />
         </div>
       </Section>
+      <Section title="Segmented Control" data-icod-id="ds_segmentedcontrol_section">
+        <div className="space-y-4" data-icod-id="ds_segmentedcontrol_wrap">
+          <p className="text-sm text-muted-foreground" data-icod-id="ds_segmentedcontrol_desc">
+            Pill-shaped segmented control with raised active chip. Supports icons and disabled options with tooltips.
+          </p>
+          <SegmentedControlDemo data-icod-id="src_pages_designsystempage_tsx_a327" />
+        </div>
+      </Section>
     </div>
   );
 }
@@ -2227,6 +2236,31 @@ function SelectableCardDemo() {
           />
         );
       })}
+    </div>
+  );
+}
+
+/* ─── SegmentedControl interactive demo ────────────────────────────────────── */
+function SegmentedControlDemo() {
+  const [view, setView] = useState<'grid' | 'board' | 'timeline'>('grid');
+  return (
+    <div className="flex flex-col gap-4" data-icod-id="ds_segmentedcontrol_demo_wrap">
+      <SegmentedControl
+        options={[
+          { value: 'grid', label: 'Grid', icon: <Home
+            className="h-3.5 w-3.5"
+            data-icod-id="src_pages_designsystempage_tsx_fd69" /> },
+          { value: 'board', label: 'Board', icon: <Settings
+            className="h-3.5 w-3.5"
+            data-icod-id="src_pages_designsystempage_tsx_7863" /> },
+          { value: 'timeline', label: 'Timeline', disabled: true, disabledTooltip: 'Coming soon' },
+        ]}
+        value={view}
+        onChange={setView}
+        data-icod-id="ds_segmentedcontrol_demo_control" />
+      <span className="text-xs text-muted-foreground" data-icod-id="ds_segmentedcontrol_demo_value">
+        Selected: {view}
+      </span>
     </div>
   );
 }

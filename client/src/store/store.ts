@@ -12,6 +12,7 @@ import projectsReducer from './slices/projectsSlice';
 import itemDetailReducer from './slices/itemDetailSlice';
 import commentsReducer from './slices/commentsSlice';
 import attachmentsReducer from './slices/attachmentsSlice';
+import boardReducer from './slices/boardSlice';
 
 export const store = configureStore({
   reducer: {
@@ -28,6 +29,7 @@ export const store = configureStore({
     itemDetail: itemDetailReducer,
     comments: commentsReducer,
     attachments: attachmentsReducer,
+    board: boardReducer,
   },
 });
 

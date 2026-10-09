@@ -5,6 +5,7 @@ import type { Column, GridRow as GridRowType, WorkspaceRole } from '@/types';
 import type { DropPosition } from './useRowOperations';
 import { PanelRightOpen, MessageSquare, Paperclip } from 'lucide-react';
 import { IconButton } from '@/components/ui';
+import type { ItemDetailTab } from '@/store/slices/itemDetailSlice';
 
 interface GridMember {
   id: string;
@@ -65,7 +66,7 @@ interface GridRowProps {
   dropTargetRowId?: string | null;
   dropPosition?: DropPosition | null;
   /** Open item detail panel callback */
-  onOpenItem?: (rowId: string, tab?: 'comments' | 'activity' | 'attachments') => void;
+  onOpenItem?: (rowId: string, tab?: ItemDetailTab) => void;
 }
 
 export default function GridRow({
@@ -266,37 +267,41 @@ export default function GridRow({
                 data-icod-id={`src_features_sheets_grid_gridrow_tsx_icongroup_${row.id}`}>
                 {/* Attachment count badge */}
                 {(row.attachmentCount ?? 0) > 0 && (
-                  <button
-                    type="button"
+                  <IconButton
+                    size="sm"
+                    tooltip="View attachments"
                     onClick={(e) => {
                       e.stopPropagation();
                       onOpenItem?.(row.id, 'attachments');
                     }}
-                    className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/50"
-                    title="View attachments"
+                    className="shrink-0 !h-auto !w-auto gap-0.5 !px-1 !py-0.5 text-[10px]"
                     data-icod-id={`src_features_sheets_grid_gridrow_tsx_attachments_${row.id}`}>
-                    <Paperclip
-                      className="h-3 w-3"
-                      data-icod-id={`src_features_sheets_grid_gridrow_tsx_clipicon_${row.id}`} />
-                    <span data-icod-id={`src_features_sheets_grid_gridrow_tsx_clipcount_${row.id}`}>{row.attachmentCount}</span>
-                  </button>
+                    <>
+                      <Paperclip
+                        className="h-3 w-3"
+                        data-icod-id={`src_features_sheets_grid_gridrow_tsx_clipicon_${row.id}`} />
+                      <span data-icod-id={`src_features_sheets_grid_gridrow_tsx_clipcount_${row.id}`}>{row.attachmentCount}</span>
+                    </>
+                  </IconButton>
                 )}
                 {/* Comment count badge */}
                 {(row.commentCount ?? 0) > 0 && (
-                  <button
-                    type="button"
+                  <IconButton
+                    size="sm"
+                    tooltip="View comments"
                     onClick={(e) => {
                       e.stopPropagation();
                       onOpenItem?.(row.id, 'comments');
                     }}
-                    className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/50"
-                    title="View comments"
+                    className="shrink-0 !h-auto !w-auto gap-0.5 !px-1 !py-0.5 text-[10px]"
                     data-icod-id={`src_features_sheets_grid_gridrow_tsx_comments_${row.id}`}>
-                    <MessageSquare
-                      className="h-3 w-3"
-                      data-icod-id={`src_features_sheets_grid_gridrow_tsx_6b07_${col.id}`} />
-                    <span data-icod-id={`src_features_sheets_grid_gridrow_tsx_4fe6_${col.id}`}>{row.commentCount}</span>
-                  </button>
+                    <>
+                      <MessageSquare
+                        className="h-3 w-3"
+                        data-icod-id={`src_features_sheets_grid_gridrow_tsx_6b07_${col.id}`} />
+                      <span data-icod-id={`src_features_sheets_grid_gridrow_tsx_4fe6_${col.id}`}>{row.commentCount}</span>
+                    </>
+                  </IconButton>
                 )}
                 {/* Open details button - visible on hover */}
                 {isRowHovered && (

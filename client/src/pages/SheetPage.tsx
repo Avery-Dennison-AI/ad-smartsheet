@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { PageContainer, Button, EmptyState, Spinner } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { fetchSheet, selectCurrentSheet, selectSheetsLoading, selectSheetsError, selectSheetsErrorStatus, clearCurrentSheet } from '@/store/slices/sheetsSlice';
 import { setFavoriteMeta, selectRecents, selectFavorites } from '@/store/slices/userMetaSlice';
-import { selectGridSaving, selectGridSaveError, clearGrid, selectGridLoading } from '@/store/slices/gridSlice';
+import { selectGridSaving, selectGridSaveError, clearGrid, selectGridLoading, selectGridColumns } from '@/store/slices/gridSlice';
 import { openItem, closeItem, selectOpenRowId } from '@/store/slices/itemDetailSlice';
 import { useWorkspaceAccessLost } from '@/hooks/useWorkspaceAccessLost';
 import SheetGrid from '@/features/sheets/grid/SheetGrid';
 import SheetToolbar from '@/features/sheets/grid/SheetToolbar';
+import BoardView from '@/features/board/BoardView';
+
+type SheetView = 'grid' | 'board';
 
 export default function SheetPage() {
   const { sheetId } = useParams<{ sheetId: string }>();
@@ -26,7 +29,41 @@ export default function SheetPage() {
   const saving = useAppSelector(selectGridSaving);
   const saveError = useAppSelector(selectGridSaveError);
   const openRowId = useAppSelector(selectOpenRowId);
+  const columns = useAppSelector(selectGridColumns);
   const { handleSheetAccessLost, isAccessError } = useWorkspaceAccessLost();
+
+  // View mode state
+  const [view, setView] = useState<SheetView>('grid');
+
+  // Read view from URL param on mount
+  useEffect(() => {
+    const viewParam = searchParams.get('view');
+    if (viewParam === 'board' || viewParam === 'grid') {
+      setView(viewParam);
+    } else if (sheetId) {
+      // Check localStorage preference
+      const stored = localStorage.getItem(`view_pref_${sheetId}`);
+      if (stored === 'board' || stored === 'grid') {
+        setView(stored);
+      }
+    }
+  }, [searchParams, sheetId]);
+
+  const handleViewChange = useCallback((newView: SheetView) => {
+    setView(newView);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (newView === 'grid') {
+        next.delete('view');
+      } else {
+        next.set('view', newView);
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Check if the sheet has dropdown columns (for board enablement)
+  const hasDropdownColumns = columns.some((c) => c.type === 'dropdown');
 
   // Row highlight from ?row=<rowId> URL param
   const rowParam = searchParams.get('row');
@@ -160,15 +197,25 @@ export default function SheetPage() {
         saving={saving}
         saveError={saveError}
         sheetKind={sheet.kind}
+        hasDropdownColumns={hasDropdownColumns}
+        view={view}
+        onViewChange={handleViewChange}
         data-icod-id="src_pages_sheetpage_tsx_toolbar" />
       <div
         className="flex-1 min-h-0 overflow-hidden"
         data-icod-id="src_pages_sheetpage_tsx_grid_wrap">
-        <SheetGrid
-          sheetId={sheet.id}
-          userRole={sheet.userRole || 'viewer'}
-          highlightRowId={highlightRowId}
-          data-icod-id="src_pages_sheetpage_tsx_d329" />
+        {view === 'board' ? (
+          <BoardView
+            sheetId={sheet.id}
+            userRole={sheet.userRole || 'viewer'}
+            data-icod-id="src_pages_sheetpage_tsx_8ca0" />
+        ) : (
+          <SheetGrid
+            sheetId={sheet.id}
+            userRole={sheet.userRole || 'viewer'}
+            highlightRowId={highlightRowId}
+            data-icod-id="src_pages_sheetpage_tsx_d329" />
+        )}
       </div>
     </div>
   );

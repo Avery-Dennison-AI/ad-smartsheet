@@ -266,14 +266,23 @@ export default function AttachmentsTab({ sheetId, rowId, userRole }: Attachments
                 </div>
                 {/* Actions */}
                 <div className="flex shrink-0 items-center gap-1" data-icod-id={`src_features_itemdetail_attachmentstab_tsx_actions_${att.id}`}>
-                  <a
-                    href={getDownloadUrl(att.id)}
-                    download
-                    className="inline-flex items-center justify-center rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    title="Download"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Download"
+                    onClick={() => {
+                      const a = document.createElement('a');
+                      a.href = getDownloadUrl(att.id);
+                      a.download = att.originalName;
+                      a.rel = 'noopener noreferrer';
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    className="!h-7 !w-7 !p-0 opacity-0 group-hover:opacity-100"
                     data-icod-id={`src_features_itemdetail_attachmentstab_tsx_dl_${att.id}`}>
                     <Download className="h-4 w-4" data-icod-id={`src_features_itemdetail_attachmentstab_tsx_dl_icon_${att.id}`} />
-                  </a>
+                  </Button>
                   {canEdit && (
                     <Button
                       variant="ghost"
@@ -300,17 +309,24 @@ export default function AttachmentsTab({ sheetId, rowId, userRole }: Attachments
         footer={
           previewAtt ? (
             <div className="flex justify-end gap-2" data-icod-id="src_features_itemdetail_attachmentstab_tsx_preview_footer">
-              <a
-                href={getDownloadUrl(previewAtt.id)}
-                download
-                className="inline-flex"
-                data-icod-id="src_features_itemdetail_attachmentstab_tsx_preview_dl">
-                <Button variant="secondary" size="sm" leftIcon={<Download
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<Download
                   className="h-4 w-4"
-                  data-icod-id="src_features_itemdetail_attachmentstab_tsx_de31" />} data-icod-id="src_features_itemdetail_attachmentstab_tsx_preview_dl_btn">
-                  Download
-                </Button>
-              </a>
+                  data-icod-id="src_features_itemdetail_attachmentstab_tsx_de31" />}
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = getDownloadUrl(previewAtt.id);
+                  a.download = previewAtt.originalName;
+                  a.rel = 'noopener noreferrer';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+                data-icod-id="src_features_itemdetail_attachmentstab_tsx_preview_dl_btn">
+                Download
+              </Button>
               <Button variant="ghost" size="sm" onClick={handleClosePreview} data-icod-id="src_features_itemdetail_attachmentstab_tsx_preview_close">
                 Close
               </Button>
