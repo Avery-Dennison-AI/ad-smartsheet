@@ -60,3 +60,6 @@ export { default as SelectableCard, type SelectableCardProps } from './Selectabl
 export { default as SortableList, type SortableListProps, type DragHandleProps } from './SortableList';
 export { default as ContactField, type WorkspaceMember } from './ContactField';
 export { default as DateField } from './DateField';
+export { default as FileIcon, type FileIconProps } from './FileIcon';
+export { default as FileDropzone, type FileDropzoneProps } from './FileDropzone';
+export { default as UploadProgressRow, type UploadProgressRowProps } from './UploadProgressRow';

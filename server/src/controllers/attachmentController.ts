@@ -4,6 +4,8 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import { AppError } from '../utils/AppError';
 import * as attachmentService from '../services/attachmentService';
+import { ALLOWED_TYPES, type FileCategory } from '../services/fileSecurity';
+import { env } from '../config/env';
 
 interface MulterDiskFile {
   path: string;
@@ -147,4 +149,44 @@ export const deleteHandler = asyncHandler(async (req: Request, res: Response) =>
 
   await attachmentService.deleteAttachment(attachmentId, userId);
   sendSuccess(res, { deleted: true });
+});
+
+/**
+ * GET /api/attachments/config
+ * Returns client-side validation config derived from the same ALLOWED_TYPES
+ * registry and env vars used by fileSecurity.ts.
+ */
+export const configHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const allowedExtensions: string[] = [];
+  const allowedMimeTypes: string[] = [];
+  const seenMimes = new Set<string>();
+
+  for (const entry of Object.values(ALLOWED_TYPES)) {
+    for (const ext of entry.extensions) {
+      if (!allowedExtensions.includes(ext)) {
+        allowedExtensions.push(ext);
+      }
+    }
+    for (const mime of entry.mimeTypes) {
+      if (!seenMimes.has(mime)) {
+        seenMimes.add(mime);
+        allowedMimeTypes.push(mime);
+      }
+    }
+  }
+
+  const maxFileSizeMb: Record<FileCategory, number> = {
+    image: env.MAX_IMAGE_SIZE_MB,
+    document: env.MAX_DOC_SIZE_MB,
+    text: env.MAX_TEXT_SIZE_MB,
+    archive: env.MAX_ARCHIVE_SIZE_MB,
+    email: env.MAX_EMAIL_SIZE_MB,
+  };
+
+  sendSuccess(res, {
+    allowedExtensions,
+    allowedMimeTypes,
+    maxFileSizeMb,
+    maxFilesPerUpload: env.MAX_FILES_PER_UPLOAD,
+  });
 });

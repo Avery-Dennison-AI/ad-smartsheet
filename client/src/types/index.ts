@@ -159,6 +159,7 @@ export interface GridRow {
   createdAt?: string;
   updatedAt?: string;
   commentCount?: number;
+  attachmentCount?: number;
 }
 
 export interface CellFormatting {
@@ -317,5 +318,28 @@ export interface ActivityEntry {
   details: Record<string, unknown>;
   actorName: string;
   createdAt: string;
+}
+
+// ─── Attachment Types ──────────────────────────────────────────────────────
+
+export interface FormattedAttachment {
+  id: string;
+  sheetId: string;
+  rowId: string;
+  uploadedBy: string;
+  uploaderName: string;
+  originalName: string;
+  contentType: string;
+  size: number;
+  createdAt: string;
+}
+
+export type FileCategory = 'document' | 'text' | 'image' | 'archive' | 'email';
+
+export interface AttachmentConfig {
+  allowedExtensions: string[];
+  allowedMimeTypes: string[];
+  maxFileSizeMb: Record<FileCategory, number>;
+  maxFilesPerUpload: number;
 }
 

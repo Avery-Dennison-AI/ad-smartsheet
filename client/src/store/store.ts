@@ -11,6 +11,7 @@ import myWorkReducer from './slices/myWorkSlice';
 import projectsReducer from './slices/projectsSlice';
 import itemDetailReducer from './slices/itemDetailSlice';
 import commentsReducer from './slices/commentsSlice';
+import attachmentsReducer from './slices/attachmentsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -26,6 +27,7 @@ export const store = configureStore({
     projects: projectsReducer,
     itemDetail: itemDetailReducer,
     comments: commentsReducer,
+    attachments: attachmentsReducer,
   },
 });
 

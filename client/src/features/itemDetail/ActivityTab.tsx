@@ -50,7 +50,7 @@ function groupEntries(entries: ActivityEntry[]): ActivityGroup[] {
 
 // ─── Rich Text Rendering ────────────────────────────────────────────────────
 
-function renderRichParts(parts: ActivityPart[], onCommentClick?: () => void): React.ReactNode {
+function renderRichParts(parts: ActivityPart[], onCommentClick?: () => void, onAttachmentClick?: () => void): React.ReactNode {
   return parts.map((part, idx) => {
     switch (part.type) {
       case 'bold':
@@ -90,6 +90,18 @@ function renderRichParts(parts: ActivityPart[], onCommentClick?: () => void): Re
               onClick={onCommentClick}
               className="text-foreground underline decoration-muted-foreground/40 hover:decoration-foreground cursor-pointer"
               data-icod-id={`src_features_itemdetail_activitytab_tsx_fa25_${idx}`}>
+              {part.content}
+            </button>
+          );
+        }
+        // For attachment entries, make "attached" and "removed" clickable
+        if (onAttachmentClick && (part.content === 'attached ' || part.content === 'removed ')) {
+          return (
+            <button
+              key={idx}
+              onClick={onAttachmentClick}
+              className="text-foreground underline decoration-muted-foreground/40 hover:decoration-foreground cursor-pointer"
+              data-icod-id={`src_features_itemdetail_activitytab_tsx_attach_${idx}`}>
               {part.content}
             </button>
           );
@@ -141,6 +153,10 @@ export default function ActivityTab({ sheetId, rowId, onTabChange }: ActivityTab
 
   const handleCommentClick = useCallback(() => {
     onTabChange?.('comments');
+  }, [onTabChange]);
+
+  const handleAttachmentClick = useCallback(() => {
+    onTabChange?.('attachments');
   }, [onTabChange]);
 
   // Group entries for display
@@ -206,7 +222,11 @@ export default function ActivityTab({ sheetId, rowId, onTabChange }: ActivityTab
                   <Icon
                     className="mr-1.5 inline h-3 w-3 text-muted-foreground"
                     data-icod-id={`src_features_itemdetail_activitytab_tsx_a172_${groupIdx}`} />
-                  {renderRichParts(formatted.richParts, formatted.isComment ? handleCommentClick : undefined)}
+                  {renderRichParts(
+                    formatted.richParts,
+                    formatted.isComment ? handleCommentClick : undefined,
+                    formatted.isAttachment ? handleAttachmentClick : undefined,
+                  )}
                 </div>
               </div>
             </div>
@@ -253,7 +273,11 @@ export default function ActivityTab({ sheetId, rowId, onTabChange }: ActivityTab
                         data-icod-id={`src_features_itemdetail_activitytab_tsx_2539_${groupIdx}_${entry._id}`} />
                       <span
                         data-icod-id={`src_features_itemdetail_activitytab_tsx_0c16_${groupIdx}_${entry._id}`}>
-                        {renderRichParts(formatted.richParts, formatted.isComment ? handleCommentClick : undefined)}
+                        {renderRichParts(
+                          formatted.richParts,
+                          formatted.isComment ? handleCommentClick : undefined,
+                          formatted.isAttachment ? handleAttachmentClick : undefined,
+                        )}
                       </span>
                     </li>
                   );

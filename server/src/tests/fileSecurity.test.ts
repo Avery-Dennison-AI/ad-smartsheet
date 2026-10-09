@@ -303,6 +303,27 @@ describe('verifySignature', () => {
     await expect(verifySignature(filePath, entry)).rejects.toThrow(/active content/i);
   });
 
+  it('accepts PDF with harmless /OpenAction pointing to page-fit destination', async () => {
+    const pdf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog /OpenAction [3 0 R /Fit] >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n');
+    const filePath = await writeTempFile('openaction-safe.pdf', pdf);
+    const entry = ALLOWED_TYPES.pdf;
+    await expect(verifySignature(filePath, entry)).resolves.toBeUndefined();
+  });
+
+  it('rejects PDF with /OpenAction followed by /JavaScript', async () => {
+    const pdf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog /OpenAction << /S /JavaScript /JS (app.alert(\'x\')) >> >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n');
+    const filePath = await writeTempFile('openaction-js.pdf', pdf);
+    const entry = ALLOWED_TYPES.pdf;
+    await expect(verifySignature(filePath, entry)).rejects.toThrow(/active content/i);
+  });
+
+  it('rejects PDF with /OpenAction followed by /Launch', async () => {
+    const pdf = Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog /OpenAction << /S /Launch /F (calc.exe) >> >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n');
+    const filePath = await writeTempFile('openaction-launch.pdf', pdf);
+    const entry = ALLOWED_TYPES.pdf;
+    await expect(verifySignature(filePath, entry)).rejects.toThrow(/active content/i);
+  });
+
   it('rejects MZ executable regardless of extension', async () => {
     const filePath = await writeTempFile('fake.pdf', MZ_BYTES);
     const entry = ALLOWED_TYPES.pdf;

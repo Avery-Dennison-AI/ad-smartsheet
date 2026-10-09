@@ -53,6 +53,9 @@ import {
   SelectableCard,
   ContactField,
   DateField,
+  FileIcon,
+  FileDropzone,
+  UploadProgressRow,
 } from '@/components/ui';
 import type { BadgeVariant, DataTableColumn, UserOption } from '@/components/ui';
 import type { WorkspaceMember } from '@/components/ui/ContactField';
@@ -1465,6 +1468,64 @@ export default function DesignSystemPage() {
               </SettingsLayout>
             </div>
           </div>
+        </div>
+      </Section>
+      {/* ─── FileIcon ─────────────────────────────────────────────────────── */}
+      <Section title="FileIcon" data-icod-id="ds_fileicon_section">
+        <div className="space-y-4" data-icod-id="ds_fileicon_wrap">
+          <p className="text-sm text-muted-foreground" data-icod-id="ds_fileicon_desc">
+            Maps file extensions and MIME types to Lucide icons with semantic color accents.
+          </p>
+          <div className="flex flex-wrap items-center gap-4" data-icod-id="ds_fileicon_grid">
+            {[
+              { ext: '.pdf', label: 'PDF' },
+              { ext: '.docx', label: 'Word' },
+              { ext: '.xlsx', label: 'Excel' },
+              { ext: '.png', label: 'PNG' },
+              { ext: '.zip', label: 'ZIP' },
+              { ext: '.csv', label: 'CSV' },
+              { ext: '.eml', label: 'Email' },
+              { ext: '.pptx', label: 'PPTX' },
+              { ext: '.txt', label: 'Text' },
+              { ext: '.json', label: 'JSON' },
+              { ext: '.xyz', label: 'Unknown' },
+            ].map((item) => (
+              <div key={item.ext} className="flex flex-col items-center gap-1" data-icod-id={`ds_fileicon_${item.ext}`}>
+                <FileIcon
+                  extension={item.ext}
+                  size={24}
+                  data-icod-id={`src_pages_designsystempage_tsx_a957_${item.ext}`} />
+                <span
+                  className="text-xs text-muted-foreground"
+                  data-icod-id={`src_pages_designsystempage_tsx_bd75_${item.ext}`}>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+      {/* ─── FileDropzone ────────────────────────────────────────────────── */}
+      <Section title="FileDropzone" data-icod-id="ds_filedropzone_section">
+        <div className="space-y-4" data-icod-id="ds_filedropzone_wrap">
+          <p className="text-sm text-muted-foreground" data-icod-id="ds_filedropzone_desc">
+            Drag-and-drop zone with click-to-upload fallback. Validates extensions client-side.
+          </p>
+          <FileDropzone
+            onFiles={(files) => console.log('Dropped files:', files)}
+            accept={['.pdf', '.png', '.jpg', '.docx']}
+            maxFiles={5}
+            className="max-w-md"
+            data-icod-id="ds_filedropzone_default" />
+        </div>
+      </Section>
+      {/* ─── UploadProgressRow ───────────────────────────────────────────── */}
+      <Section title="UploadProgressRow" data-icod-id="ds_uploadprogressrow_section">
+        <div className="space-y-3" data-icod-id="ds_uploadprogressrow_wrap">
+          <p className="text-sm text-muted-foreground" data-icod-id="ds_uploadprogressrow_desc">
+            Shows per-file upload progress, completion checkmark, or error state.
+          </p>
+          <UploadProgressRow fileName="quarterly-report.pdf" progress={65} status="uploading" data-icod-id="ds_uploadprogressrow_uploading" />
+          <UploadProgressRow fileName="screenshot.png" progress={100} status="done" data-icod-id="ds_uploadprogressrow_done" />
+          <UploadProgressRow fileName="malware.exe" progress={0} status="error" errorMessage="File type not allowed" data-icod-id="ds_uploadprogressrow_error" />
         </div>
       </Section>
     </div>

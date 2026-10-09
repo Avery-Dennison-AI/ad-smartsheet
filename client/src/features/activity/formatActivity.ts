@@ -24,6 +24,7 @@ export interface FormattedActivity {
   richParts: ActivityPart[];
   icon: ActivityIcon;
   isComment: boolean;
+  isAttachment?: boolean;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -425,6 +426,7 @@ export function formatActivity(entry: ActivityEntry): FormattedActivity {
         ],
         icon: Paperclip,
         isComment: false,
+        isAttachment: true,
       };
     }
 
@@ -438,6 +440,7 @@ export function formatActivity(entry: ActivityEntry): FormattedActivity {
         ],
         icon: Paperclip,
         isComment: false,
+        isAttachment: true,
       };
     }
 

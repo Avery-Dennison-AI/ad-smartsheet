@@ -251,6 +251,24 @@ export async function verifySignature(
 
 // ─── Individual verifiers ───────────────────────────────────────────────────
 
+/**
+ * Checks whether `pattern` appears as a PDF name token in `content`.
+ * A valid PDF name token is the pattern followed by a delimiter character
+ * (space, tab, CR, LF, `/`, `(`, `<`) so we don't match mid-string text.
+ */
+function hasPdfNameToken(content: string, pattern: string): boolean {
+  const delimRe = /[ \t\r\n/(<]/;
+  let idx = 0;
+  while ((idx = content.indexOf(pattern, idx)) !== -1) {
+    const afterIdx = idx + pattern.length;
+    if (afterIdx >= content.length || delimRe.test(content[afterIdx])) {
+      return true;
+    }
+    idx = afterIdx;
+  }
+  return false;
+}
+
 async function verifyPdf(
   fd: fs.promises.FileHandle,
   header: Buffer,
@@ -268,10 +286,27 @@ async function verifyPdf(
   await fd.read(fullBuf, 0, stat.size, 0);
   const content = fullBuf.toString('latin1'); // latin1 preserves raw bytes for ASCII pattern matching
 
-  const activePatterns = ['/JavaScript', '/JS', '/Launch', '/EmbeddedFile', '/OpenAction'];
-  for (const pattern of activePatterns) {
-    if (content.includes(pattern)) {
+  // Always reject these dangerous PDF name tokens
+  const alwaysRejectTokens = ['/JavaScript', '/JS', '/Launch', '/EmbeddedFile'];
+  for (const token of alwaysRejectTokens) {
+    if (hasPdfNameToken(content, token)) {
       throw new AppError('PDF contains active content', 400);
+    }
+  }
+
+  // /OpenAction is only dangerous when closely followed by /JavaScript, /JS, or /Launch
+  // A bare /OpenAction pointing to a page-fit destination (e.g. /OpenAction [3 0 R /Fit])
+  // is harmless and produced by Word, LibreOffice, etc.
+  if (hasPdfNameToken(content, '/OpenAction')) {
+    const openActionIdx = content.indexOf('/OpenAction');
+    // Check within ~120 bytes after /OpenAction for dangerous action types
+    const windowEnd = Math.min(openActionIdx + 120, content.length);
+    const window = content.slice(openActionIdx, windowEnd);
+    const dangerousActions = ['/JavaScript', '/JS', '/Launch'];
+    for (const action of dangerousActions) {
+      if (hasPdfNameToken(window, action)) {
+        throw new AppError('PDF contains active content', 400);
+      }
     }
   }
 }

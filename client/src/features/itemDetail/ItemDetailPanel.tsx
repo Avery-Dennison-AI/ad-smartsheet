@@ -2,7 +2,10 @@ import { useEffect, useCallback, useRef } from 'react';
 import { Tabs } from '@/components/ui';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectOpenRowId, selectActiveTab, closeItem, setTab, openItem } from '@/store/slices/itemDetailSlice';
+import type { ItemDetailTab } from '@/store/slices/itemDetailSlice';
 import { selectGridColumns, selectGridRows, selectGridMembers, updateCell } from '@/store/slices/gridSlice';
+import { selectCommentsForRow } from '@/store/slices/commentsSlice';
+import { selectAttachmentCount } from '@/store/slices/attachmentsSlice';
 import { cn } from '@/utils/cn';
 import type { WorkspaceRole } from '@/types';
 import PanelHeader from './PanelHeader';
@@ -10,6 +13,7 @@ import PanelFields from './PanelFields';
 import PanelSubItems from './PanelSubItems';
 import CommentsTab from './CommentsTab';
 import ActivityTab from './ActivityTab';
+import AttachmentsTab from './AttachmentsTab';
 
 interface ItemDetailPanelProps {
   sheetId: string;
@@ -24,6 +28,15 @@ export default function ItemDetailPanel({ sheetId, userRole }: ItemDetailPanelPr
   const rows = useAppSelector(selectGridRows);
   const workspaceMembers = useAppSelector(selectGridMembers);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Badge counts — hooks must be called unconditionally (before any early return)
+  const commentState = useAppSelector((state) =>
+    openRowId ? selectCommentsForRow(state, openRowId) : { comments: [] },
+  );
+  const commentCount = commentState.comments?.length ?? 0;
+  const attachmentCount = useAppSelector((state) =>
+    openRowId ? selectAttachmentCount(state, openRowId) : 0,
+  );
 
   // Find current row and compute prev/next
   const rowIndex = openRowId ? rows.findIndex((r) => r.id === openRowId) : -1;
@@ -78,8 +91,9 @@ export default function ItemDetailPanel({ sheetId, userRole }: ItemDetailPanelPr
   const isViewer = userRole === 'viewer';
 
   const tabs = [
-    { id: 'comments', label: 'Comments' },
+    { id: 'comments', label: 'Comments', badge: commentCount > 0 ? commentCount : undefined },
     { id: 'activity', label: 'Activity' },
+    { id: 'attachments', label: 'Attachments', badge: attachmentCount > 0 ? attachmentCount : undefined },
   ];
 
   return (
@@ -129,7 +143,7 @@ export default function ItemDetailPanel({ sheetId, userRole }: ItemDetailPanelPr
           <Tabs
             tabs={tabs}
             activeTab={activeTab}
-            onChange={(id) => dispatch(setTab(id as 'comments' | 'activity'))}
+            onChange={(id) => dispatch(setTab(id as ItemDetailTab))}
             className="px-4"
             data-icod-id="src_features_itemdetail_itemdetailpanel_tsx_0f06" />
           <div className="p-4" data-icod-id="src_features_itemdetail_itemdetailpanel_tsx_tab_content">
@@ -139,11 +153,17 @@ export default function ItemDetailPanel({ sheetId, userRole }: ItemDetailPanelPr
                 rowId={openRowId}
                 userRole={userRole}
                 data-icod-id="src_features_itemdetail_itemdetailpanel_tsx_b620" />
+            ) : activeTab === 'attachments' ? (
+              <AttachmentsTab
+                sheetId={sheetId}
+                rowId={openRowId}
+                userRole={userRole}
+                data-icod-id="src_features_itemdetail_itemdetailpanel_tsx_attachments" />
             ) : (
               <ActivityTab
                 sheetId={sheetId}
                 rowId={openRowId}
-                onTabChange={(tab) => dispatch(setTab(tab as 'comments' | 'activity'))}
+                onTabChange={(tab) => dispatch(setTab(tab as ItemDetailTab))}
                 data-icod-id="src_features_itemdetail_itemdetailpanel_tsx_1615" />
             )}
           </div>

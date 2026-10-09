@@ -3,7 +3,7 @@ import GridCell from './GridCell';
 import { getColWidth, getRowHeight } from './gridHelpers';
 import type { Column, GridRow as GridRowType, WorkspaceRole } from '@/types';
 import type { DropPosition } from './useRowOperations';
-import { PanelRightOpen, MessageSquare } from 'lucide-react';
+import { PanelRightOpen, MessageSquare, Paperclip } from 'lucide-react';
 import { IconButton } from '@/components/ui';
 
 interface GridMember {
@@ -65,7 +65,7 @@ interface GridRowProps {
   dropTargetRowId?: string | null;
   dropPosition?: DropPosition | null;
   /** Open item detail panel callback */
-  onOpenItem?: (rowId: string, tab?: 'comments' | 'activity') => void;
+  onOpenItem?: (rowId: string, tab?: 'comments' | 'activity' | 'attachments') => void;
 }
 
 export default function GridRow({
@@ -259,11 +259,28 @@ export default function GridRow({
               isCollapsed={col.isPrimary ? rowIsCollapsed : undefined}
               onToggleCollapse={col.isPrimary && !isBlankRow && row?.id ? () => onToggleCollapse?.(row.id) : undefined}
               data-icod-id={`src_features_sheets_grid_gridrow_tsx_4e48_${col.id}`} />
-            {/* Icon group on primary cell — comment badge + open details button side by side */}
-            {col.isPrimary && !isBlankRow && row?.id && ((row.commentCount ?? 0) > 0 || isRowHovered) && (
+            {/* Icon group on primary cell — paperclip + comment badge + open details button */}
+            {col.isPrimary && !isBlankRow && row?.id && ((row.commentCount ?? 0) > 0 || (row.attachmentCount ?? 0) > 0 || isRowHovered) && (
               <div
-                className="absolute right-1 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1"
+                className="absolute right-1 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1 flex-shrink-0"
                 data-icod-id={`src_features_sheets_grid_gridrow_tsx_icongroup_${row.id}`}>
+                {/* Attachment count badge */}
+                {(row.attachmentCount ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenItem?.(row.id, 'attachments');
+                    }}
+                    className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/50"
+                    title="View attachments"
+                    data-icod-id={`src_features_sheets_grid_gridrow_tsx_attachments_${row.id}`}>
+                    <Paperclip
+                      className="h-3 w-3"
+                      data-icod-id={`src_features_sheets_grid_gridrow_tsx_clipicon_${row.id}`} />
+                    <span data-icod-id={`src_features_sheets_grid_gridrow_tsx_clipcount_${row.id}`}>{row.attachmentCount}</span>
+                  </button>
+                )}
                 {/* Comment count badge */}
                 {(row.commentCount ?? 0) > 0 && (
                   <button

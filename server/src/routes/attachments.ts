@@ -49,6 +49,12 @@ const uploadRateLimiter = createRateLimiter({
   message: 'Too many upload requests. Please try again later.',
 });
 
+// GET /api/attachments/config — client-side validation config
+router.get(
+  '/attachments/config',
+  attachmentController.configHandler,
+);
+
 // POST /api/sheets/:sheetId/rows/:rowId/attachments — upload files
 router.post(
   '/sheets/:sheetId/rows/:rowId/attachments',

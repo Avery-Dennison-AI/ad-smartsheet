@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../store';
 
-export type ItemDetailTab = 'comments' | 'activity';
+export type ItemDetailTab = 'comments' | 'activity' | 'attachments';
 
 interface ItemDetailState {
   openRowId: string | null;
